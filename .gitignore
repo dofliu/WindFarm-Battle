@@ -1,0 +1,13 @@
+# 依賴與建置產物
+node_modules
+dist
+dist-ssr
+coverage
+
+# 環境/編輯器
+*.local
+.DS_Store
+.vite
+.idea
+.vscode/*
+!.vscode/extensions.json
