@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WindField Battle — 卡種完整生態</title>
+<style>
+  :root {
+    --bg: #0a1119;
+    --bg2: #11192a;
+    --bg3: #1a2436;
+    --accent: #38bdf8;
+    --green: #34d399;
+    --gold: #fbbf24;
+    --red: #f87171;
+    --purple: #a78bfa;
+    --orange: #fb923c;
+    --pink: #f472b6;
+    --iec: #06b6d4;
+    --text: #e2e8f0;
+    --muted: #7d92aa;
+    --border: rgba(56,189,248,0.18);
+
+    --turbine-c: #38bdf8;
+    --tech-c: #34d399;
+    --fault-c: #f87171;
+    --weather-c: #fbbf24;
+    --action-c: #a78bfa;
+    --contract-c: #fb923c;
+    --event-c: #f472b6;
+    --diplomacy-c: #06b6d4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    padding: 32px 24px;
+    line-height: 1.6;
+  }
+
+  .header { text-align:center; margin-bottom:36px; }
+  .logo {
+    font-size: 2.1rem; font-weight: 900;
+    background: linear-gradient(120deg, var(--turbine-c), var(--green), var(--purple), var(--pink));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .sub { color: var(--muted); font-size: 0.85rem; margin-top:6px; letter-spacing:2px; text-transform:uppercase; }
+
+  h2 {
+    font-size: 1rem; font-weight: 800; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--accent);
+    padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  h3 { font-size: 0.88rem; font-weight: 700; color: var(--gold); margin-bottom: 10px; }
+
+  .panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+  .grid4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+
+  /* ── 階段路徑 ── */
+  .tier-flow {
+    display: flex;
+    gap: 0;
+    margin-top: 20px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+  }
+  .tier {
+    flex: 1;
+    min-width: 200px;
+    padding: 18px 14px;
+    background: var(--bg3);
+    border-radius: 12px;
+    margin-right: 12px;
+    border-top: 4px solid;
+    position: relative;
+  }
+  .tier:last-child { margin-right: 0; }
+  .tier + .tier::before {
+    content: '→';
+    position: absolute;
+    left: -20px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--gold);
+    font-size: 1.4rem;
+    font-weight: 900;
+  }
+  .tier.t1 { border-color: var(--green); box-shadow: 0 0 20px rgba(52,211,153,.15); }
+  .tier.t2 { border-color: var(--accent); }
+  .tier.t3 { border-color: var(--purple); }
+  .tier.t4 { border-color: var(--gold); }
+
+  .tier-label {
+    font-size: 0.65rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1.5px;
+    margin-bottom: 4px;
+  }
+  .tier-name { font-size: 1rem; font-weight: 800; margin-bottom: 8px; }
+  .tier.t1 .tier-name { color: var(--green); }
+  .tier.t2 .tier-name { color: var(--accent); }
+  .tier.t3 .tier-name { color: var(--purple); }
+  .tier.t4 .tier-name { color: var(--gold); }
+
+  .tier-count {
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .tier-cards {
+    font-size: 0.66rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .tier-status {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,.08);
+    font-size: 0.7rem;
+  }
+  .status-now { color: var(--green); font-weight: 700; }
+  .status-next { color: var(--gold); font-weight: 700; }
+  .status-later { color: var(--muted); }
+
+  /* ── 卡種圖示 ── */
+  .card-types-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+    margin-top: 14px;
+  }
+  .card-type-box {
+    background: var(--bg3);
+    border-radius: 10px;
+    padding: 14px 16px;
+    border-left: 3px solid;
+    position: relative;
+  }
+  .ct-icon { font-size: 1.6rem; margin-bottom: 6px; }
+  .ct-name { font-size: 0.88rem; font-weight: 800; margin-bottom: 3px; }
+  .ct-en { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .ct-count {
+    font-size: 0.66rem;
+    color: var(--gold);
+    background: rgba(251,191,36,.1);
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+  .ct-desc { font-size: 0.72rem; color: var(--muted); line-height: 1.55; }
+
+  .card-type-box.turbine   { border-color: var(--turbine-c); }
+  .card-type-box.turbine .ct-name { color: var(--turbine-c); }
+  .card-type-box.tech      { border-color: var(--tech-c); }
+  .card-type-box.tech .ct-name { color: var(--tech-c); }
+  .card-type-box.fault     { border-color: var(--fault-c); }
+  .card-type-box.fault .ct-name { color: var(--fault-c); }
+  .card-type-box.weather   { border-color: var(--weather-c); }
+  .card-type-box.weather .ct-name { color: var(--weather-c); }
+  .card-type-box.action    { border-color: var(--action-c); }
+  .card-type-box.action .ct-name { color: var(--action-c); }
+  .card-type-box.contract  { border-color: var(--contract-c); }
+  .card-type-box.contract .ct-name { color: var(--contract-c); }
+  .card-type-box.event     { border-color: var(--event-c); }
+  .card-type-box.event .ct-name { color: var(--event-c); }
+  .card-type-box.diplomacy { border-color: var(--diplomacy-c); }
+  .card-type-box.diplomacy .ct-name { color: var(--diplomacy-c); }
+
+  .ct-tier {
+    position: absolute;
+    top: 10px; right: 12px;
+    font-size: 0.55rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 700;
+  }
+  .ct-tier.t1 { background: rgba(52,211,153,.15); color: var(--green); }
+  .ct-tier.t2 { background: rgba(56,189,248,.15); color: var(--accent); }
+  .ct-tier.t3 { background: rgba(167,139,250,.15); color: var(--purple); }
+  .ct-tier.t4 { background: rgba(251,191,36,.15); color: var(--gold); }
+
+  /* ── 為什麼21張剛剛好 ── */
+  .reasoning {
+    background: linear-gradient(135deg, rgba(52,211,153,.08), rgba(56,189,248,.05));
+    border: 1px solid rgba(52,211,153,.3);
+    border-radius: 12px;
+    padding: 22px;
+  }
+  .reasoning h2 { color: var(--green); border-color: rgba(52,211,153,.3); }
+  .reason-row {
+    display: flex; gap: 14px; align-items: start;
+    margin-bottom: 12px;
+  }
+  .reason-num {
+    flex-shrink: 0;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--green); color: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem; font-weight: 900;
+  }
+  .reason-content { flex: 1; }
+  .reason-title { font-size: 0.85rem; font-weight: 700; color: var(--text); }
+  .reason-desc { font-size: 0.74rem; color: var(--muted); margin-top: 3px; line-height: 1.6; }
+
+  /* ── 預覽卡（新卡種範例）── */
+  .preview-card {
+    max-width: 220px;
+    margin: 0 auto;
+    aspect-ratio: 63 / 88;
+    border-radius: 12px;
+    padding: 11px;
+    border: 2px solid;
+    display: flex; flex-direction: column;
+  }
+  .preview-card.weather { background: linear-gradient(180deg, rgba(251,191,36,.18), var(--bg2) 50%); border-color: var(--weather-c); }
+  .preview-card.action { background: linear-gradient(180deg, rgba(167,139,250,.18), var(--bg2) 50%); border-color: var(--action-c); }
+  .preview-card.contract { background: linear-gradient(180deg, rgba(251,146,60,.18), var(--bg2) 50%); border-color: var(--contract-c); }
+  .preview-card.event { background: linear-gradient(180deg, rgba(244,114,182,.18), var(--bg2) 50%); border-color: var(--event-c); }
+
+  .pc-header {
+    display: flex; align-items: center; gap: 7px;
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .pc-id {
+    font-size: 0.55rem; color: var(--muted);
+    font-family: monospace;
+    background: rgba(0,0,0,.3);
+    padding: 2px 5px; border-radius: 3px;
+  }
+  .pc-cost {
+    margin-left: auto;
+    width: 20px; height: 20px;
+    border-radius: 50%; background: rgba(0,0,0,.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.68rem; font-weight: 900; color: var(--gold);
+  }
+  .pc-icon { font-size: 1.8rem; text-align: center; margin: 2px 0 4px; }
+  .pc-name { font-size: 0.84rem; font-weight: 800; text-align: center; line-height: 1.2; }
+  .preview-card.weather .pc-name { color: var(--weather-c); }
+  .preview-card.action .pc-name { color: var(--action-c); }
+  .preview-card.contract .pc-name { color: var(--contract-c); }
+  .preview-card.event .pc-name { color: var(--event-c); }
+  .pc-en { font-size: 0.55rem; color: var(--muted); text-align: center; text-transform: uppercase; letter-spacing: 1px; margin-top: 1px; }
+  .pc-effect {
+    background: rgba(0,0,0,.35); border-radius: 6px;
+    padding: 7px 8px; font-size: 0.62rem;
+    line-height: 1.45; margin-top: 6px; flex: 1;
+  }
+  .pc-effect b { color: var(--gold); }
+  .pc-flavor {
+    font-size: 0.55rem; color: var(--muted);
+    font-style: italic; text-align: center; margin-top: 5px; padding: 0 3px;
+    line-height: 1.35;
+  }
+
+  /* ── 表格 ── */
+  .roadmap-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.76rem;
+    margin-top: 8px;
+  }
+  .roadmap-table thead th {
+    background: var(--bg3); padding: 9px 10px;
+    color: var(--accent); font-size: 0.66rem;
+    text-transform: uppercase; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .roadmap-table tbody td {
+    padding: 9px 10px;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    vertical-align: top;
+  }
+  .roadmap-table tbody tr:hover td { background: var(--bg3); }
+  .row-tier1 { background: rgba(52,211,153,.04); }
+  .row-tier2 { background: rgba(56,189,248,.04); }
+  .row-tier3 { background: rgba(167,139,250,.04); }
+  .row-tier4 { background: rgba(251,191,36,.04); }
+  .pill-tier {
+    display: inline-block;
+    padding: 2px 7px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    border-radius: 4px;
+  }
+  .pill-tier.t1 { background: rgba(52,211,153,.15); color: var(--green); }
+  .pill-tier.t2 { background: rgba(56,189,248,.15); color: var(--accent); }
+  .pill-tier.t3 { background: rgba(167,139,250,.15); color: var(--purple); }
+  .pill-tier.t4 { background: rgba(251,191,36,.15); color: var(--gold); }
+
+  /* ── Notes ── */
+  .note {
+    font-size: 0.75rem; color: var(--muted);
+    background: var(--bg3); border-left: 3px solid var(--gold);
+    padding: 10px 14px; border-radius: 0 8px 8px 0;
+    margin-top: 12px; line-height: 1.7;
+  }
+  .note b { color: var(--gold); }
+  .note.good { border-color: var(--green); }
+  .note.good b { color: var(--green); }
+  .note.warn { border-color: var(--red); }
+  .note.warn b { color: var(--red); }
+  .note.info { border-color: var(--accent); }
+  .note.info b { color: var(--accent); }
+
+  /* ── Strategic Recommendation ── */
+  .strategy {
+    background: linear-gradient(135deg, rgba(251,191,36,.06), rgba(167,139,250,.06));
+    border: 1px solid rgba(251,191,36,.3);
+    border-radius: 14px;
+    padding: 24px;
+  }
+  .strategy h2 { color: var(--gold); border-color: rgba(251,191,36,.3); }
+
+  @media (max-width: 700px) {
+    .grid2, .grid3, .grid4 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">🎴 卡種完整生態</div>
+  <div class="sub">21 張的決策依據 · 擴充路徑 · 完整卡種地圖</div>
+</div>
+
+<!-- 簡短答案 -->
+<div class="reasoning">
+  <h2>✅ 短答：現在 21 張是對的，但這只是第一階段</h2>
+  <p style="font-size:0.88rem;color:var(--text);margin-bottom:12px">
+    完整的卡牌生態系應該是<b style="color:var(--green)">分階段釋出</b>的，類似萬智牌 / 寶可夢的「核心包 + 擴充包」模式：
+  </p>
+
+  <div class="reason-row">
+    <div class="reason-num">1</div>
+    <div class="reason-content">
+      <div class="reason-title">21 張足夠驗證核心機制</div>
+      <div class="reason-desc">機組 + 技師 + 故障，這三類已經涵蓋「發電 / 維護 / 攻擊」三個核心動詞。先把這個三角形跑通，再加東西。</div>
+    </div>
+  </div>
+
+  <div class="reason-row">
+    <div class="reason-num">2</div>
+    <div class="reason-content">
+      <div class="reason-title">學生第一場不需要超過 21 張</div>
+      <div class="reason-desc">教學遊戲的鐵律：<b style="color:var(--text)">第一次接觸 ≤ 3 種卡，5 分鐘上手</b>。卡種多了，學生會被規則淹沒，失去興趣。21 張剛好踩在這個門檻。</div>
+    </div>
+  </div>
+
+  <div class="reason-row">
+    <div class="reason-num">3</div>
+    <div class="reason-content">
+      <div class="reason-title">擴充包是後續驚喜，也是商業價值</div>
+      <div class="reason-desc">如果第一版就把所有卡種給出來，未來沒有「新東西」可以推。分階段擴充能<b style="color:var(--text)">讓使用者持續關注、產出新內容</b>。</div>
+    </div>
+  </div>
+</div>
+
+<!-- 完整卡種地圖 -->
+<div class="panel">
+  <h2>🗺️ 完整卡種地圖（8 大類）</h2>
+  <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px">這是整個遊戲長遠的卡種版圖。<span style="color:var(--green);font-weight:700">綠色標記 = 現在已有</span>，其他是未來擴充包：</p>
+
+  <div class="card-types-grid">
+
+    <div class="card-type-box turbine">
+      <div class="ct-tier t1">TIER 1 ✅</div>
+      <div class="ct-icon">⚙️</div>
+      <div class="ct-name">機組卡 Turbines</div>
+      <div class="ct-en">Wind Turbines</div>
+      <div class="ct-count">7 張 (M01-M07)</div>
+      <div class="ct-desc">場地核心牌。各種容量與類型的風機（陸域、海岸、離岸）。提供基礎發電量。</div>
+    </div>
+
+    <div class="card-type-box tech">
+      <div class="ct-tier t1">TIER 1 ✅</div>
+      <div class="ct-icon">👷</div>
+      <div class="ct-name">技師卡 Technicians</div>
+      <div class="ct-en">Crew Members</div>
+      <div class="ct-count">7 張 (T01-T07)</div>
+      <div class="ct-desc">運維人才。不同專長：維修、葉片、齒輪箱、電氣、SCADA、診斷、管理。</div>
+    </div>
+
+    <div class="card-type-box fault">
+      <div class="ct-tier t1">TIER 1 ✅</div>
+      <div class="ct-icon">⚠️</div>
+      <div class="ct-name">故障卡 Faults</div>
+      <div class="ct-en">Equipment Failures</div>
+      <div class="ct-count">7 張 (F01-F07)</div>
+      <div class="ct-desc">攻擊牌。從感測器異常到主軸承故障，5 級嚴重度。打在對手機組上。</div>
+    </div>
+
+    <div class="card-type-box weather">
+      <div class="ct-tier t2">TIER 2</div>
+      <div class="ct-icon">🌤️</div>
+      <div class="ct-name">天氣卡 Weather</div>
+      <div class="ct-en">Weather Cards</div>
+      <div class="ct-count">+6 張 (W01-W06)</div>
+      <div class="ct-desc">場地修飾牌，影響雙方。Quick Start 用骰子代替；Standard 模式用卡牌增加策略深度。</div>
+    </div>
+
+    <div class="card-type-box action">
+      <div class="ct-tier t2">TIER 2</div>
+      <div class="ct-icon">🔮</div>
+      <div class="ct-name">技術卡 Tech/Action</div>
+      <div class="ct-en">Action Cards</div>
+      <div class="ct-count">+6 張 (A01-A06)</div>
+      <div class="ct-desc">即時法術牌。預測性維護、振動分析、葉片修補套件、OEM保固等。讓玩法更靈活。</div>
+    </div>
+
+    <div class="card-type-box contract">
+      <div class="ct-tier t2">TIER 2</div>
+      <div class="ct-icon">📋</div>
+      <div class="ct-name">合約卡 Contracts</div>
+      <div class="ct-en">Power Contracts</div>
+      <div class="ct-count">+2 張 (C01-C02)</div>
+      <div class="ct-desc">隱藏目標牌。開局抽 1 張，完成額外條件可獲獎勵。讓每局有不同目標。</div>
+    </div>
+
+    <div class="card-type-box event">
+      <div class="ct-tier t3">TIER 3</div>
+      <div class="ct-icon">🌟</div>
+      <div class="ct-name">事件卡 Events</div>
+      <div class="ct-en">Industry Events</div>
+      <div class="ct-count">+5 張 (E01-E05)</div>
+      <div class="ct-desc">產業大事件。國際技術交流、媒體曝光、政策補貼。多人模式特有的「全局事件」。</div>
+    </div>
+
+    <div class="card-type-box diplomacy">
+      <div class="ct-tier t3">TIER 3</div>
+      <div class="ct-icon">🤝</div>
+      <div class="ct-name">外交卡 Diplomacy</div>
+      <div class="ct-en">Diplomatic Cards</div>
+      <div class="ct-count">+4 張 (D01-D04)</div>
+      <div class="ct-desc">多人專屬。互不侵犯協議、技術合作、緊急援助。創造桌上的政治戲。</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 階段擴充路徑 -->
+<div class="panel">
+  <h2>📈 四階段擴充路徑</h2>
+  <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px">類似萬智牌的「核心包 + 擴充包」模式，每階段都可以單獨販售/發放：</p>
+
+  <div class="tier-flow">
+    <div class="tier t1">
+      <div class="tier-label">階段 1 ✅</div>
+      <div class="tier-name">Quick Start</div>
+      <div class="tier-count">21 張</div>
+      <div class="tier-cards">
+        ⚙️ 機組 ×7<br>
+        👷 技師 ×7<br>
+        ⚠️ 故障 ×7
+      </div>
+      <div class="tier-status">
+        <span class="status-now">● 目前完成度 95%</span>
+      </div>
+    </div>
+
+    <div class="tier t2">
+      <div class="tier-label">階段 2</div>
+      <div class="tier-name">Standard 1v1</div>
+      <div class="tier-count">40 張</div>
+      <div class="tier-cards">
+        +🌤️ 天氣 ×6<br>
+        +🔮 技術 ×6<br>
+        +📋 合約 ×2<br>
+        +更多機組/技師/故障 ×5
+      </div>
+      <div class="tier-status">
+        <span class="status-next">○ 1v1 標準版需要</span>
+      </div>
+    </div>
+
+    <div class="tier t3">
+      <div class="tier-label">階段 3</div>
+      <div class="tier-name">Multiplayer</div>
+      <div class="tier-count">60 張</div>
+      <div class="tier-cards">
+        +🌟 事件 ×5<br>
+        +🤝 外交 ×4<br>
+        +更多故障/技師 ×6<br>
+        +進階機組 ×5
+      </div>
+      <div class="tier-status">
+        <span class="status-later">○ 3-5 人多人模式</span>
+      </div>
+    </div>
+
+    <div class="tier t4">
+      <div class="tier-label">階段 4</div>
+      <div class="tier-name">Asymmetric Roles</div>
+      <div class="tier-count">80+ 張</div>
+      <div class="tier-cards">
+        +🏭 OEM 牌組 ×15<br>
+        +🔌 電網牌組 ×10<br>
+        +🌪️ 氣象之神 ×8<br>
+        +角色專屬卡 ×10
+      </div>
+      <div class="tier-status">
+        <span class="status-later">○ 招牌不對稱模式</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note good"><b>關鍵原則：</b>每階段都是<b>獨立可玩</b>的完整產品，不是「半成品」。Quick Start 即使不擴充也是完整的教學工具。Standard 不需要 Multiplayer 也能玩。<b>每個階段都有自己的目標客群</b>。</div>
+</div>
+
+<!-- Tier 2 新卡預覽 -->
+<div class="panel">
+  <h2>👀 Tier 2 擴充包預覽（不急著做，但給你看樣子）</h2>
+  <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px">這些卡牌設計範例，讓你感受未來擴充包會長什麼樣子：</p>
+
+  <div class="grid4">
+
+    <div>
+      <div class="preview-card weather">
+        <div class="pc-header">
+          <div class="pc-id">W05</div>
+          <div class="pc-cost">2</div>
+        </div>
+        <div class="pc-icon">🌀</div>
+        <div class="pc-name">颱風警報</div>
+        <div class="pc-en">Typhoon Warning</div>
+        <div class="pc-effect">下回合所有機組強制停機。<b>提前 1 回合公告</b>，雙方可準備。</div>
+        <div class="pc-flavor">"風電業最敬畏的時刻。"</div>
+      </div>
+      <div style="text-align:center;font-size:0.7rem;color:var(--weather-c);margin-top:8px;font-weight:700">🌤️ 天氣卡範例</div>
+    </div>
+
+    <div>
+      <div class="preview-card action">
+        <div class="pc-header">
+          <div class="pc-id">A04</div>
+          <div class="pc-cost">3</div>
+        </div>
+        <div class="pc-icon">🛡️</div>
+        <div class="pc-name">OEM 保固</div>
+        <div class="pc-en">OEM Warranty</div>
+        <div class="pc-effect">附加於 1 台機組。下次該機組故障時，<b>免費修復</b>。1 次性。</div>
+        <div class="pc-flavor">"買的不只是設備，是承諾。"</div>
+      </div>
+      <div style="text-align:center;font-size:0.7rem;color:var(--action-c);margin-top:8px;font-weight:700">🔮 技術卡範例</div>
+    </div>
+
+    <div>
+      <div class="preview-card contract">
+        <div class="pc-header">
+          <div class="pc-id">C01</div>
+          <div class="pc-cost">—</div>
+        </div>
+        <div class="pc-icon">📋</div>
+        <div class="pc-name">穩定供電合約</div>
+        <div class="pc-en">Stable Supply</div>
+        <div class="pc-effect">隱藏目標：連續 5 回合可用率 ≥ 90%。達成獲得 <b>+20 MWh</b>。</div>
+        <div class="pc-flavor">"穩定才是電網的好朋友。"</div>
+      </div>
+      <div style="text-align:center;font-size:0.7rem;color:var(--contract-c);margin-top:8px;font-weight:700">📋 合約卡範例</div>
+    </div>
+
+    <div>
+      <div class="preview-card event">
+        <div class="pc-header">
+          <div class="pc-id">E01</div>
+          <div class="pc-cost">—</div>
+        </div>
+        <div class="pc-icon">📺</div>
+        <div class="pc-name">媒體曝光</div>
+        <div class="pc-en">Media Spotlight</div>
+        <div class="pc-effect">下回合<b>領頭羊</b>機組故障時，扣分 ×2。低位玩家受到關注獲得加成。</div>
+        <div class="pc-flavor">"鎂光燈是雙面刃。"</div>
+      </div>
+      <div style="text-align:center;font-size:0.7rem;color:var(--event-c);margin-top:8px;font-weight:700">🌟 事件卡範例（Tier3）</div>
+    </div>
+  </div>
+</div>
+
+<!-- 完整擴充清單 -->
+<div class="panel">
+  <h2>📋 完整擴充清單（依階段排序）</h2>
+  <p style="font-size:0.78rem;color:var(--muted);margin-bottom:10px">這是長遠路線圖。短期專心做 Tier 1，知道後面有什麼就好：</p>
+
+  <table class="roadmap-table">
+    <thead>
+      <tr>
+        <th style="width:80px">階段</th>
+        <th style="width:60px">類別</th>
+        <th style="width:90px">編號</th>
+        <th>卡牌名稱</th>
+        <th>核心用途</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="row-tier1"><td><span class="pill-tier t1">Tier 1</span></td><td>機組</td><td>M01-M07</td><td>陸域 / 離岸 / 浮動式機組</td><td>場地核心</td></tr>
+      <tr class="row-tier1"><td><span class="pill-tier t1">Tier 1</span></td><td>技師</td><td>T01-T07</td><td>從初階維修到資深主管</td><td>運維人才</td></tr>
+      <tr class="row-tier1"><td><span class="pill-tier t1">Tier 1</span></td><td>故障</td><td>F01-F07</td><td>感測異常到主軸承崩潰</td><td>攻擊手段</td></tr>
+
+      <tr class="row-tier2"><td><span class="pill-tier t2">Tier 2</span></td><td>天氣</td><td>W01-W06</td><td>東北季風、低風、強風、海霧、颱風、電網爆發</td><td>場地修飾</td></tr>
+      <tr class="row-tier2"><td><span class="pill-tier t2">Tier 2</span></td><td>技術</td><td>A01-A06</td><td>預測維護、振動分析、油液檢測、OEM保固、緊急採購、葉片修補</td><td>即時法術</td></tr>
+      <tr class="row-tier2"><td><span class="pill-tier t2">Tier 2</span></td><td>合約</td><td>C01-C02</td><td>長期供電合約、緊急電網支援</td><td>隱藏目標</td></tr>
+      <tr class="row-tier2"><td><span class="pill-tier t2">Tier 2</span></td><td>機組</td><td>M08-M10</td><td>浮動式傳說、二手翻新、試驗型</td><td>進階機組</td></tr>
+      <tr class="row-tier2"><td><span class="pill-tier t2">Tier 2</span></td><td>技師</td><td>T08-T09</td><td>海事工程師、學徒/實習生</td><td>專業/培訓</td></tr>
+
+      <tr class="row-tier3"><td><span class="pill-tier t3">Tier 3</span></td><td>事件</td><td>E01-E05</td><td>媒體曝光、技術交流、政策補貼、勞動爭議、產業展</td><td>全局事件</td></tr>
+      <tr class="row-tier3"><td><span class="pill-tier t3">Tier 3</span></td><td>外交</td><td>D01-D04</td><td>互不侵犯、技術合作、緊急援助、黑函揭發</td><td>多人政治</td></tr>
+      <tr class="row-tier3"><td><span class="pill-tier t3">Tier 3</span></td><td>故障</td><td>F08-F12</td><td>防火失效、共振、變壓器、基礎沉降、通訊中斷</td><td>進階故障</td></tr>
+      <tr class="row-tier3"><td><span class="pill-tier t3">Tier 3</span></td><td>角色</td><td>T10-T12</td><td>風能評估師、環評專家、公關經理</td><td>多人角色</td></tr>
+
+      <tr class="row-tier4"><td><span class="pill-tier t4">Tier 4</span></td><td>OEM</td><td>OEM 系列</td><td>機組產品線、維保合約、升級套件、研發卡</td><td>OEM 角色專屬</td></tr>
+      <tr class="row-tier4"><td><span class="pill-tier t4">Tier 4</span></td><td>電網</td><td>G 系列</td><td>需求預測、合約定價、限電令、政策補貼</td><td>電網角色專屬</td></tr>
+      <tr class="row-tier4"><td><span class="pill-tier t4">Tier 4</span></td><td>氣象</td><td>WM 系列</td><td>極端天氣、假預報、蝴蝶效應</td><td>混沌角色專屬</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 策略建議 -->
+<div class="strategy">
+  <h2>🎯 我的策略建議</h2>
+
+  <h3 style="margin-top:10px">短期（這 1-3 個月）：聚焦 Tier 1</h3>
+  <p style="font-size:0.82rem;color:var(--text);line-height:1.7">
+    把 21 張卡完整實作、印製、測試。<b style="color:var(--gold)">不要急著加新卡種</b>。你的目標是：「讓 10 個學生玩過 5 場以上，並能說出『這真的有趣』」。完成這個，整個專案就有了基礎。
+  </p>
+
+  <h3 style="margin-top:16px">中期（半年內）：擴充 Tier 2</h3>
+  <p style="font-size:0.82rem;color:var(--text);line-height:1.7">
+    Quick Start 測試穩定後，加入 19 張新卡（天氣 + 技術 + 合約）變成 Standard 1v1 模式。<b style="color:var(--gold)">這是你風力發電課的「進階版」教學工具</b>，學生用過 Quick Start 後可無縫升級。
+  </p>
+
+  <h3 style="margin-top:16px">長期（一年內）：考慮 Tier 3</h3>
+  <p style="font-size:0.82rem;color:var(--text);line-height:1.7">
+    當數位版上線、多人對戰能跑通時，再加入事件 + 外交卡進入 Multiplayer。這時你才開始拓展<b style="color:var(--gold)">產學合作、業界培訓、跨校推廣</b>。
+  </p>
+
+  <h3 style="margin-top:16px">遠期（一年以上）：Tier 4 角色不對稱</h3>
+  <p style="font-size:0.82rem;color:var(--text);line-height:1.7">
+    這是<b style="color:var(--gold)">招牌模式</b>，需要最多卡牌與規則設計。當社群成熟、有研究素材時再做。可作為論文題目、研究計畫的核心產出。
+  </p>
+
+  <div class="note good" style="margin-top:18px"><b>核心提醒：</b>不要因為「未來可能有 80 張卡」就現在做 80 張。<b>遊戲設計的最大敵人不是太簡單，是太複雜</b>。21 張先做好，比 80 張做半套有用十倍。每個階段都讓真實玩家試過，再擴充。</div>
+</div>
+
+<!-- 對應遊戲模式 -->
+<div class="panel">
+  <h2>🎮 卡種對應遊戲模式</h2>
+  <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px">不同遊戲模式需要不同的卡種組合。看你想做哪個模式，就知道需要哪些卡：</p>
+
+  <table class="roadmap-table">
+    <thead>
+      <tr>
+        <th>遊戲模式</th>
+        <th>需要的卡種</th>
+        <th>卡牌總數</th>
+        <th>對應 Tier</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>🟢 風場入門 Quick Start</td><td>機組 + 技師 + 故障</td><td>21</td><td><span class="pill-tier t1">Tier 1 ✅</span></td></tr>
+      <tr><td>🔵 風場挑戰 Solo</td><td>機組 + 技師 + 故障 + 天氣（自動）</td><td>21 + 6 = 27</td><td><span class="pill-tier t2">Tier 2</span></td></tr>
+      <tr><td>⚔️ 1v1 標準對戰</td><td>+天氣 + 技術 + 合約</td><td>40</td><td><span class="pill-tier t2">Tier 2</span></td></tr>
+      <tr><td>🟡 班級錦標賽</td><td>標準對戰所有卡</td><td>40</td><td><span class="pill-tier t2">Tier 2</span></td></tr>
+      <tr><td>🟣 教學情境模組</td><td>標準 + 特定事件卡</td><td>40 + 5 = 45</td><td><span class="pill-tier t2">Tier 2</span></td></tr>
+      <tr><td>🏆 自由競爭多人</td><td>+事件 + 外交</td><td>60</td><td><span class="pill-tier t3">Tier 3</span></td></tr>
+      <tr><td>🤝 聯盟對抗</td><td>+進階故障/角色</td><td>60+</td><td><span class="pill-tier t3">Tier 3</span></td></tr>
+      <tr><td>🌊 共同抗災</td><td>+災害事件</td><td>60+</td><td><span class="pill-tier t3">Tier 3</span></td></tr>
+      <tr><td>🎭 角色不對稱</td><td>+OEM/電網/氣象</td><td>80+</td><td><span class="pill-tier t4">Tier 4</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="note info" style="margin-top:14px"><b>關鍵洞察：</b>你會發現 <b>Tier 2（40 張）涵蓋了大部分教學模式</b>。也就是說，做完 Tier 1 之後，<b>下一個有實用價值的里程碑是 Tier 2</b>。多人模式（Tier 3）可以等很久。</div>
+</div>
+
+<!-- 收尾 -->
+<div class="panel" style="background:linear-gradient(135deg,rgba(52,211,153,.08),rgba(167,139,250,.08));border-color:rgba(52,211,153,.3)">
+  <h2 style="border:none">💡 給你的明確答案</h2>
+  <p style="font-size:0.92rem;color:var(--text);line-height:1.8;margin-bottom:14px">
+    <b style="color:var(--green)">是的，現在以 21 張卡的版本進行是對的</b>——這是 Tier 1，是整個生態的基石。
+  </p>
+  <p style="font-size:0.85rem;color:var(--text);line-height:1.8">
+    <b style="color:var(--gold)">未來還有 3 層擴充空間</b>（共 ~60+ 張新卡），但這些都是<b>下一階段才需要的</b>。每階段都是一個獨立可玩的完整產品，可以分批設計、分批測試、分批推廣。
+  </p>
+
+  <h3 style="margin-top:16px;color:var(--accent)">📌 接下來明確要做的事</h3>
+  <ol style="font-size:0.85rem;color:var(--text);line-height:1.9;padding-left:24px">
+    <li><b style="color:var(--gold)">把 21 張卡做成 Canva 模板，印出來測試</b>（這個月內）</li>
+    <li>找學生試玩 5–10 場，記錄問題</li>
+    <li>微調數值與規則</li>
+    <li>確認 Tier 1 完全穩定後，再規劃 Tier 2 擴充</li>
+  </ol>
+</div>
+
+</body>
+</html>

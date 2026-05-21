@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WindField Battle — 新卡牌展示</title>
+<style>
+  :root {
+    --bg: #0a0e1a; --bg2: #0f1626; --bg3: #1a2436;
+    --accent: #38bdf8; --green: #34d399; --gold: #fbbf24;
+    --red: #f87171; --purple: #a78bfa; --pink: #ec4899;
+    --cyan: #06b6d4; --orange: #fb923c;
+    --text: #e2e8f0; --muted: #7d92aa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Noto Sans TC', system-ui, sans-serif;
+    padding: 40px 20px; line-height: 1.6;
+  }
+  .container { max-width: 1400px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 50px; }
+  h1 {
+    font-size: 2.5rem; font-weight: 900;
+    background: linear-gradient(120deg, var(--gold), var(--accent), var(--green), var(--pink));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 10px;
+  }
+  .subtitle {
+    color: var(--muted); font-size: 0.9rem;
+    letter-spacing: 3px; text-transform: uppercase;
+  }
+
+  /* === Section === */
+  .section {
+    margin-bottom: 50px;
+  }
+  .section-header {
+    display: flex; align-items: baseline; gap: 14px;
+    border-bottom: 2px solid rgba(56,189,248,0.15);
+    padding-bottom: 12px; margin-bottom: 24px;
+  }
+  .section-title {
+    font-size: 1.4rem; font-weight: 800;
+  }
+  .section-title.turbines { color: var(--accent); }
+  .section-title.techs { color: var(--green); }
+  .section-title.faults { color: var(--red); }
+  .section-title.base { color: var(--orange); }
+  .section-subtitle {
+    color: var(--muted); font-size: 0.85rem;
+  }
+
+  /* === Card Grid === */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 24px;
+  }
+
+  /* === Legendary Card === */
+  .lcard {
+    background: linear-gradient(180deg, #1a1f2e 0%, #0a0e1a 100%);
+    border-radius: 20px;
+    padding: 4px;
+    position: relative;
+    overflow: hidden;
+    background-clip: padding-box;
+  }
+  .lcard::before {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 20px;
+    padding: 4px;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b 30%, #fbbf24 50%, #fcd34d 70%, #f59e0b);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    z-index: 0;
+  }
+  .lcard.rare::before {
+    background: linear-gradient(135deg, #a78bfa, #818cf8 50%, #a78bfa);
+  }
+  .lcard.base-card::before {
+    background: linear-gradient(135deg, #fb923c, #f97316 50%, #fb923c);
+  }
+  .lcard-inner {
+    position: relative; z-index: 1;
+    background: #0a0e1a;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  /* Top: ID and cost */
+  .lcard-top {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px;
+    background: linear-gradient(90deg, rgba(251,191,36,0.08), transparent);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .lcard-id {
+    font-size: 0.85rem; color: var(--gold);
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    background: rgba(251,191,36,0.1);
+    padding: 4px 10px; border-radius: 4px;
+  }
+  .lcard-type {
+    font-size: 0.7rem; color: var(--muted);
+    letter-spacing: 2px; text-transform: uppercase;
+  }
+  .lcard-cost {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    color: #0a0e1a;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; font-weight: 900;
+    box-shadow: 0 0 10px rgba(251,191,36,0.4);
+  }
+  .lcard.rare .lcard-cost {
+    background: linear-gradient(135deg, #a78bfa, #818cf8);
+    color: white;
+    box-shadow: 0 0 10px rgba(167,139,250,0.4);
+  }
+  .lcard.base-card .lcard-cost {
+    background: linear-gradient(135deg, #fb923c, #f97316);
+    color: white;
+    box-shadow: 0 0 10px rgba(251,146,60,0.4);
+  }
+
+  /* Hero section */
+  .lcard-hero {
+    padding: 16px 18px 12px;
+    background: linear-gradient(180deg, rgba(251,191,36,0.06), transparent);
+  }
+  .lcard-name {
+    font-size: 1.6rem; font-weight: 900;
+    color: var(--gold);
+    margin-bottom: 2px;
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .lcard.rare .lcard-name { color: var(--purple); }
+  .lcard.base-card .lcard-name { color: var(--orange); }
+  .lcard-name .icon { font-size: 2rem; }
+  .lcard-subtitle {
+    font-size: 0.78rem; color: var(--muted);
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+
+  /* Stats */
+  .lcard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+    gap: 6px;
+    padding: 0 18px 14px;
+  }
+  .stat-chip {
+    background: rgba(0,0,0,0.4);
+    border-radius: 8px;
+    padding: 8px 6px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .stat-chip .stat-val {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--text);
+  }
+  .stat-chip .stat-label {
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+  }
+  .stat-chip.mw .stat-val { color: var(--accent); }
+  .stat-chip.av .stat-val { color: var(--green); }
+  .stat-chip.iec .stat-val { color: var(--cyan); font-size: 0.78rem; }
+
+  /* Abilities */
+  .lcard-abilities {
+    padding: 14px 18px;
+    background: rgba(0,0,0,0.3);
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  .ability {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed rgba(255,255,255,0.05);
+  }
+  .ability:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  .ability-icon {
+    flex-shrink: 0;
+    width: 26px; height: 26px;
+    background: linear-gradient(135deg, rgba(251,191,36,0.2), rgba(251,191,36,0.05));
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem;
+    border: 1px solid rgba(251,191,36,0.3);
+  }
+  .lcard.rare .ability-icon {
+    background: linear-gradient(135deg, rgba(167,139,250,0.2), rgba(167,139,250,0.05));
+    border-color: rgba(167,139,250,0.3);
+  }
+  .lcard.base-card .ability-icon {
+    background: linear-gradient(135deg, rgba(251,146,60,0.2), rgba(251,146,60,0.05));
+    border-color: rgba(251,146,60,0.3);
+  }
+  .ability-content { flex: 1; }
+  .ability-name {
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: var(--gold);
+    margin-bottom: 2px;
+  }
+  .lcard.rare .ability-name { color: var(--purple); }
+  .lcard.base-card .ability-name { color: var(--orange); }
+  .ability-desc {
+    font-size: 0.78rem;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  /* Flavor */
+  .lcard-flavor {
+    padding: 12px 18px;
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-style: italic;
+    text-align: center;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  .lcard-flavor::before { content: '"'; color: var(--gold); margin-right: 2px; }
+  .lcard-flavor::after { content: '"'; color: var(--gold); margin-left: 2px; }
+
+  /* Footer */
+  .lcard-footer {
+    padding: 10px 18px;
+    display: flex; justify-content: space-between; align-items: center;
+    background: linear-gradient(180deg, transparent, rgba(0,0,0,0.4));
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  .rarity-stars {
+    color: var(--gold); letter-spacing: 2px;
+    font-size: 0.85rem;
+  }
+  .lcard.rare .rarity-stars { color: var(--purple); }
+  .lcard.base-card .rarity-stars { color: var(--orange); }
+  .legendary-label {
+    font-size: 0.7rem;
+    color: var(--gold);
+    letter-spacing: 3px;
+    font-weight: 900;
+  }
+  .lcard.rare .legendary-label { color: var(--purple); }
+  .lcard.base-card .legendary-label { color: var(--orange); }
+
+  /* Note panels */
+  .note {
+    background: linear-gradient(135deg, rgba(56,189,248,0.06), rgba(56,189,248,0.02));
+    border-left: 3px solid var(--accent);
+    border-radius: 0 12px 12px 0;
+    padding: 18px 22px;
+    margin-bottom: 30px;
+  }
+  .note h3 {
+    color: var(--accent);
+    font-size: 1rem;
+    margin-bottom: 8px;
+  }
+  .note p {
+    font-size: 0.88rem;
+    color: var(--text);
+    line-height: 1.7;
+  }
+  .note b { color: var(--gold); }
+  .note.warning {
+    background: linear-gradient(135deg, rgba(248,113,113,0.06), rgba(248,113,113,0.02));
+    border-left-color: var(--red);
+  }
+  .note.warning h3 { color: var(--red); }
+  .note.success {
+    background: linear-gradient(135deg, rgba(52,211,153,0.06), rgba(52,211,153,0.02));
+    border-left-color: var(--green);
+  }
+  .note.success h3 { color: var(--green); }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin: 24px 0;
+  }
+  .summary-box {
+    background: var(--bg3);
+    border-radius: 10px;
+    padding: 16px;
+    border-left: 3px solid var(--accent);
+  }
+  .summary-num {
+    font-size: 2rem; font-weight: 900; color: var(--gold);
+  }
+  .summary-label {
+    font-size: 0.78rem; color: var(--muted); margin-top: 4px;
+  }
+
+  @media (max-width: 700px) {
+    .card-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<header>
+  <h1>🌟 卡牌擴充：傳奇集</h1>
+  <div class="subtitle">12 張高質感新卡 · 命名能力深度設計</div>
+</header>
+
+<div class="note warning">
+  <h3>⚠️ 先誠實提醒</h3>
+  <p>v4 已經有 <b>47 張卡</b>。再加到 60+ 張之前，我建議你先實際玩 v4 幾場，看看「機制是否還在運作」、「AI 決策有沒有被新卡搞亂」。<b>卡牌遊戲最大的失敗模式不是太少，而是太多</b>。如果這 12 張新卡都加入後遊戲還是好玩，再考慮 Tier 2 擴充。</p>
+</div>
+
+<div class="summary-grid">
+  <div class="summary-box" style="border-color:var(--gold)">
+    <div class="summary-num" style="color:var(--gold)">3</div>
+    <div class="summary-label">⭐ 傳奇機組 (M13-M15)</div>
+  </div>
+  <div class="summary-box" style="border-color:var(--green)">
+    <div class="summary-num" style="color:var(--green)">3</div>
+    <div class="summary-label">👔 新技師 (T10-T12)</div>
+  </div>
+  <div class="summary-box" style="border-color:var(--red)">
+    <div class="summary-num" style="color:var(--red)">2</div>
+    <div class="summary-label">💥 災難級故障 (F10-F11)</div>
+  </div>
+  <div class="summary-box" style="border-color:var(--orange)">
+    <div class="summary-num" style="color:var(--orange)">4</div>
+    <div class="summary-label">🏭 基地設施 (B01-B04) - 新類別</div>
+  </div>
+</div>
+
+<!-- ============ 傳奇機組 ============ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-title turbines">⚙️ 傳奇機組</span>
+    <span class="section-subtitle">三張稀世旗艦級，每張都改變遊戲節奏</span>
+  </div>
+
+  <div class="card-grid">
+
+    <!-- M13 龍息 -->
+    <div class="lcard">
+      <div class="lcard-inner">
+        <div class="lcard-top">
+          <span class="lcard-id">M13</span>
+          <span class="lcard-type">WIND TURBINE</span>
+          <div class="lcard-cost">5</div>
+        </div>
+        <div class="lcard-hero">
+          <div class="lcard-name"><span class="icon">🐉</span>龍息 12MW</div>
+          <div class="lcard-subtitle">氫能整合次世代 · HYDROGEN HYBRID</div>
+        </div>
+        <div class="lcard-stats">
+          <div class="stat-chip mw"><div class="stat-val">12 MW</div><div class="stat-label">輸出</div></div>
+          <div class="stat-chip av"><div class="stat-val">90%</div><div class="stat-label">可靠度</div></div>
+          <div class="stat-chip"><div class="stat-val">A+</div><div class="stat-label">穩定</div></div>
+          <div class="stat-chip iec"><div class="stat-val">61400-27</div><div class="stat-label">IEC</div></div>
+        </div>
+        <div class="lcard-abilities">
+          <div class="ability">
+            <div class="ability-icon">🔋</div>
+            <div class="ability-content">
+              <div class="ability-name">【氫能轉換】</div>
+              <div class="ability-desc">無風時（風速 0）仍可發電 +5 MWh。風電業的核心未來。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">💧</div>
+            <div class="ability-content">
+              <div class="ability-name">【綠氫副產】</div>
+              <div class="ability-desc">部署時立即抽 2 張牌。製氫過程的能源密集副產物。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">⚡</div>
+            <div class="ability-content">
+              <div class="ability-name">【未來能源】</div>
+              <div class="ability-desc">在場時，你所有風機可用率 +5%。新世代基礎建設效應。</div>
+            </div>
+          </div>
+        </div>
+        <div class="lcard-flavor">能源轉型的最後一塊拼圖。風與氫，水與火</div>
+        <div class="lcard-footer">
+          <span class="rarity-stars">★ ★ ★ ★ ★</span>
+          <span class="legendary-label">LEGENDARY</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- M14 曦光 -->
+    <div class="lcard">
+      <div class="lcard-inner">
+        <div class="lcard-top">
+          <span class="lcard-id">M14</span>
+          <span class="lcard-type">WIND TURBINE</span>
+          <div class="lcard-cost">4</div>
+        </div>
+        <div class="lcard-hero">
+          <div class="lcard-name"><span class="icon">☀️</span>曦光 10MW</div>
+          <div class="lcard-subtitle">陸上穩定旗艦 · STABLE FLAGSHIP</div>
+        </div>
+        <div class="lcard-stats">
+          <div class="stat-chip mw"><div class="stat-val">10 MW</div><div class="stat-label">輸出</div></div>
+          <div class="stat-chip av"><div class="stat-val">94%</div><div class="stat-label">可靠度</div></div>
+          <div class="stat-chip"><div class="stat-val">A+</div><div class="stat-label">穩定</div></div>
+          <div class="stat-chip iec"><div class="stat-val">61400-1</div><div class="stat-label">IEC</div></div>
+        </div>
+        <div class="lcard-abilities">
+          <div class="ability">
+            <div class="ability-icon">🛡️</div>
+            <div class="ability-content">
+              <div class="ability-name">【穩定旗艦】</div>
+              <div class="ability-desc">免疫所有 Sev.3 以下故障（F01-F05）。可靠性壓倒一切。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">🌤️</div>
+            <div class="ability-content">
+              <div class="ability-name">【陽光合作】</div>
+              <div class="ability-desc">不受「低壓覆蓋」、「東北季風」等天氣負面效果影響。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">🇹🇼</div>
+            <div class="ability-content">
+              <div class="ability-name">【國家標竿】</div>
+              <div class="ability-desc">每回合無條件 +1 MWh。國家能源安全的象徵。</div>
+            </div>
+          </div>
+        </div>
+        <div class="lcard-flavor">穩，是工程師最自豪的形容詞</div>
+        <div class="lcard-footer">
+          <span class="rarity-stars">★ ★ ★ ★ ★</span>
+          <span class="legendary-label">LEGENDARY</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- M15 玄武 -->
+    <div class="lcard">
+      <div class="lcard-inner">
+        <div class="lcard-top">
+          <span class="lcard-id">M15</span>
+          <span class="lcard-type">WIND TURBINE</span>
+          <div class="lcard-cost">5</div>
+        </div>
+        <div class="lcard-hero">
+          <div class="lcard-name"><span class="icon">🐢</span>玄武 14MW</div>
+          <div class="lcard-subtitle">深海要塞 · DEEP-SEA FORTRESS</div>
+        </div>
+        <div class="lcard-stats">
+          <div class="stat-chip mw"><div class="stat-val">14 MW</div><div class="stat-label">輸出</div></div>
+          <div class="stat-chip av"><div class="stat-val">86%</div><div class="stat-label">可靠度</div></div>
+          <div class="stat-chip"><div class="stat-val">S</div><div class="stat-label">穩定</div></div>
+          <div class="stat-chip iec"><div class="stat-val">61400-3-2</div><div class="stat-label">IEC</div></div>
+        </div>
+        <div class="lcard-abilities">
+          <div class="ability">
+            <div class="ability-icon">👑</div>
+            <div class="ability-content">
+              <div class="ability-name">【深海王者】</div>
+              <div class="ability-desc">你的其他離岸機組（M04-M07）+1 MW。離岸風場的核心節點。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">⚓</div>
+            <div class="ability-content">
+              <div class="ability-name">【浮式平台】</div>
+              <div class="ability-desc">免疫颱風完全停機效果（風速 0 時仍能發電 +3 MWh）。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">🔧</div>
+            <div class="ability-content">
+              <div class="ability-name">【自我修復】</div>
+              <div class="ability-desc">每 3 回合自動修復 1 個 Sev.3 以下故障。次世代 CMS 技術。</div>
+            </div>
+          </div>
+        </div>
+        <div class="lcard-flavor">海底的不動，水面的力量</div>
+        <div class="lcard-footer">
+          <span class="rarity-stars">★ ★ ★ ★ ★</span>
+          <span class="legendary-label">LEGENDARY</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============ 新技師 ============ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-title techs">👔 新技師</span>
+    <span class="section-subtitle">三張高階人才，改變團隊運作邏輯</span>
+  </div>
+
+  <div class="card-grid">
+
+    <!-- T10 CEO -->
+    <div class="lcard">
+      <div class="lcard-inner">
+        <div class="lcard-top">
+          <span class="lcard-id">T10</span>
+          <span class="lcard-type">CHIEF EXECUTIVE</span>
+          <div class="lcard-cost">3</div>
+        </div>
+        <div class="lcard-hero">
+          <div class="lcard-name" style="color:var(--green)!important"><span class="icon">🎩</span>首席運維官 CEO</div>
+          <div class="lcard-subtitle">企業最高指揮官 · CHIEF O&M OFFICER</div>
+        </div>
+        <div class="lcard-abilities">
+          <div class="ability">
+            <div class="ability-icon" style="border-color:rgba(52,211,153,.3);background:linear-gradient(135deg,rgba(52,211,153,.2),rgba(52,211,153,.05))">📊</div>
+            <div class="ability-content">
+              <div class="ability-name" style="color:var(--green)">【全局管理】</div>
+              <div class="ability-desc">所有卡牌動作費 -1（最低 1）。最高效率的領導者，連 OEM 廠商也聽他指揮。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon" style="border-color:rgba(52,211,153,.3);background:linear-gradient(135deg,rgba(52,211,153,.2),rgba(52,211,153,.05))">🚨</div>
+            <div class="ability-content">
+              <div class="ability-name" style="color:var(--green)">【危機指揮】</div>
+              <div class="ability-desc">每場 1 次：選 1 個故障立即修復（無論嚴重度）。執行長親自下場的時刻。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon" style="border-color:rgba(52,211,153,.3);background:linear-gradient(135deg,rgba(52,211,153,.2),rgba(52,211,153,.05))">📈</div>
+            <div class="ability-content">
+              <div class="ability-name" style="color:var(--green)">【企業戰略】</div>
+              <div class="ability-desc">每回合 +1 動作。CEO 的時間值得花。</div>
+            </div>
+          </div>
+        </div>
+        <div class="lcard-flavor">從工地走到董事會，他懂風電的每個齒輪</div>
+        <div class="lcard-footer">
+          <span class="rarity-stars" style="color:var(--green)">★ ★ ★ ★ ★</span>
+          <span class="legendary-label" style="color:var(--green)">LEGENDARY</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- T11 氣象首席 -->
+    <div class="lcard rare">
+      <div class="lcard-inner">
+        <div class="lcard-top">
+          <span class="lcard-id">T11</span>
+          <span class="lcard-type">METEOROLOGIST</span>
+          <div class="lcard-cost">2</div>
+        </div>
+        <div class="lcard-hero">
+          <div class="lcard-name"><span class="icon">🌤️</span>氣象首席科學家</div>
+          <div class="lcard-subtitle">中央氣象局背景 · CHIEF METEOROLOGIST</div>
+        </div>
+        <div class="lcard-abilities">
+          <div class="ability">
+            <div class="ability-icon">🔮</div>
+            <div class="ability-content">
+              <div class="ability-name">【精準預測】</div>
+              <div class="ability-desc">出場時查看未來 5 回合的風速骰結果。讀懂大氣的方程式。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">🎲</div>
+            <div class="ability-content">
+              <div class="ability-name">【主動干預】</div>
+              <div class="ability-desc">每回合 1 次：可重擲當前風速骰。當趨勢不如你意時。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">🍃</div>
+            <div class="ability-content">
+              <div class="ability-name">【氣候優勢】</div>
+              <div class="ability-desc">「低風」時你的機組效率 +20%。化逆境為優勢。</div>
+            </div>
+          </div>
+        </div>
+        <div class="lcard-flavor">風是我教給機器的語言</div>
+        <div class="lcard-footer">
+          <span class="rarity-stars">★ ★ ★ ★</span>
+          <span class="legendary-label">RARE</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- T12 OEM -->
+    <div class="lcard rare">
+      <div class="lcard-inner">
+        <div class="lcard-top">
+          <span class="lcard-id">T12</span>
+          <span class="lcard-type">OEM TECH REP</span>
+          <div class="lcard-cost">2</div>
+        </div>
+        <div class="lcard-hero">
+          <div class="lcard-name"><span class="icon">🏭</span>OEM 廠商代表</div>
+          <div class="lcard-subtitle">原廠技術支援 · MANUFACTURER REP</div>
+        </div>
+        <div class="lcard-abilities">
+          <div class="ability">
+            <div class="ability-icon">🛡️</div>
+            <div class="ability-content">
+              <div class="ability-name">【原廠保固】</div>
+              <div class="ability-desc">你所有故障的修復時間 -1 回合。製造商最了解自家設備。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">⚙️</div>
+            <div class="ability-content">
+              <div class="ability-name">【技術升級】</div>
+              <div class="ability-desc">出場時免費為場上一台機組 +1 MW（永久）。出廠後的工藝改善。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">📞</div>
+            <div class="ability-content">
+              <div class="ability-name">【全球後援】</div>
+              <div class="ability-desc">每 2 回合可從牌庫頂端抽 1 張機組卡。供應鏈隨時待命。</div>
+            </div>
+          </div>
+        </div>
+        <div class="lcard-flavor">買的不只是設備，是承諾</div>
+        <div class="lcard-footer">
+          <span class="rarity-stars">★ ★ ★ ★</span>
+          <span class="legendary-label">RARE</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============ 災難級故障 ============ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-title faults">💥 災難級故障</span>
+    <span class="section-subtitle">兩張高強度故障，創造戲劇性逆轉時刻</span>
+  </div>
+
+  <div class="card-grid">
+
+    <!-- F10 黑天鵝 -->
+    <div class="lcard">
+      <div class="lcard-inner">
+        <div class="lcard-top">
+          <span class="lcard-id">F10</span>
+          <span class="lcard-type">BLACK SWAN</span>
+          <div class="lcard-cost">3</div>
+        </div>
+        <div class="lcard-hero">
+          <div class="lcard-name" style="color:var(--red)!important"><span class="icon">🦢</span>黑天鵝事件</div>
+          <div class="lcard-subtitle">無法預測的災難 · UNPREDICTABLE CRISIS</div>
+        </div>
+        <div class="lcard-stats">
+          <div class="stat-chip"><div class="stat-val" style="color:var(--red)">Sev.5</div><div class="stat-label">嚴重度</div></div>
+          <div class="stat-chip"><div class="stat-val" style="color:var(--red)">-25%</div><div class="stat-label">可用率</div></div>
+          <div class="stat-chip"><div class="stat-val">1 回合</div><div class="stat-label">持續</div></div>
+          <div class="stat-chip iec"><div class="stat-val">61400-1</div><div class="stat-label">IEC</div></div>
+        </div>
+        <div class="lcard-abilities">
+          <div class="ability">
+            <div class="ability-icon" style="border-color:rgba(248,113,113,.3);background:linear-gradient(135deg,rgba(248,113,113,.2),rgba(248,113,113,.05))">🌍</div>
+            <div class="ability-content">
+              <div class="ability-name" style="color:var(--red)">【全場災難】</div>
+              <div class="ability-desc">對手場上所有機組同時受影響 -25% 可用率。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon" style="border-color:rgba(248,113,113,.3);background:linear-gradient(135deg,rgba(248,113,113,.2),rgba(248,113,113,.05))">❓</div>
+            <div class="ability-content">
+              <div class="ability-name" style="color:var(--red)">【無預警】</div>
+              <div class="ability-desc">SCADA 工程師（T05）無法預警此故障。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon" style="border-color:rgba(248,113,113,.3);background:linear-gradient(135deg,rgba(248,113,113,.2),rgba(248,113,113,.05))">⚠️</div>
+            <div class="ability-content">
+              <div class="ability-name" style="color:var(--red)">【唯一性】</div>
+              <div class="ability-desc">每場限使用 1 次。極端事件不會頻繁發生。</div>
+            </div>
+          </div>
+        </div>
+        <div class="lcard-flavor">機率為零的事，發生一次就夠了</div>
+        <div class="lcard-footer">
+          <span class="rarity-stars" style="color:var(--red)">★ ★ ★ ★ ★</span>
+          <span class="legendary-label" style="color:var(--red)">LEGENDARY</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- F11 電網崩潰 -->
+    <div class="lcard rare">
+      <div class="lcard-inner">
+        <div class="lcard-top">
+          <span class="lcard-id">F11</span>
+          <span class="lcard-type">GRID FAILURE</span>
+          <div class="lcard-cost">2</div>
+        </div>
+        <div class="lcard-hero">
+          <div class="lcard-name" style="color:var(--red)!important"><span class="icon">⚡</span>電網崩潰</div>
+          <div class="lcard-subtitle">系統性故障 · SYSTEMIC FAILURE</div>
+        </div>
+        <div class="lcard-stats">
+          <div class="stat-chip"><div class="stat-val" style="color:var(--red)">Sev.4</div><div class="stat-label">嚴重度</div></div>
+          <div class="stat-chip"><div class="stat-val" style="color:var(--red)">-100%</div><div class="stat-label">本回合</div></div>
+          <div class="stat-chip"><div class="stat-val">1 回合</div><div class="stat-label">持續</div></div>
+          <div class="stat-chip iec"><div class="stat-val">61400-21</div><div class="stat-label">IEC</div></div>
+        </div>
+        <div class="lcard-abilities">
+          <div class="ability">
+            <div class="ability-icon">🚫</div>
+            <div class="ability-content">
+              <div class="ability-name">【系統故障】</div>
+              <div class="ability-desc">雙方所有機組停機本回合（雙方都不發電）。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">📉</div>
+            <div class="ability-content">
+              <div class="ability-name">【後續影響】</div>
+              <div class="ability-desc">下回合雙方 MWh 計算 ÷2。經濟損失需要時間恢復。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">⚖️</div>
+            <div class="ability-content">
+              <div class="ability-name">【雙刃劍】</div>
+              <div class="ability-desc">使用此卡會影響自己。落後玩家的逆轉策略。</div>
+            </div>
+          </div>
+        </div>
+        <div class="lcard-flavor">當整個電網都倒下，沒有人是贏家</div>
+        <div class="lcard-footer">
+          <span class="rarity-stars">★ ★ ★ ★</span>
+          <span class="legendary-label">RARE</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============ 基地設施卡（新類別） ============ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-title base">🏭 基地設施卡 <span style="font-size:0.8rem;color:var(--orange);background:rgba(251,146,60,.15);padding:3px 10px;border-radius:4px;margin-left:8px">NEW</span></span>
+    <span class="section-subtitle">第七類卡牌 · 永久場地效果 · 戰略基礎建設</span>
+  </div>
+
+  <div class="note" style="margin-bottom:24px;border-left-color:var(--orange);background:linear-gradient(135deg,rgba(251,146,60,.06),rgba(251,146,60,.02))">
+    <h3 style="color:var(--orange)">📌 基地卡新機制</h3>
+    <p><b style="color:var(--orange)">基地卡與技師同槽位</b>，但提供場地級的永久效果。每方最多同時擁有 2 張基地卡。<b style="color:var(--orange)">無法被故障攻擊</b>，但會被「電網崩潰」全場效果影響。提供長期戰略價值，適合中後期建構。</p>
+  </div>
+
+  <div class="card-grid">
+
+    <!-- B01 海事工作船 -->
+    <div class="lcard base-card">
+      <div class="lcard-inner">
+        <div class="lcard-top">
+          <span class="lcard-id">B01</span>
+          <span class="lcard-type">MARITIME BASE</span>
+          <div class="lcard-cost">2</div>
+        </div>
+        <div class="lcard-hero">
+          <div class="lcard-name"><span class="icon">🚢</span>海事工作船</div>
+          <div class="lcard-subtitle">離岸風場專用 · OFFSHORE SUPPORT</div>
+        </div>
+        <div class="lcard-abilities">
+          <div class="ability">
+            <div class="ability-icon">⚓</div>
+            <div class="ability-content">
+              <div class="ability-name">【離岸支援】</div>
+              <div class="ability-desc">你的離岸機組（M04-M07、M13、M15）故障修復費用 -1 動作費。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">🏗️</div>
+            <div class="ability-content">
+              <div class="ability-name">【後勤基地】</div>
+              <div class="ability-desc">當你場上有 ≥1 台離岸機組時，每回合 +1 動作。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">📡</div>
+            <div class="ability-content">
+              <div class="ability-name">【遠端監測】</div>
+              <div class="ability-desc">免疫所有「海事窗口」類延遲效果。</div>
+            </div>
+          </div>
+        </div>
+        <div class="lcard-flavor">離岸風場的隱形主力</div>
+        <div class="lcard-footer">
+          <span class="rarity-stars">★ ★ ★</span>
+          <span class="legendary-label">BASE</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- B02 智慧電網 -->
+    <div class="lcard base-card">
+      <div class="lcard-inner">
+        <div class="lcard-top">
+          <span class="lcard-id">B02</span>
+          <span class="lcard-type">SMART GRID</span>
+          <div class="lcard-cost">2</div>
+        </div>
+        <div class="lcard-hero">
+          <div class="lcard-name"><span class="icon">🔌</span>智慧電網中心</div>
+          <div class="lcard-subtitle">電網整合 · SMART GRID CENTER</div>
+        </div>
+        <div class="lcard-abilities">
+          <div class="ability">
+            <div class="ability-icon">📊</div>
+            <div class="ability-content">
+              <div class="ability-name">【電網整合】</div>
+              <div class="ability-desc">每回合自動 +3 MWh（無條件）。基載電力的價值。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">⚡</div>
+            <div class="ability-content">
+              <div class="ability-name">【需求響應】</div>
+              <div class="ability-desc">可棄 1 張手牌：本回合 MWh +20%。即時調節能力。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">🛡️</div>
+            <div class="ability-content">
+              <div class="ability-name">【電網保護】</div>
+              <div class="ability-desc">免疫「電網崩潰」(F11) 的負面效果。</div>
+            </div>
+          </div>
+        </div>
+        <div class="lcard-flavor">看不見的基礎建設，撐起整個產業</div>
+        <div class="lcard-footer">
+          <span class="rarity-stars">★ ★ ★</span>
+          <span class="legendary-label">BASE</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- B03 研發實驗室 -->
+    <div class="lcard base-card">
+      <div class="lcard-inner">
+        <div class="lcard-top">
+          <span class="lcard-id">B03</span>
+          <span class="lcard-type">R&D LAB</span>
+          <div class="lcard-cost">2</div>
+        </div>
+        <div class="lcard-hero">
+          <div class="lcard-name"><span class="icon">🔬</span>研發實驗室</div>
+          <div class="lcard-subtitle">技術創新中心 · R&D LABORATORY</div>
+        </div>
+        <div class="lcard-abilities">
+          <div class="ability">
+            <div class="ability-icon">📚</div>
+            <div class="ability-content">
+              <div class="ability-name">【技術研發】</div>
+              <div class="ability-desc">每回合自動抽 1 張牌（牌庫永動機）。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">💡</div>
+            <div class="ability-content">
+              <div class="ability-name">【創新獎勵】</div>
+              <div class="ability-desc">你使用功能卡（FN）時，本回合 +1 額外動作。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">🎓</div>
+            <div class="ability-content">
+              <div class="ability-name">【產學合作】</div>
+              <div class="ability-desc">當你抽到傳奇卡時，立即額外抽 1 張牌。</div>
+            </div>
+          </div>
+        </div>
+        <div class="lcard-flavor">今日的研究，明日的標竿</div>
+        <div class="lcard-footer">
+          <span class="rarity-stars">★ ★ ★</span>
+          <span class="legendary-label">BASE</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- B04 氣象觀測站 -->
+    <div class="lcard base-card">
+      <div class="lcard-inner">
+        <div class="lcard-top">
+          <span class="lcard-id">B04</span>
+          <span class="lcard-type">WEATHER STATION</span>
+          <div class="lcard-cost">1</div>
+        </div>
+        <div class="lcard-hero">
+          <div class="lcard-name"><span class="icon">📡</span>氣象觀測站</div>
+          <div class="lcard-subtitle">資料蒐集 · WEATHER MONITORING</div>
+        </div>
+        <div class="lcard-abilities">
+          <div class="ability">
+            <div class="ability-icon">👁️</div>
+            <div class="ability-content">
+              <div class="ability-name">【天氣預警】</div>
+              <div class="ability-desc">每回合可查看對方手牌中最頂端的 1 張。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">🌤️</div>
+            <div class="ability-content">
+              <div class="ability-name">【氣象資料】</div>
+              <div class="ability-desc">你免疫所有天氣卡（W01-W05）的負面效果。</div>
+            </div>
+          </div>
+          <div class="ability">
+            <div class="ability-icon">📈</div>
+            <div class="ability-content">
+              <div class="ability-name">【精準調度】</div>
+              <div class="ability-desc">每 3 回合可重擲一次風速骰（風速太差時的保險）。</div>
+            </div>
+          </div>
+        </div>
+        <div class="lcard-flavor">不知天氣的工程師，等於閉眼開車</div>
+        <div class="lcard-footer">
+          <span class="rarity-stars">★ ★ ★</span>
+          <span class="legendary-label">BASE</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============ 結論 ============ -->
+<div class="note success">
+  <h3>✅ 接下來建議的兩條路</h3>
+  <p style="margin-bottom:12px"><b>選項 A（快速整合）：</b>我把這 12 張卡<b>直接加入 v4 變成 v5</b>，做出可玩版本。優點是有實際的測試環境，缺點是<b>59 張卡可能讓首次接觸的學生卻步</b>。</p>
+  <p><b>選項 B（先測試 v4）：</b>你先實際玩 v4 三場，看 47 張卡的節奏對不對。如果發現某些 v4 的卡（FN02、FN03 等功能卡）已經解決你之前的「卡死」問題，這 12 張可以變成「**Tier 2 擴充包**」未來再推出，<b>讓 v4 作為 Tier 1 完整版</b>。</p>
+</div>
+
+<div class="note">
+  <h3>🎯 我的真實建議</h3>
+  <p style="margin-bottom:10px">看了你做的 M07 視覺後，我覺得<b style="color:var(--gold)">真正缺的不是更多卡，是「視覺一致性」</b>。如果這 12 張新卡（加上原本 47 張）每張都做成像 M07 那樣的精美視覺，那就是真正的商業級遊戲。</p>
+  <p>所以下一階段更該做的是：</p>
+  <p style="margin-top:8px">1. <b>用 AI 為現有 47 張卡生成統一風格的視覺</b>（Midjourney/DALL·E）<br>
+  2. <b>把卡牌資料整理成可批次生成的 prompt 模板</b><br>
+  3. <b>建立可印製版的高解析度 PDF</b><br>
+  4. 然後再考慮要不要加 Tier 2 的 12 張新卡</p>
+</div>
+
+</div>
+
+</body>
+</html>

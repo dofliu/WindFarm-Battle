@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WindField Battle — 雙層卡牌設計</title>
+<style>
+  :root {
+    --bg: #0a1119;
+    --bg2: #11192a;
+    --bg3: #1a2436;
+    --accent: #38bdf8;
+    --green: #34d399;
+    --gold: #fbbf24;
+    --red: #f87171;
+    --purple: #a78bfa;
+    --iec: #06b6d4;
+    --text: #e2e8f0;
+    --muted: #7d92aa;
+    --border: rgba(56,189,248,0.18);
+
+    --turbine-c: #38bdf8;
+    --tech-c: #34d399;
+    --fault-c: #f87171;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    padding: 32px 24px;
+    line-height: 1.6;
+  }
+
+  .header { text-align:center; margin-bottom:36px; }
+  .logo {
+    font-size: 2rem; font-weight: 900;
+    background: linear-gradient(120deg, var(--turbine-c), var(--green), var(--gold));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .sub { color: var(--muted); font-size: 0.85rem; margin-top:6px; letter-spacing:2px; text-transform:uppercase; }
+
+  h2 {
+    font-size: 1rem; font-weight: 800; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--accent);
+    padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  h3 { font-size: 0.85rem; font-weight: 700; color: var(--gold); margin-bottom: 10px; }
+
+  .panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+
+  .principle {
+    background: linear-gradient(135deg, rgba(52,211,153,.08), rgba(56,189,248,.05));
+    border: 1px solid rgba(52,211,153,.3);
+    border-radius: 12px;
+    padding: 22px;
+  }
+  .principle h2 { color: var(--green); border-color: rgba(52,211,153,.3); }
+
+  .layer-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 16px;
+  }
+  .layer-box {
+    background: var(--bg3);
+    border-radius: 10px;
+    padding: 14px 16px;
+    border-top: 3px solid;
+  }
+  .layer-box.basic { border-color: var(--green); }
+  .layer-box.deep { border-color: var(--iec); }
+  .layer-name { font-weight: 800; font-size: 1rem; margin-bottom: 6px; }
+  .layer-box.basic .layer-name { color: var(--green); }
+  .layer-box.deep .layer-name { color: var(--iec); }
+  .layer-desc { font-size: 0.78rem; color: var(--muted); line-height: 1.6; }
+
+  .comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    margin-top: 20px;
+  }
+  .compare-col h3 { text-align: center; margin-bottom: 16px; }
+  .compare-label {
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+
+  .card {
+    max-width: 280px;
+    margin: 0 auto;
+    aspect-ratio: 63 / 88;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex; flex-direction: column;
+    border: 2px solid;
+    position: relative;
+    overflow: hidden;
+  }
+  .card.fault { background: linear-gradient(180deg, rgba(248,113,113,.18), var(--bg2) 50%); border-color: var(--fault-c); }
+
+  .card-header {
+    display: flex; align-items: center; gap: 8px;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .card-id {
+    font-size: 0.6rem;
+    color: var(--muted);
+    font-family: monospace;
+    background: rgba(0,0,0,.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .card-cost {
+    margin-left: auto;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: rgba(0,0,0,.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.78rem; font-weight: 900;
+    color: var(--gold);
+  }
+
+  .card-icon { font-size: 2.2rem; text-align: center; margin: 4px 0 6px; }
+  .card-name { font-size: 0.95rem; font-weight: 900; text-align: center; line-height: 1.2; }
+  .card.fault .card-name { color: var(--fault-c); }
+  .card-en { font-size: 0.6rem; color: var(--muted); text-align: center; margin-top: 2px; text-transform: uppercase; letter-spacing: 1px; }
+
+  .card-stats { display: flex; gap: 4px; justify-content: center; margin: 10px 0; }
+  .stat-pill { background: rgba(0,0,0,.35); border-radius: 12px; padding: 3px 8px; font-size: 0.65rem; font-weight: 700; }
+  .stat-pill.sev { color: var(--red); }
+
+  .card-effect {
+    background: rgba(0,0,0,.35); border-radius: 8px;
+    padding: 9px 11px; font-size: 0.72rem;
+    line-height: 1.5; margin-top: 6px; flex: 1;
+  }
+  .card-effect b { color: var(--gold); }
+  .card-effect .keyword { background: rgba(251,191,36,.15); color: var(--gold); padding: 0 4px; border-radius: 3px; font-weight: 700; }
+
+  .card-counter {
+    font-size: 0.64rem; color: var(--muted); margin-top: 7px;
+    padding: 4px 8px; background: rgba(0,0,0,.25);
+    border-radius: 6px; text-align: center;
+  }
+  .card-counter b { color: var(--gold); }
+
+  .card-flavor {
+    font-size: 0.62rem; color: var(--muted);
+    font-style: italic; text-align: center;
+    margin-top: 7px; line-height: 1.4; padding: 0 4px;
+  }
+
+  .iec-mini {
+    position: absolute;
+    bottom: 6px;
+    right: 8px;
+    font-size: 0.55rem;
+    color: var(--iec);
+    opacity: 0.6;
+    font-family: monospace;
+    letter-spacing: 0.5px;
+  }
+
+  .card-iec-old {
+    margin-top: 6px;
+    padding: 6px 8px;
+    background: linear-gradient(90deg, rgba(6,182,212,0.12), rgba(6,182,212,0.04));
+    border-left: 2px solid var(--iec);
+    border-radius: 4px;
+    font-size: 0.58rem;
+    line-height: 1.45;
+  }
+  .card-iec-old .iec-label { color: var(--iec); font-weight: 900; font-family: monospace; }
+  .card-iec-old .iec-topic { color: var(--text); margin-top: 2px; font-weight: 600; font-size: 0.56rem; }
+
+  .ref-card {
+    max-width: 280px;
+    margin: 0 auto;
+    aspect-ratio: 63 / 88;
+    background: linear-gradient(160deg, var(--bg3), var(--bg2));
+    border: 2px solid var(--iec);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex; flex-direction: column;
+    position: relative;
+  }
+  .ref-card::before {
+    content: '';
+    position: absolute;
+    top: -1px; left: -1px; right: -1px;
+    height: 4px;
+    background: linear-gradient(90deg, var(--iec), var(--accent), var(--iec));
+    border-radius: 12px 12px 0 0;
+  }
+  .ref-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .ref-label {
+    font-size: 0.58rem;
+    color: var(--iec);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 800;
+  }
+  .ref-id {
+    font-size: 0.62rem;
+    color: var(--muted);
+    font-family: monospace;
+  }
+  .ref-icon { font-size: 1.6rem; text-align: center; margin-bottom: 4px; }
+  .ref-cardname {
+    text-align: center;
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: var(--text);
+  }
+  .ref-divider {
+    height: 1px;
+    background: rgba(255,255,255,.08);
+    margin: 10px 0;
+  }
+  .ref-section { margin-bottom: 10px; }
+  .ref-section-title {
+    font-size: 0.6rem;
+    color: var(--iec);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 5px;
+  }
+  .ref-section-body {
+    font-size: 0.72rem;
+    line-height: 1.55;
+    color: var(--text);
+  }
+  .ref-iec-code {
+    background: rgba(6,182,212,.15);
+    color: var(--iec);
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-weight: 700;
+    font-size: 0.66rem;
+    display: inline-block;
+    margin: 2px 3px 2px 0;
+  }
+  .ref-topic {
+    font-size: 0.7rem;
+    color: var(--muted);
+    line-height: 1.55;
+    margin-top: 4px;
+  }
+  .ref-discuss {
+    font-size: 0.68rem;
+    color: var(--text);
+    line-height: 1.5;
+    background: rgba(167,139,250,.08);
+    border-left: 2px solid var(--purple);
+    padding: 6px 10px;
+    border-radius: 0 4px 4px 0;
+  }
+
+  .mode-card {
+    background: var(--bg3);
+    border-radius: 12px;
+    padding: 18px;
+    border-top: 4px solid;
+  }
+  .mode-card.casual { border-color: var(--green); }
+  .mode-card.learner { border-color: var(--gold); }
+  .mode-card.teacher { border-color: var(--purple); }
+  .mode-icon-big { font-size: 2rem; text-align: center; margin-bottom: 8px; }
+  .mode-name {
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+  .mode-card.casual .mode-name { color: var(--green); }
+  .mode-card.learner .mode-name { color: var(--gold); }
+  .mode-card.teacher .mode-name { color: var(--purple); }
+  .mode-target {
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .mode-uses ul { font-size: 0.74rem; color: var(--text); padding-left: 18px; line-height: 1.8; }
+  .mode-uses ul b { color: var(--gold); }
+
+  .print-option {
+    background: var(--bg3);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .po-icon { font-size: 1.6rem; flex-shrink: 0; }
+  .po-content { flex: 1; }
+  .po-name { font-weight: 800; font-size: 0.88rem; }
+  .po-name.basic { color: var(--green); }
+  .po-name.complete { color: var(--gold); }
+  .po-name.exp { color: var(--iec); }
+  .po-desc { font-size: 0.72rem; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+
+  .note {
+    font-size: 0.75rem; color: var(--muted);
+    background: var(--bg3); border-left: 3px solid var(--gold);
+    padding: 10px 14px; border-radius: 0 8px 8px 0;
+    margin-top: 12px; line-height: 1.7;
+  }
+  .note b { color: var(--gold); }
+  .note.good { border-color: var(--green); }
+  .note.good b { color: var(--green); }
+  .note.info { border-color: var(--accent); }
+  .note.info b { color: var(--accent); }
+
+  @media (max-width: 700px) {
+    .grid2, .grid3, .comparison, .layer-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">🎴 雙層卡牌設計</div>
+  <div class="sub">遊戲卡保持乾淨 · IEC 標準作為可選教學層 v2.1</div>
+</div>
+
+<div class="principle">
+  <h2>💡 設計原則：漸進式揭露</h2>
+  <p style="font-size:0.88rem;color:var(--text);margin-bottom:8px">
+    遊戲卡的<b style="color:var(--green)">「玩」</b>跟<b style="color:var(--iec)">「學」</b>應該分離。任何人拿起卡都能玩；有興趣的人才往深處走。
+  </p>
+
+  <div class="layer-row">
+    <div class="layer-box basic">
+      <div class="layer-name">🟢 玩家層</div>
+      <div class="layer-desc">所有玩遊戲必要的資訊：名稱、屬性、效果、克制。<b style="color:var(--text)">這就是卡片的主要內容</b>，非專業也能直覺理解。</div>
+    </div>
+    <div class="layer-box deep">
+      <div class="layer-name">🔵 學習層（可選）</div>
+      <div class="layer-desc">IEC 61400 標準對應、教學討論點、深度知識。<b style="color:var(--text)">放在獨立的「教學參考卡」上</b>，需要時才查看。</div>
+    </div>
+  </div>
+
+  <div class="note good" style="margin-top:14px"><b>關鍵理由：</b>對風電科班生來說，IEC 61400-4 是熟悉概念；但對社團學生、新生、家人朋友來說，這串字會造成「<b>這遊戲好難</b>」的錯覺，反而降低嘗試意願。把它從卡上拿掉，遊戲就更容易被人嘗試。</div>
+</div>
+
+<div class="panel">
+  <h2>🎴 卡牌設計對比</h2>
+  <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px">看看舊版（IEC 在卡上）vs 新版（IEC 移到參考卡）的差異。同一張「齒輪箱磨損」卡：</p>
+
+  <div class="comparison">
+
+    <div class="compare-col">
+      <div class="compare-label">❌ 舊版設計（過於擁擠）</div>
+      <div class="card fault">
+        <div class="card-header">
+          <div class="card-id">F06</div>
+          <div class="card-cost">2</div>
+        </div>
+        <div class="card-icon">⚙️</div>
+        <div class="card-name">齒輪箱磨損</div>
+        <div class="card-en">Gearbox Wear</div>
+        <div class="card-stats">
+          <span class="stat-pill sev">Sev.4</span>
+        </div>
+        <div class="card-effect"><span class="keyword">-30% 可用率</span>，3 回合修。<b>20% 連鎖</b>。</div>
+        <div class="card-counter">克制：<b>齒輪箱技師</b></div>
+        <div class="card-flavor">"風電業最頭痛的故障。"</div>
+        <div class="card-iec-old">
+          <div class="iec-label">📐 IEC 61400-4 · 61400-28</div>
+          <div class="iec-topic">齒輪箱標準、磨損與壽命管理</div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:0.68rem;color:var(--red);margin-top:10px">
+        非專業看到 IEC 編號會困惑 · 卡面擁擠
+      </div>
+    </div>
+
+    <div class="compare-col">
+      <div class="compare-label">✅ 新版設計（乾淨、直覺）</div>
+      <div class="card fault">
+        <div class="card-header">
+          <div class="card-id">F06</div>
+          <div class="card-cost">2</div>
+        </div>
+        <div class="card-icon">⚙️</div>
+        <div class="card-name">齒輪箱磨損</div>
+        <div class="card-en">Gearbox Wear</div>
+        <div class="card-stats">
+          <span class="stat-pill sev">Sev.4</span>
+        </div>
+        <div class="card-effect"><span class="keyword">-30% 可用率</span>，3 回合修復。<b>20% 連鎖故障機率</b>。</div>
+        <div class="card-counter">克制：<b>齒輪箱技師（必須）</b></div>
+        <div class="card-flavor">"風電業最頭痛的故障之一。鋼鐵間的不歸路。"</div>
+        <div class="iec-mini">📐 61400-4</div>
+      </div>
+      <div style="text-align:center;font-size:0.68rem;color:var(--green);margin-top:10px">
+        ✅ 完全聚焦遊戲機制 · 右下角小標記（可選查詢）
+      </div>
+    </div>
+  </div>
+
+  <div class="note info" style="margin-top:18px"><b>設計選擇：</b>新版只在右下角保留<b>極小的標準編號（📐 61400-4）</b>——好奇的人會問「這是什麼？」，從而開啟學習對話；不在乎的人完全不會被干擾。</div>
+</div>
+
+<div class="panel">
+  <h2>📚 教學參考卡：完整的學習層</h2>
+  <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px">每張遊戲卡都有一張對應的「教學參考卡」（21 張）。<b style="color:var(--text)">不參與遊戲流程</b>，純粹是<b style="color:var(--text)">查閱用的補充教材</b>。</p>
+
+  <div class="comparison">
+    <div class="compare-col">
+      <div class="compare-label">遊戲卡（玩家手持）</div>
+      <div class="card fault">
+        <div class="card-header">
+          <div class="card-id">F06</div>
+          <div class="card-cost">2</div>
+        </div>
+        <div class="card-icon">⚙️</div>
+        <div class="card-name">齒輪箱磨損</div>
+        <div class="card-en">Gearbox Wear</div>
+        <div class="card-stats">
+          <span class="stat-pill sev">Sev.4</span>
+        </div>
+        <div class="card-effect"><span class="keyword">-30% 可用率</span>，3 回合修復。<b>20% 連鎖機率</b>。</div>
+        <div class="card-counter">克制：<b>齒輪箱技師</b></div>
+        <div class="card-flavor">"風電業最頭痛的故障之一。"</div>
+        <div class="iec-mini">📐 61400-4</div>
+      </div>
+    </div>
+
+    <div class="compare-col">
+      <div class="compare-label">🔍 教學參考卡（老師/想學的人查閱）</div>
+      <div class="ref-card">
+        <div class="ref-header">
+          <div class="ref-label">📚 LEARNING REF</div>
+          <div class="ref-id">F06</div>
+        </div>
+        <div class="ref-icon">⚙️</div>
+        <div class="ref-cardname">齒輪箱磨損 Gearbox Wear</div>
+
+        <div class="ref-divider"></div>
+
+        <div class="ref-section">
+          <div class="ref-section-title">📐 對應 IEC 標準</div>
+          <div class="ref-section-body">
+            <span class="ref-iec-code">IEC 61400-4</span>
+            <span class="ref-iec-code">IEC 61400-28</span>
+            <div class="ref-topic">前者規範齒輪箱本體設計與測試；後者涵蓋全生命週期管理（含磨損監測）。</div>
+          </div>
+        </div>
+
+        <div class="ref-section">
+          <div class="ref-section-title">🎓 課堂討論點</div>
+          <div class="ref-discuss">
+            齒輪箱壽命的「磨損機制」與「剩餘壽命估算（RUL）」——為什麼這是風電業最大 OPEX 來源？
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note"><b>實際使用流程：</b>玩家從牌堆抽到「齒輪箱磨損」卡，依遊戲卡上的指示出牌。<b>對應的教學參考卡放在桌邊或老師手中</b>——當教學情境出現，可以拿出來討論。完全不影響遊戲節奏。</div>
+</div>
+
+<div class="panel">
+  <h2>🎮 三種使用模式</h2>
+  <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px">同一套卡，可以對應三種完全不同的使用情境：</p>
+
+  <div class="grid3">
+
+    <div class="mode-card casual">
+      <div class="mode-icon-big">🎲</div>
+      <div class="mode-name">純玩家模式</div>
+      <div class="mode-target">給：朋友聚會、社團、新生體驗</div>
+      <div class="mode-uses">
+        <ul>
+          <li>只使用 <b>21 張遊戲卡</b></li>
+          <li>不需要教學參考卡</li>
+          <li>純粹當卡牌遊戲玩</li>
+          <li>學生不會被「標準」嚇到</li>
+          <li>玩過會有興趣問「真的有這些風機嗎？」</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mode-card learner">
+      <div class="mode-icon-big">📖</div>
+      <div class="mode-name">學習者模式</div>
+      <div class="mode-target">給：風電課程修課學生、自學者</div>
+      <div class="mode-uses">
+        <ul>
+          <li>使用 <b>21 張遊戲卡 + 21 張參考卡</b></li>
+          <li>遊戲結束後翻參考卡複習</li>
+          <li>遇到不懂的卡牌時查閱</li>
+          <li>可作為<b>期末作業素材</b>：寫 IEC 標準報告</li>
+          <li>學生主動學習，老師不需講解</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mode-card teacher">
+      <div class="mode-icon-big">👨‍🏫</div>
+      <div class="mode-name">教師主導模式</div>
+      <div class="mode-target">給：課堂教學、教師工作坊</div>
+      <div class="mode-uses">
+        <ul>
+          <li>老師手持 <b>全套參考卡</b></li>
+          <li>遊戲中暫停討論：「F06 出現了！我們來看 IEC 61400-4...」</li>
+          <li>用遊戲情境引出標準知識點</li>
+          <li>每張卡都可變成<b>5-10 分鐘小講題</b></li>
+          <li>適合整節課的深度教學</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="panel">
+  <h2>🖨️ 列印套裝設計</h2>
+  <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px">根據使用場合，可印不同套裝。讓玩家依需求採購：</p>
+
+  <div class="print-option">
+    <div class="po-icon">📦</div>
+    <div class="po-content">
+      <div class="po-name basic">基礎遊戲版 · 42 張卡</div>
+      <div class="po-desc">21 張遊戲卡 × 2 副（雙方鏡像對戰）。<b style="color:var(--green)">適合大部分玩家</b>，包含學生平常使用、社團活動、家庭娛樂。成本最低。</div>
+    </div>
+  </div>
+
+  <div class="print-option">
+    <div class="po-icon">🎓</div>
+    <div class="po-content">
+      <div class="po-name complete">教學完整版 · 63 張卡</div>
+      <div class="po-desc">42 張遊戲卡 + 21 張教學參考卡。<b style="color:var(--gold)">適合修課學生、自學者</b>，含完整 IEC 61400 對應、教學討論點。可作為課程教材販售/發放。</div>
+    </div>
+  </div>
+
+  <div class="print-option">
+    <div class="po-icon">📚</div>
+    <div class="po-content">
+      <div class="po-name exp">教師專業版 · 63 張卡 + 教學手冊</div>
+      <div class="po-desc">完整版 + A4 教學手冊（18 週課程整合範例、每張卡延伸講義）。<b style="color:var(--iec)">適合任課教師、工作坊講師</b>。可作為產學合作的訓練材料。</div>
+    </div>
+  </div>
+
+  <div class="note good"><b>策略意涵：</b>分版銷售/分發，不只是商業考量——更重要的是<b>每個使用者都拿到他需要的</b>。家長拿到「基礎版」不會困惑；課程學生拿到「教學版」有完整學習資源；老師拿到「專業版」有完整教學支援。</div>
+</div>
+
+<div class="panel">
+  <h2>📋 21 張教學參考卡內容預告</h2>
+  <p style="font-size:0.78rem;color:var(--muted);margin-bottom:10px">每張參考卡都有以下三個部分（卡片正面）：</p>
+
+  <table style="width:100%;font-size:0.78rem;border-collapse:collapse;margin-top:8px">
+    <thead>
+      <tr style="background:var(--bg3)">
+        <th style="padding:9px;text-align:left;color:var(--iec)">內容區塊</th>
+        <th style="padding:9px;text-align:left;color:var(--iec)">內容</th>
+        <th style="padding:9px;text-align:left;color:var(--iec)">用途</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="padding:8px">📐 IEC 標準對應</td><td style="padding:8px">標準編號（如 IEC 61400-4）</td><td style="padding:8px">學生查詢、報告引用</td></tr>
+      <tr style="background:var(--bg3)"><td style="padding:8px">📝 標準內容摘要</td><td style="padding:8px">1-2 句話概述該標準在管什麼</td><td style="padding:8px">快速理解、課堂講解起點</td></tr>
+      <tr><td style="padding:8px">🎓 課堂討論點</td><td style="padding:8px">老師可以延伸的教學問題</td><td style="padding:8px">引導討論、深度教學</td></tr>
+    </tbody>
+  </table>
+
+  <p style="font-size:0.78rem;color:var(--text);margin-top:14px">
+    參考卡和遊戲卡<b style="color:var(--gold)">背面相同設計</b>（風機 logo），<b style="color:var(--gold)">正面風格不同</b>——遊戲卡有色彩主題（藍/綠/紅），參考卡統一是科技風的青色（IEC 色），<b style="color:var(--text)">在桌上一眼就分得出來</b>。
+  </p>
+</div>
+
+<div class="panel" style="background:linear-gradient(135deg,rgba(52,211,153,.08),rgba(6,182,212,.08));border-color:rgba(52,211,153,.3)">
+  <h2 style="border:none">🎯 這次調整解決了什麼問題</h2>
+  <div class="grid2">
+    <div style="background:var(--bg2);padding:14px;border-radius:10px;border:1px solid var(--border)">
+      <h3 style="color:var(--red)">❌ 原本的問題</h3>
+      <ul style="font-size:0.78rem;color:var(--text);padding-left:20px;line-height:1.8">
+        <li>非專業看到 IEC 編號會困惑</li>
+        <li>卡面資訊太多，視覺擁擠</li>
+        <li>學生覺得「這遊戲好嚴肅」</li>
+        <li>強迫所有人面對標準</li>
+      </ul>
+    </div>
+    <div style="background:var(--bg2);padding:14px;border-radius:10px;border:1px solid var(--border)">
+      <h3 style="color:var(--green)">✅ 現在的設計</h3>
+      <ul style="font-size:0.78rem;color:var(--text);padding-left:20px;line-height:1.8">
+        <li>遊戲卡乾淨好讀，門檻降低</li>
+        <li>IEC 標準是<b style="color:var(--gold)">選修</b>，不是必修</li>
+        <li>右下角小標記，需要時才查</li>
+        <li>同一套卡支援三種使用模式</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note good" style="margin-top:14px"><b>更深的設計哲學：</b>好的教育工具不是「強迫學習」，而是「<b>降低嘗試門檻，提高深度可及性</b>」。學生先願意玩，玩著玩著好奇了，自然會想知道「這真的有這個標準嗎？」這時參考卡就在那邊等他。</div>
+</div>
+
+</body>
+</html>

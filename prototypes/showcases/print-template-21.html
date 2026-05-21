@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WindField Battle — 列印用 21 張卡（A4）</title>
+<style>
+  /* ============== 列印設定 ============== */
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  @media print {
+    body { background: white !important; }
+    .no-print { display: none !important; }
+    .page-break { page-break-after: always; }
+    .page-break:last-of-type { page-break-after: avoid; }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1a2436;
+    font-family: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif;
+    color: #1a1a1a;
+    padding: 0;
+  }
+
+  /* ============== 操作說明（不列印）============== */
+  .instructions {
+    background: #11192a;
+    color: #e2e8f0;
+    padding: 24px 32px;
+    margin-bottom: 20px;
+  }
+  .instructions h1 {
+    font-size: 1.6rem;
+    background: linear-gradient(120deg, #38bdf8, #34d399, #fbbf24);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  .instructions .step {
+    background: #1a2436;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-top: 10px;
+    border-left: 3px solid #fbbf24;
+    font-size: 0.88rem;
+    line-height: 1.7;
+  }
+  .instructions .step b { color: #fbbf24; }
+  .instructions code {
+    background: #1a2436;
+    color: #38bdf8;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.85em;
+  }
+  .instructions .btn-print {
+    background: linear-gradient(135deg, #38bdf8, #06b6d4);
+    color: white;
+    border: none;
+    padding: 12px 28px;
+    font-size: 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    margin-top: 16px;
+    box-shadow: 0 4px 12px rgba(56,189,248,.3);
+  }
+  .instructions .btn-print:hover { background: linear-gradient(135deg, #06b6d4, #38bdf8); }
+
+  /* ============== A4 頁面容器 ============== */
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 8mm;
+    background: white;
+    margin: 0 auto 20px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+  }
+  @media print {
+    .page {
+      box-shadow: none;
+      margin: 0;
+      padding: 0;
+    }
+  }
+
+  /* 頁面標題（列印時也顯示） */
+  .page-title {
+    text-align: center;
+    font-size: 9pt;
+    color: #94a3b8;
+    margin-bottom: 3mm;
+    letter-spacing: 2px;
+  }
+
+  /* ============== 卡牌網格 ============== */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 63mm);
+    grid-template-rows: repeat(3, 88mm);
+    gap: 0;
+    justify-content: center;
+    align-content: start;
+    flex: 1;
+  }
+
+  /* ============== 卡牌本體 ============== */
+  .card {
+    width: 63mm;
+    height: 88mm;
+    background: white;
+    border: 0.5mm solid;
+    border-radius: 3mm;
+    padding: 3mm;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    page-break-inside: avoid;
+    /* 裁切標記 */
+    outline: 0.1mm dashed #cbd5e1;
+    outline-offset: 0.5mm;
+  }
+
+  /* 卡片類型主題色 */
+  .card.turbine {
+    border-color: #0284c7;
+    background: linear-gradient(170deg, #e0f2fe 0%, white 35%);
+  }
+  .card.tech {
+    border-color: #059669;
+    background: linear-gradient(170deg, #d1fae5 0%, white 35%);
+  }
+  .card.fault {
+    border-color: #dc2626;
+    background: linear-gradient(170deg, #fee2e2 0%, white 35%);
+  }
+  /* 稀有/傳奇卡 */
+  .card.rare {
+    border-color: #d97706;
+    border-width: 0.7mm;
+    background: linear-gradient(170deg, #fef3c7 0%, white 50%);
+  }
+
+  /* 卡片頂端：ID + 動作費 */
+  .card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 1.5mm;
+    border-bottom: 0.2mm solid #e5e7eb;
+  }
+  .card-id {
+    font-size: 7pt;
+    color: #6b7280;
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    background: #f3f4f6;
+    padding: 0.5mm 1.5mm;
+    border-radius: 2mm;
+  }
+  .card-type-label {
+    font-size: 6.5pt;
+    color: #6b7280;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+  .card-cost {
+    width: 6mm;
+    height: 6mm;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9pt;
+    font-weight: 900;
+    box-shadow: 0 0.5mm 1mm rgba(0,0,0,.15);
+  }
+  .card-cost.zero { background: #94a3b8; }
+
+  /* 卡片中段：圖示 + 名稱 */
+  .card-icon {
+    font-size: 14mm;
+    line-height: 1;
+    text-align: center;
+    margin: 1.5mm 0 1mm;
+  }
+  .card-name {
+    text-align: center;
+    font-size: 10pt;
+    font-weight: 900;
+    line-height: 1.15;
+  }
+  .card.turbine .card-name { color: #0284c7; }
+  .card.tech    .card-name { color: #059669; }
+  .card.fault   .card-name { color: #dc2626; }
+  .card-en {
+    text-align: center;
+    font-size: 5.5pt;
+    color: #94a3b8;
+    margin-top: 0.5mm;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  /* 屬性標籤 */
+  .stats {
+    display: flex;
+    gap: 1mm;
+    justify-content: center;
+    margin: 2mm 0 1.5mm;
+    flex-wrap: wrap;
+  }
+  .stat-pill {
+    font-size: 6.5pt;
+    font-weight: 700;
+    padding: 0.5mm 2mm;
+    border-radius: 3mm;
+    background: #f3f4f6;
+    color: #374151;
+  }
+  .stat-pill.mw  { background: #dbeafe; color: #1d4ed8; }
+  .stat-pill.av  { background: #d1fae5; color: #047857; }
+  .stat-pill.sev { background: #fee2e2; color: #b91c1c; }
+  .stat-pill.tp  { background: #fef3c7; color: #b45309; }
+
+  /* 效果文字框 */
+  .card-effect {
+    background: rgba(0,0,0,0.04);
+    border-radius: 1.5mm;
+    padding: 1.5mm 2mm;
+    font-size: 7pt;
+    line-height: 1.35;
+    color: #1f2937;
+    flex: 1;
+    margin-top: 1mm;
+    min-height: 18mm;
+  }
+  .card-effect b { color: #b45309; }
+  .keyword {
+    background: #fef3c7;
+    color: #b45309;
+    padding: 0 1mm;
+    border-radius: 1mm;
+    font-weight: 700;
+  }
+
+  /* 克制資訊 */
+  .card-counter {
+    font-size: 6pt;
+    color: #6b7280;
+    padding: 0.8mm 1.5mm;
+    background: rgba(0,0,0,0.04);
+    border-radius: 1mm;
+    text-align: center;
+    margin-top: 1mm;
+    line-height: 1.3;
+  }
+  .card-counter b { color: #b45309; }
+
+  /* Flavor 文字 */
+  .card-flavor {
+    font-size: 5.8pt;
+    color: #94a3b8;
+    font-style: italic;
+    text-align: center;
+    line-height: 1.3;
+    margin-top: 1mm;
+    padding: 0 1mm;
+  }
+
+  /* IEC 標記（右下角極小） */
+  .card-iec {
+    position: absolute;
+    bottom: 1.5mm;
+    right: 2mm;
+    font-size: 5pt;
+    color: #94a3b8;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.3px;
+    opacity: 0.75;
+  }
+
+  /* 稀有星標 */
+  .rare-star {
+    position: absolute;
+    top: 1.5mm;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 6pt;
+    color: #d97706;
+    font-weight: 900;
+    letter-spacing: 2px;
+  }
+
+  /* ============== 卡背設計 ============== */
+  .card-back {
+    width: 63mm;
+    height: 88mm;
+    border-radius: 3mm;
+    background:
+      radial-gradient(circle at center, #1e3a8a 0%, #0f172a 70%, #020617 100%);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 5mm;
+    border: 0.5mm solid #0284c7;
+    page-break-inside: avoid;
+    position: relative;
+    overflow: hidden;
+    outline: 0.1mm dashed #cbd5e1;
+    outline-offset: 0.5mm;
+  }
+  .back-emblem {
+    font-size: 22mm;
+    line-height: 1;
+    color: #38bdf8;
+    text-shadow: 0 0 6mm rgba(56,189,248,0.5);
+  }
+  .back-title {
+    font-size: 13pt;
+    font-weight: 900;
+    letter-spacing: 3px;
+    margin-top: 3mm;
+    background: linear-gradient(120deg, #38bdf8, #34d399);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .back-sub {
+    font-size: 6pt;
+    color: #94a3b8;
+    letter-spacing: 3px;
+    margin-top: 2mm;
+    text-transform: uppercase;
+  }
+  .back-ornament {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background:
+      repeating-linear-gradient(45deg, transparent 0, transparent 2mm, rgba(56,189,248,0.04) 2mm, rgba(56,189,248,0.04) 2.5mm);
+  }
+  .back-corners {
+    position: absolute;
+    color: #38bdf8;
+    font-size: 4pt;
+    font-family: monospace;
+    opacity: 0.5;
+  }
+  .back-corners.tl { top: 2mm; left: 2.5mm; }
+  .back-corners.tr { top: 2mm; right: 2.5mm; }
+  .back-corners.bl { bottom: 2mm; left: 2.5mm; }
+  .back-corners.br { bottom: 2mm; right: 2.5mm; }
+
+  /* ============== Canva 重製指南（不列印）============== */
+  .canva-guide {
+    background: #11192a;
+    color: #e2e8f0;
+    padding: 24px 32px;
+    margin: 30px 0;
+    border-radius: 12px;
+  }
+  .canva-guide h2 {
+    color: #38bdf8;
+    font-size: 1.2rem;
+    margin-bottom: 14px;
+    border-bottom: 1px solid rgba(56,189,248,.2);
+    padding-bottom: 8px;
+  }
+  .canva-guide h3 { color: #fbbf24; font-size: 0.95rem; margin: 14px 0 8px; }
+  .spec-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .spec-box {
+    background: #1a2436;
+    padding: 14px 16px;
+    border-radius: 8px;
+    border-left: 3px solid #38bdf8;
+  }
+  .spec-box.green { border-color: #34d399; }
+  .spec-box.red { border-color: #f87171; }
+  .spec-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 0.82rem;
+    border-bottom: 1px solid rgba(255,255,255,.05);
+  }
+  .spec-label { color: #94a3b8; }
+  .spec-val { color: white; font-family: monospace; font-weight: 700; }
+
+  .color-chip {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border-radius: 4px;
+    vertical-align: middle;
+    margin-right: 6px;
+    border: 1px solid rgba(255,255,255,.2);
+  }
+
+  @media (max-width: 700px) {
+    .spec-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== 操作說明（不會列印）===== -->
+<div class="instructions no-print">
+  <h1>🎴 WindField Battle Tier 1 列印模板</h1>
+  <p style="font-size:0.92rem;color:#94a3b8;margin-bottom:14px">
+    完整 21 張卡 · 已用 A4 + 撲克牌標準尺寸（63×88mm）排版 · 可直接列印
+  </p>
+
+  <div class="step">
+    <b>🖨️ 步驟 1：列印</b>
+    按下右下方按鈕（或 <code>Ctrl+P</code> / <code>Cmd+P</code>），選擇 A4 紙、彩色、實際大小（100%），不要縮放。建議用<b>厚卡紙 200-300 磅</b>。
+  </div>
+  <div class="step">
+    <b>✂️ 步驟 2：裁切</b>
+    每張卡周圍有淡色虛線，沿線裁切。建議用美工刀 + 直尺。
+  </div>
+  <div class="step">
+    <b>🎴 步驟 3：套牌套</b>
+    買 <code>PCCB 卡牌套</code>（文具店、購物網站約 50 元一包），套上後可重複使用、不怕髒、不會變形。
+  </div>
+  <div class="step">
+    <b>🎲 步驟 4：開玩</b>
+    一副印 2 份（共 42 張），準備 1 顆 d6 骰子 + 計分紙。即可開始 Quick Start 模式（規則見對話前文）。
+  </div>
+
+  <div style="text-align:center">
+    <button class="btn-print" onclick="window.print()">🖨️ 開始列印 / 存成 PDF</button>
+    <p style="font-size:0.75rem;color:#64748b;margin-top:8px">提示：列印對話框中選「另存為 PDF」即可保存電子版</p>
+  </div>
+</div>
+
+<!-- ============== 第 1 頁：機組卡 M01-M07 + 技師 T01-T02 ============== -->
+<div class="page page-break">
+  <div class="page-title">第 1 頁 · 機組卡 M01-M07 + 技師 T01-T02</div>
+  <div class="card-grid">
+
+    <!-- M01 綠源 2MW -->
+    <div class="card turbine">
+      <div class="card-top">
+        <span class="card-id">M01</span>
+        <span class="card-type-label">機組</span>
+        <span class="card-cost">1</span>
+      </div>
+      <div class="card-icon">🌀</div>
+      <div class="card-name">綠源 2MW</div>
+      <div class="card-en">Entry-Level Onshore</div>
+      <div class="stats">
+        <span class="stat-pill mw">2 MW</span>
+        <span class="stat-pill av">95%</span>
+      </div>
+      <div class="card-effect">
+        部署後每回合 <span class="keyword">+2×風速係數</span> MWh。無特殊效果。
+      </div>
+      <div class="card-flavor">"全台灣最常見的入門機型，可靠耐用。"</div>
+      <div class="card-iec">📐 61400-1</div>
+    </div>
+
+    <!-- M02 北能 3MW -->
+    <div class="card turbine">
+      <div class="card-top">
+        <span class="card-id">M02</span>
+        <span class="card-type-label">機組</span>
+        <span class="card-cost">1</span>
+      </div>
+      <div class="card-icon">⚙️</div>
+      <div class="card-name">北能 3MW</div>
+      <div class="card-en">Standard Onshore</div>
+      <div class="stats">
+        <span class="stat-pill mw">3 MW</span>
+        <span class="stat-pill av">93%</span>
+      </div>
+      <div class="card-effect">
+        部署後每回合 <span class="keyword">+3×風速係數</span> MWh。穩定可靠。
+      </div>
+      <div class="card-flavor">"陸域風場主力規格，容量與可靠性平衡。"</div>
+      <div class="card-iec">📐 61400-1</div>
+    </div>
+
+    <!-- M03 巨力 4MW -->
+    <div class="card turbine">
+      <div class="card-top">
+        <span class="card-id">M03</span>
+        <span class="card-type-label">機組</span>
+        <span class="card-cost">2</span>
+      </div>
+      <div class="card-icon">🏗️</div>
+      <div class="card-name">巨力 4MW</div>
+      <div class="card-en">Large Onshore</div>
+      <div class="stats">
+        <span class="stat-pill mw">4 MW</span>
+        <span class="stat-pill av">92%</span>
+      </div>
+      <div class="card-effect">
+        部署後每回合 <span class="keyword">+4×風速係數</span> MWh。
+      </div>
+      <div class="card-flavor">"陸域最大級距，輪轂高度可達 120m。"</div>
+      <div class="card-iec">📐 61400-6</div>
+    </div>
+
+    <!-- M04 浪行者 5MW -->
+    <div class="card turbine">
+      <div class="card-top">
+        <span class="card-id">M04</span>
+        <span class="card-type-label">機組</span>
+        <span class="card-cost">2</span>
+      </div>
+      <div class="card-icon">🌊</div>
+      <div class="card-name">浪行者 5MW</div>
+      <div class="card-en">Coastal Type</div>
+      <div class="stats">
+        <span class="stat-pill mw">5 MW</span>
+        <span class="stat-pill av">90%</span>
+      </div>
+      <div class="card-effect">
+        每回合 <span class="keyword">+5×風速係數</span>。<b>鹽霧</b>每 4 回合 -2% 可用率。
+      </div>
+      <div class="card-flavor">"陸海交界的勇者，鹽霧加速設備老化。"</div>
+      <div class="card-iec">📐 61400-3-1</div>
+    </div>
+
+    <!-- M05 深海 6MW -->
+    <div class="card turbine">
+      <div class="card-top">
+        <span class="card-id">M05</span>
+        <span class="card-type-label">機組</span>
+        <span class="card-cost">2</span>
+      </div>
+      <div class="card-icon">🌊</div>
+      <div class="card-name">深海 6MW</div>
+      <div class="card-en">Offshore Standard</div>
+      <div class="stats">
+        <span class="stat-pill mw">6 MW</span>
+        <span class="stat-pill av">91%</span>
+      </div>
+      <div class="card-effect">
+        每回合 <span class="keyword">+6×風速係數</span>。<b>海事窗口</b>故障修復 +1 回合。
+      </div>
+      <div class="card-flavor">"離岸風場主力機型，需海事船維修。"</div>
+      <div class="card-iec">📐 61400-3-1</div>
+    </div>
+
+    <!-- M06 藍鯨 8MW -->
+    <div class="card turbine">
+      <div class="card-top">
+        <span class="card-id">M06</span>
+        <span class="card-type-label">機組</span>
+        <span class="card-cost">2</span>
+      </div>
+      <div class="card-icon">🐋</div>
+      <div class="card-name">藍鯨 8MW</div>
+      <div class="card-en">Large Offshore</div>
+      <div class="stats">
+        <span class="stat-pill mw">8 MW</span>
+        <span class="stat-pill av">90%</span>
+      </div>
+      <div class="card-effect">
+        每回合 <span class="keyword">+8×風速係數</span>。<b>颱風</b>時受損加倍。
+      </div>
+      <div class="card-flavor">"單機可供應一個小城鎮電力。"</div>
+      <div class="card-iec">📐 61400-3-1, 24</div>
+    </div>
+
+    <!-- M07 天鯨 12MW (傳奇) -->
+    <div class="card turbine rare">
+      <div class="rare-star">★ ★ ★</div>
+      <div class="card-top">
+        <span class="card-id">M07</span>
+        <span class="card-type-label">機組</span>
+        <span class="card-cost">2</span>
+      </div>
+      <div class="card-icon">🚀</div>
+      <div class="card-name">天鯨 12MW</div>
+      <div class="card-en">Next-Gen Floating</div>
+      <div class="stats">
+        <span class="stat-pill mw">12 MW</span>
+        <span class="stat-pill av">88%</span>
+      </div>
+      <div class="card-effect">
+        每回合 <span class="keyword">+12×風速係數</span>。<b>故障時嚴重度 +1</b>。
+      </div>
+      <div class="card-flavor">"葉片直徑 220m，次世代旗艦機組。"</div>
+      <div class="card-iec">📐 61400-3-2</div>
+    </div>
+
+    <!-- T01 初階維修工 -->
+    <div class="card tech">
+      <div class="card-top">
+        <span class="card-id">T01</span>
+        <span class="card-type-label">技師</span>
+        <span class="card-cost">1</span>
+      </div>
+      <div class="card-icon">🔧</div>
+      <div class="card-name">初階維修工</div>
+      <div class="card-en">Junior Technician</div>
+      <div class="stats">
+        <span class="stat-pill tp">通用</span>
+      </div>
+      <div class="card-effect">
+        免費修復 <b>Sev.1-2</b> 故障。每回合可修 1 次。
+      </div>
+      <div class="card-counter">克制：<b>感測器、偏航、液壓</b></div>
+      <div class="card-flavor">"風場日常維護的基層人員。"</div>
+      <div class="card-iec">📐 61400-28</div>
+    </div>
+
+    <!-- T02 葉片檢查員 -->
+    <div class="card tech">
+      <div class="card-top">
+        <span class="card-id">T02</span>
+        <span class="card-type-label">技師</span>
+        <span class="card-cost">1</span>
+      </div>
+      <div class="card-icon">🪂</div>
+      <div class="card-name">葉片檢查員</div>
+      <div class="card-en">Blade Specialist</div>
+      <div class="stats">
+        <span class="stat-pill tp">專業</span>
+      </div>
+      <div class="card-effect">
+        葉片故障修復 <b>動作費 -1</b>。可主動檢查機組。
+      </div>
+      <div class="card-counter">克制：<b>葉片損傷</b></div>
+      <div class="card-flavor">"高空繩索作業專家。"</div>
+      <div class="card-iec">📐 61400-5, 23</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============== 第 2 頁：技師 T03-T07 + 故障 F01-F04 ============== -->
+<div class="page page-break">
+  <div class="page-title">第 2 頁 · 技師 T03-T07 + 故障 F01-F04</div>
+  <div class="card-grid">
+
+    <!-- T03 齒輪箱技師 -->
+    <div class="card tech">
+      <div class="card-top">
+        <span class="card-id">T03</span>
+        <span class="card-type-label">技師</span>
+        <span class="card-cost">1</span>
+      </div>
+      <div class="card-icon">⚙️</div>
+      <div class="card-name">齒輪箱技師</div>
+      <div class="card-en">Gearbox Specialist</div>
+      <div class="stats">
+        <span class="stat-pill tp">專業</span>
+      </div>
+      <div class="card-effect">
+        齒輪箱故障 <b>動作費 -1</b>。預防齒輪箱二次連鎖。
+      </div>
+      <div class="card-counter">克制：<b>齒輪箱磨損、主軸承</b></div>
+      <div class="card-flavor">"聽聲音判斷齒輪健康度的老師傅。"</div>
+      <div class="card-iec">📐 61400-4</div>
+    </div>
+
+    <!-- T04 電氣工程師 -->
+    <div class="card tech">
+      <div class="card-top">
+        <span class="card-id">T04</span>
+        <span class="card-type-label">技師</span>
+        <span class="card-cost">1</span>
+      </div>
+      <div class="card-icon">⚡</div>
+      <div class="card-name">電氣工程師</div>
+      <div class="card-en">Electrical Engineer</div>
+      <div class="stats">
+        <span class="stat-pill tp">專業</span>
+      </div>
+      <div class="card-effect">
+        電氣/感測故障 <b>動作費 -1</b>。可重啟跳機機組。
+      </div>
+      <div class="card-counter">克制：<b>感測器、變槳系統</b></div>
+      <div class="card-flavor">"電控系統的守護者。"</div>
+      <div class="card-iec">📐 61400-21, 27</div>
+    </div>
+
+    <!-- T05 SCADA 工程師 -->
+    <div class="card tech">
+      <div class="card-top">
+        <span class="card-id">T05</span>
+        <span class="card-type-label">技師</span>
+        <span class="card-cost">2</span>
+      </div>
+      <div class="card-icon">📡</div>
+      <div class="card-name">SCADA 工程師</div>
+      <div class="card-en">SCADA Engineer</div>
+      <div class="stats">
+        <span class="stat-pill tp">資料</span>
+      </div>
+      <div class="card-effect">
+        <b>預擲</b>下回合風速。每回合可預警 1 種故障類型。
+      </div>
+      <div class="card-counter">特殊：<b>資訊不對稱優勢</b></div>
+      <div class="card-flavor">"從數據中看見未來的眼睛。"</div>
+      <div class="card-iec">📐 61400-25</div>
+    </div>
+
+    <!-- T06 診斷工程師 -->
+    <div class="card tech">
+      <div class="card-top">
+        <span class="card-id">T06</span>
+        <span class="card-type-label">技師</span>
+        <span class="card-cost">2</span>
+      </div>
+      <div class="card-icon">🔬</div>
+      <div class="card-name">診斷工程師</div>
+      <div class="card-en">Diagnostic Engineer</div>
+      <div class="stats">
+        <span class="stat-pill tp">CMS</span>
+      </div>
+      <div class="card-effect">
+        出場時<b>免費修復</b>場上 1 個 Sev.3 以下故障。冷卻 3 回合。
+      </div>
+      <div class="card-counter">克制：<b>所有 Sev.3 以下</b></div>
+      <div class="card-flavor">"CMS 系統解讀專家。"</div>
+      <div class="card-iec">📐 61400-25-6</div>
+    </div>
+
+    <!-- T07 資深運維主管 (傳奇) -->
+    <div class="card tech rare">
+      <div class="rare-star">★ ★ ★</div>
+      <div class="card-top">
+        <span class="card-id">T07</span>
+        <span class="card-type-label">技師</span>
+        <span class="card-cost">2</span>
+      </div>
+      <div class="card-icon">👔</div>
+      <div class="card-name">資深運維主管</div>
+      <div class="card-en">Senior O&amp;M Manager</div>
+      <div class="stats">
+        <span class="stat-pill tp">領導</span>
+      </div>
+      <div class="card-effect">
+        所有技師卡 <b>動作費 -1</b>。每回合 <b>+1 動作</b>。
+      </div>
+      <div class="card-counter">特殊：<b>全場效率加成</b></div>
+      <div class="card-flavor">"20 年經驗的領導者，團隊的靈魂。"</div>
+      <div class="card-iec">📐 61400-28</div>
+    </div>
+
+    <!-- F01 感測器異常 -->
+    <div class="card fault">
+      <div class="card-top">
+        <span class="card-id">F01</span>
+        <span class="card-type-label">故障</span>
+        <span class="card-cost">1</span>
+      </div>
+      <div class="card-icon">📊</div>
+      <div class="card-name">感測器異常</div>
+      <div class="card-en">Sensor Failure</div>
+      <div class="stats">
+        <span class="stat-pill sev">Sev.1</span>
+      </div>
+      <div class="card-effect">
+        對手機組 <span class="keyword">-5% 可用率</span>，下回合自動修復。
+      </div>
+      <div class="card-counter">克制：<b>電氣 / 初階維修</b></div>
+      <div class="card-flavor">"風速計或溫度計失靈。"</div>
+      <div class="card-iec">📐 61400-12, 25</div>
+    </div>
+
+    <!-- F02 偏航誤差 -->
+    <div class="card fault">
+      <div class="card-top">
+        <span class="card-id">F02</span>
+        <span class="card-type-label">故障</span>
+        <span class="card-cost">1</span>
+      </div>
+      <div class="card-icon">🧭</div>
+      <div class="card-name">偏航誤差</div>
+      <div class="card-en">Yaw Error</div>
+      <div class="stats">
+        <span class="stat-pill sev">Sev.1</span>
+      </div>
+      <div class="card-effect">
+        對手機組本回合 <span class="keyword">-10% 效率</span>，回合末自動恢復。
+      </div>
+      <div class="card-counter">克制：<b>初階維修工</b></div>
+      <div class="card-flavor">"機組面對錯誤方向。"</div>
+      <div class="card-iec">📐 61400-1</div>
+    </div>
+
+    <!-- F03 液壓漏油 -->
+    <div class="card fault">
+      <div class="card-top">
+        <span class="card-id">F03</span>
+        <span class="card-type-label">故障</span>
+        <span class="card-cost">1</span>
+      </div>
+      <div class="card-icon">💧</div>
+      <div class="card-name">液壓漏油</div>
+      <div class="card-en">Hydraulic Leak</div>
+      <div class="stats">
+        <span class="stat-pill sev">Sev.2</span>
+      </div>
+      <div class="card-effect">
+        <span class="keyword">-10% 可用率</span>。<b>不修則擴大</b>每回合 -5%。
+      </div>
+      <div class="card-counter">克制：<b>初階維修工</b></div>
+      <div class="card-flavor">"液壓系統常見問題。"</div>
+      <div class="card-iec">📐 61400-1, 28</div>
+    </div>
+
+    <!-- F04 葉片損傷 -->
+    <div class="card fault">
+      <div class="card-top">
+        <span class="card-id">F04</span>
+        <span class="card-type-label">故障</span>
+        <span class="card-cost">2</span>
+      </div>
+      <div class="card-icon">🪂</div>
+      <div class="card-name">葉片損傷</div>
+      <div class="card-en">Blade Damage</div>
+      <div class="stats">
+        <span class="stat-pill sev">Sev.3</span>
+      </div>
+      <div class="card-effect">
+        <span class="keyword">-20% 可用率</span>，需 2 回合修復。
+      </div>
+      <div class="card-counter">克制：<b>葉片檢查員（必須）</b></div>
+      <div class="card-flavor">"鳥擊、雷擊或結冰造成。"</div>
+      <div class="card-iec">📐 61400-5, 23</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============== 第 3 頁：故障 F05-F07 + 卡背 ============== -->
+<div class="page page-break">
+  <div class="page-title">第 3 頁 · 故障 F05-F07 + 卡背設計</div>
+  <div class="card-grid">
+
+    <!-- F05 變槳系統失效 -->
+    <div class="card fault">
+      <div class="card-top">
+        <span class="card-id">F05</span>
+        <span class="card-type-label">故障</span>
+        <span class="card-cost">2</span>
+      </div>
+      <div class="card-icon">📐</div>
+      <div class="card-name">變槳系統失效</div>
+      <div class="card-en">Pitch System Failure</div>
+      <div class="stats">
+        <span class="stat-pill sev">Sev.3</span>
+      </div>
+      <div class="card-effect">
+        <span class="keyword">-25% 可用率</span>。<b>颱風時影響加倍</b>。
+      </div>
+      <div class="card-counter">克制：<b>電氣工程師</b></div>
+      <div class="card-flavor">"葉片角度無法調整。"</div>
+      <div class="card-iec">📐 61400-1, 27</div>
+    </div>
+
+    <!-- F06 齒輪箱磨損 -->
+    <div class="card fault">
+      <div class="card-top">
+        <span class="card-id">F06</span>
+        <span class="card-type-label">故障</span>
+        <span class="card-cost">2</span>
+      </div>
+      <div class="card-icon">⚙️</div>
+      <div class="card-name">齒輪箱磨損</div>
+      <div class="card-en">Gearbox Wear</div>
+      <div class="stats">
+        <span class="stat-pill sev">Sev.4</span>
+      </div>
+      <div class="card-effect">
+        <span class="keyword">-30% 可用率</span>，3 回合修復。<b>20% 連鎖機率</b>。
+      </div>
+      <div class="card-counter">克制：<b>齒輪箱技師（必須）</b></div>
+      <div class="card-flavor">"風電業最頭痛的故障之一。"</div>
+      <div class="card-iec">📐 61400-4</div>
+    </div>
+
+    <!-- F07 主軸承故障 (災難) -->
+    <div class="card fault rare">
+      <div class="rare-star">★ 災難級 ★</div>
+      <div class="card-top">
+        <span class="card-id">F07</span>
+        <span class="card-type-label">故障</span>
+        <span class="card-cost">2</span>
+      </div>
+      <div class="card-icon">💥</div>
+      <div class="card-name">主軸承故障</div>
+      <div class="card-en">Main Bearing Failure</div>
+      <div class="stats">
+        <span class="stat-pill sev">Sev.5</span>
+      </div>
+      <div class="card-effect">
+        <span class="keyword">-50% 可用率</span>，3 回合修復。<b>30% 連鎖機率</b>。
+      </div>
+      <div class="card-counter">克制：<b>齒輪箱 + 診斷</b></div>
+      <div class="card-flavor">"災難級故障。"</div>
+      <div class="card-iec">📐 61400-4, 28</div>
+    </div>
+
+    <!-- 卡背 ×6 (填滿剩餘格子) -->
+    <div class="card-back">
+      <div class="back-ornament"></div>
+      <div class="back-corners tl">⌜ WB-T1</div>
+      <div class="back-corners tr">WB-T1 ⌝</div>
+      <div class="back-emblem">🌀</div>
+      <div class="back-title">WINDFIELD</div>
+      <div class="back-sub">BATTLE · T1</div>
+      <div class="back-corners bl">⌞ NCUT</div>
+      <div class="back-corners br">DOF LAB ⌟</div>
+    </div>
+
+    <div class="card-back">
+      <div class="back-ornament"></div>
+      <div class="back-corners tl">⌜ WB-T1</div>
+      <div class="back-corners tr">WB-T1 ⌝</div>
+      <div class="back-emblem">🌀</div>
+      <div class="back-title">WINDFIELD</div>
+      <div class="back-sub">BATTLE · T1</div>
+      <div class="back-corners bl">⌞ NCUT</div>
+      <div class="back-corners br">DOF LAB ⌟</div>
+    </div>
+
+    <div class="card-back">
+      <div class="back-ornament"></div>
+      <div class="back-corners tl">⌜ WB-T1</div>
+      <div class="back-corners tr">WB-T1 ⌝</div>
+      <div class="back-emblem">🌀</div>
+      <div class="back-title">WINDFIELD</div>
+      <div class="back-sub">BATTLE · T1</div>
+      <div class="back-corners bl">⌞ NCUT</div>
+      <div class="back-corners br">DOF LAB ⌟</div>
+    </div>
+
+    <div class="card-back">
+      <div class="back-ornament"></div>
+      <div class="back-corners tl">⌜ WB-T1</div>
+      <div class="back-corners tr">WB-T1 ⌝</div>
+      <div class="back-emblem">🌀</div>
+      <div class="back-title">WINDFIELD</div>
+      <div class="back-sub">BATTLE · T1</div>
+      <div class="back-corners bl">⌞ NCUT</div>
+      <div class="back-corners br">DOF LAB ⌟</div>
+    </div>
+
+    <div class="card-back">
+      <div class="back-ornament"></div>
+      <div class="back-corners tl">⌜ WB-T1</div>
+      <div class="back-corners tr">WB-T1 ⌝</div>
+      <div class="back-emblem">🌀</div>
+      <div class="back-title">WINDFIELD</div>
+      <div class="back-sub">BATTLE · T1</div>
+      <div class="back-corners bl">⌞ NCUT</div>
+      <div class="back-corners br">DOF LAB ⌟</div>
+    </div>
+
+    <div class="card-back">
+      <div class="back-ornament"></div>
+      <div class="back-corners tl">⌜ WB-T1</div>
+      <div class="back-corners tr">WB-T1 ⌝</div>
+      <div class="back-emblem">🌀</div>
+      <div class="back-title">WINDFIELD</div>
+      <div class="back-sub">BATTLE · T1</div>
+      <div class="back-corners bl">⌞ NCUT</div>
+      <div class="back-corners br">DOF LAB ⌟</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============== 第 4 頁：純卡背（如需雙面列印） ============== -->
+<div class="page">
+  <div class="page-title">第 4 頁 · 卡背 ×9（如需雙面列印）</div>
+  <div class="card-grid">
+    <div class="card-back">
+      <div class="back-ornament"></div>
+      <div class="back-corners tl">⌜ WB-T1</div>
+      <div class="back-corners tr">WB-T1 ⌝</div>
+      <div class="back-emblem">🌀</div>
+      <div class="back-title">WINDFIELD</div>
+      <div class="back-sub">BATTLE · T1</div>
+      <div class="back-corners bl">⌞ NCUT</div>
+      <div class="back-corners br">DOF LAB ⌟</div>
+    </div>
+    <div class="card-back">
+      <div class="back-ornament"></div>
+      <div class="back-corners tl">⌜ WB-T1</div>
+      <div class="back-corners tr">WB-T1 ⌝</div>
+      <div class="back-emblem">🌀</div>
+      <div class="back-title">WINDFIELD</div>
+      <div class="back-sub">BATTLE · T1</div>
+      <div class="back-corners bl">⌞ NCUT</div>
+      <div class="back-corners br">DOF LAB ⌟</div>
+    </div>
+    <div class="card-back">
+      <div class="back-ornament"></div>
+      <div class="back-corners tl">⌜ WB-T1</div>
+      <div class="back-corners tr">WB-T1 ⌝</div>
+      <div class="back-emblem">🌀</div>
+      <div class="back-title">WINDFIELD</div>
+      <div class="back-sub">BATTLE · T1</div>
+      <div class="back-corners bl">⌞ NCUT</div>
+      <div class="back-corners br">DOF LAB ⌟</div>
+    </div>
+    <div class="card-back">
+      <div class="back-ornament"></div>
+      <div class="back-corners tl">⌜ WB-T1</div>
+      <div class="back-corners tr">WB-T1 ⌝</div>
+      <div class="back-emblem">🌀</div>
+      <div class="back-title">WINDFIELD</div>
+      <div class="back-sub">BATTLE · T1</div>
+      <div class="back-corners bl">⌞ NCUT</div>
+      <div class="back-corners br">DOF LAB ⌟</div>
+    </div>
+    <div class="card-back">
+      <div class="back-ornament"></div>
+      <div class="back-corners tl">⌜ WB-T1</div>
+      <div class="back-corners tr">WB-T1 ⌝</div>
+      <div class="back-emblem">🌀</div>
+      <div class="back-title">WINDFIELD</div>
+      <div class="back-sub">BATTLE · T1</div>
+      <div class="back-corners bl">⌞ NCUT</div>
+      <div class="back-corners br">DOF LAB ⌟</div>
+    </div>
+    <div class="card-back">
+      <div class="back-ornament"></div>
+      <div class="back-corners tl">⌜ WB-T1</div>
+      <div class="back-corners tr">WB-T1 ⌝</div>
+      <div class="back-emblem">🌀</div>
+      <div class="back-title">WINDFIELD</div>
+      <div class="back-sub">BATTLE · T1</div>
+      <div class="back-corners bl">⌞ NCUT</div>
+      <div class="back-corners br">DOF LAB ⌟</div>
+    </div>
+    <div class="card-back">
+      <div class="back-ornament"></div>
+      <div class="back-corners tl">⌜ WB-T1</div>
+      <div class="back-corners tr">WB-T1 ⌝</div>
+      <div class="back-emblem">🌀</div>
+      <div class="back-title">WINDFIELD</div>
+      <div class="back-sub">BATTLE · T1</div>
+      <div class="back-corners bl">⌞ NCUT</div>
+      <div class="back-corners br">DOF LAB ⌟</div>
+    </div>
+    <div class="card-back">
+      <div class="back-ornament"></div>
+      <div class="back-corners tl">⌜ WB-T1</div>
+      <div class="back-corners tr">WB-T1 ⌝</div>
+      <div class="back-emblem">🌀</div>
+      <div class="back-title">WINDFIELD</div>
+      <div class="back-sub">BATTLE · T1</div>
+      <div class="back-corners bl">⌞ NCUT</div>
+      <div class="back-corners br">DOF LAB ⌟</div>
+    </div>
+    <div class="card-back">
+      <div class="back-ornament"></div>
+      <div class="back-corners tl">⌜ WB-T1</div>
+      <div class="back-corners tr">WB-T1 ⌝</div>
+      <div class="back-emblem">🌀</div>
+      <div class="back-title">WINDFIELD</div>
+      <div class="back-sub">BATTLE · T1</div>
+      <div class="back-corners bl">⌞ NCUT</div>
+      <div class="back-corners br">DOF LAB ⌟</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== Canva 重製規格（不列印）============== -->
+<div class="canva-guide no-print">
+  <h2>🎨 Canva 重製規格參考</h2>
+  <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:14px">
+    如果想在 Canva 重做、加插畫或客製化，使用以下規格。Canva 搜尋 <b style="color:#fbbf24">"poker card"</b> 或自訂尺寸：
+  </p>
+
+  <h3>📐 卡牌尺寸與排版</h3>
+  <div class="spec-grid">
+    <div class="spec-box">
+      <div class="spec-row"><span class="spec-label">卡片尺寸</span><span class="spec-val">63 × 88 mm</span></div>
+      <div class="spec-row"><span class="spec-label">寬度（像素）</span><span class="spec-val">744 px @ 300 dpi</span></div>
+      <div class="spec-row"><span class="spec-label">高度（像素）</span><span class="spec-val">1039 px @ 300 dpi</span></div>
+      <div class="spec-row"><span class="spec-label">圓角半徑</span><span class="spec-val">3 mm</span></div>
+      <div class="spec-row"><span class="spec-label">外邊框寬度</span><span class="spec-val">0.5 mm</span></div>
+      <div class="spec-row"><span class="spec-label">內邊距</span><span class="spec-val">3 mm</span></div>
+    </div>
+    <div class="spec-box green">
+      <div class="spec-row"><span class="spec-label">標題字級</span><span class="spec-val">10 pt 粗體</span></div>
+      <div class="spec-row"><span class="spec-label">效果文字</span><span class="spec-val">7 pt 正常</span></div>
+      <div class="spec-row"><span class="spec-label">克制資訊</span><span class="spec-val">6 pt</span></div>
+      <div class="spec-row"><span class="spec-label">Flavor 文字</span><span class="spec-val">5.8 pt 斜體</span></div>
+      <div class="spec-row"><span class="spec-label">IEC 標記</span><span class="spec-val">5 pt 等寬</span></div>
+      <div class="spec-row"><span class="spec-label">建議字體</span><span class="spec-val">Noto Sans TC</span></div>
+    </div>
+  </div>
+
+  <h3>🎨 卡片配色（Hex 色碼）</h3>
+  <div class="spec-grid">
+    <div class="spec-box">
+      <div class="spec-row">
+        <span class="spec-label"><span class="color-chip" style="background:#0284c7"></span>機組卡邊框</span>
+        <span class="spec-val">#0284c7</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label"><span class="color-chip" style="background:#e0f2fe"></span>機組卡上色</span>
+        <span class="spec-val">#e0f2fe</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label"><span class="color-chip" style="background:#059669"></span>技師卡邊框</span>
+        <span class="spec-val">#059669</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label"><span class="color-chip" style="background:#d1fae5"></span>技師卡上色</span>
+        <span class="spec-val">#d1fae5</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label"><span class="color-chip" style="background:#dc2626"></span>故障卡邊框</span>
+        <span class="spec-val">#dc2626</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label"><span class="color-chip" style="background:#fee2e2"></span>故障卡上色</span>
+        <span class="spec-val">#fee2e2</span>
+      </div>
+    </div>
+    <div class="spec-box">
+      <div class="spec-row">
+        <span class="spec-label"><span class="color-chip" style="background:#d97706"></span>稀有卡邊框</span>
+        <span class="spec-val">#d97706</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label"><span class="color-chip" style="background:#fef3c7"></span>動作費徽章</span>
+        <span class="spec-val">#fef3c7</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label"><span class="color-chip" style="background:#fbbf24"></span>關鍵字高亮</span>
+        <span class="spec-val">#fbbf24</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label"><span class="color-chip" style="background:#1f2937"></span>主文字</span>
+        <span class="spec-val">#1f2937</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label"><span class="color-chip" style="background:#6b7280"></span>次要文字</span>
+        <span class="spec-val">#6b7280</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-label"><span class="color-chip" style="background:#94a3b8"></span>Flavor / IEC</span>
+        <span class="spec-val">#94a3b8</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>🖼️ 插畫建議（升級版用）</h3>
+  <div class="spec-box red" style="margin-top:8px">
+    <div style="font-size:0.85rem;color:#e2e8f0;line-height:1.7">
+      目前使用 <b style="color:#fbbf24">Emoji</b> 作為佔位，可玩可印。要升級可選：
+      <ul style="margin-top:8px;padding-left:24px;color:#94a3b8;font-size:0.82rem">
+        <li><b style="color:#e2e8f0">AI 生成</b>：用 Midjourney / DALL·E 為每張卡生風機/技師/故障插畫</li>
+        <li><b style="color:#e2e8f0">學生協作</b>：找美術或設計系學生繪製，可以是課堂作業</li>
+        <li><b style="color:#e2e8f0">商業圖庫</b>：Freepik / Adobe Stock 找工業/工程主題向量圖</li>
+        <li><b style="color:#e2e8f0">建議尺寸</b>：插畫區 24×24 mm，置於卡片中央偏上</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>📦 完整 Canva 重製流程</h3>
+  <div class="spec-box green">
+    <ol style="padding-left:24px;color:#e2e8f0;font-size:0.85rem;line-height:1.9">
+      <li>Canva 首頁 → <b style="color:#fbbf24">建立設計</b> → <b style="color:#fbbf24">自訂尺寸</b> → 輸入 <code style="background:#1a2436;padding:1px 6px;border-radius:3px">63 × 88 mm</code></li>
+      <li>建立<b style="color:#fbbf24">主版型</b>（背景、邊框、ID/動作費位置）</li>
+      <li><b style="color:#fbbf24">複製主版型 21 次</b>，分別填入每張卡內容</li>
+      <li>用<b style="color:#fbbf24">資料夾分類</b>：機組卡 / 技師卡 / 故障卡</li>
+      <li>下載：<b style="color:#fbbf24">PDF 列印格式</b>（含裁切標記、出血）</li>
+      <li>送學校列印中心或 MakePlayingCards 製作專業版</li>
+    </ol>
+  </div>
+
+  <div style="background:#1a2436;border-left:3px solid #34d399;padding:14px 18px;border-radius:0 8px 8px 0;margin-top:14px;font-size:0.85rem;line-height:1.7">
+    <b style="color:#34d399">💡 提示：</b>本檔案就是「可運作的模板」——直接列印就能用，不一定要 Canva。Canva 只是讓你<b>之後想升級視覺時的工具</b>。先用這個版本完成第一輪測試，再決定要不要做精美版。
+  </div>
+</div>
+
+<script>
+  // 列印前自動隱藏說明
+  window.addEventListener('beforeprint', () => {
+    document.querySelectorAll('.no-print').forEach(el => el.style.display = 'none');
+  });
+  window.addEventListener('afterprint', () => {
+    document.querySelectorAll('.no-print').forEach(el => el.style.display = '');
+  });
+</script>
+
+</body>
+</html>

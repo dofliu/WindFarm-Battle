@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WindField Battle v3 — 功能卡 + 升級機制</title>
+<style>
+  :root {
+    --bg: #0a1119; --bg2: #11192a; --bg3: #1a2436; --bg4: #1f2d42;
+    --accent: #38bdf8; --green: #34d399; --gold: #fbbf24;
+    --red: #f87171; --purple: #a78bfa; --orange: #fb923c; --pink: #ec4899;
+    --text: #e2e8f0; --muted: #7d92aa;
+    --border: rgba(56,189,248,0.18);
+    --turbine: #38bdf8; --tech: #34d399; --fault: #f87171; --func: #ec4899;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Noto Sans TC', system-ui, sans-serif;
+    min-height: 100vh; line-height: 1.5;
+  }
+  header {
+    background: linear-gradient(180deg, var(--bg2), transparent);
+    padding: 14px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .logo {
+    font-size: 1.4rem; font-weight: 900;
+    background: linear-gradient(120deg, var(--turbine), var(--green), var(--gold), var(--func));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .mode-select, .difficulty-select {
+    display: flex; gap: 4px;
+    background: var(--bg3); padding: 4px; border-radius: 8px;
+  }
+  .mode-btn, .diff-btn {
+    padding: 7px 14px; border: none; background: transparent;
+    color: var(--muted); font-size: 0.8rem; font-weight: 700;
+    border-radius: 6px; cursor: pointer;
+  }
+  .mode-btn:hover, .diff-btn:hover { color: var(--text); }
+  .mode-btn.active { background: var(--accent); color: var(--bg); }
+  .diff-btn.active { background: var(--purple); color: white; }
+  .info-pill {
+    background: var(--bg3); padding: 6px 14px;
+    border-radius: 20px; font-size: 0.85rem;
+  }
+  .info-pill b { color: var(--accent); }
+  .info-pill .wind-info { color: var(--gold); margin-left: 8px; }
+
+  .game-container {
+    max-width: 1400px; margin: 0 auto; padding: 16px 20px;
+    display: grid; grid-template-columns: 1fr 300px; gap: 16px;
+  }
+  .play-area { display: flex; flex-direction: column; gap: 12px; }
+
+  .player {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px;
+  }
+  .player.opponent { background: linear-gradient(180deg, rgba(248,113,113,.05), var(--bg2)); }
+  .player.current-turn {
+    border-color: var(--gold);
+    box-shadow: 0 0 16px rgba(251,191,36,.2);
+  }
+  .player-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .player-name { font-size: 1rem; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+  .player-name.p1 { color: var(--accent); }
+  .player-name.p2 { color: var(--red); }
+  .player-score {
+    font-size: 1.2rem; font-weight: 900; color: var(--gold);
+    background: rgba(251,191,36,.1); padding: 4px 14px; border-radius: 8px;
+  }
+  .player-score .label { font-size: 0.62rem; color: var(--muted); margin-right: 5px; font-weight: 500; }
+
+  .player-buffs {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .buff {
+    background: rgba(236,72,153,.15);
+    color: var(--func);
+    padding: 3px 10px; border-radius: 4px;
+    font-size: 0.7rem; font-weight: 700;
+    border-left: 2px solid var(--func);
+  }
+  .buff.bonus { background: rgba(52,211,153,.15); color: var(--green); border-color: var(--green); }
+  .buff.warning { background: rgba(248,113,113,.15); color: var(--red); border-color: var(--red); }
+
+  .field {
+    display: flex; gap: 8px; min-height: 90px;
+    padding: 8px; background: rgba(0,0,0,.15);
+    border-radius: 8px; flex-wrap: wrap;
+  }
+  .field-section { flex: 1; min-width: 0; }
+  .field-label {
+    font-size: 0.65rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;
+  }
+  .field-cards {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    min-height: 65px; padding: 4px;
+    background: rgba(0,0,0,.1); border-radius: 6px;
+  }
+  .field-empty {
+    color: var(--muted); font-size: 0.7rem;
+    align-self: center; margin: 0 auto; opacity: 0.5;
+  }
+
+  .card {
+    width: 90px; background: var(--bg3);
+    border: 1.5px solid; border-radius: 8px;
+    padding: 6px; cursor: pointer;
+    transition: all 0.15s; position: relative; user-select: none;
+  }
+  .card.turbine { border-color: var(--turbine); background: linear-gradient(180deg, rgba(56,189,248,.15), var(--bg3) 60%); }
+  .card.tech    { border-color: var(--tech);    background: linear-gradient(180deg, rgba(52,211,153,.15), var(--bg3) 60%); }
+  .card.fault   { border-color: var(--fault);   background: linear-gradient(180deg, rgba(248,113,113,.15), var(--bg3) 60%); }
+  .card.func    { border-color: var(--func);    background: linear-gradient(180deg, rgba(236,72,153,.15), var(--bg3) 60%); }
+  .card.rare { border-color: var(--gold); box-shadow: 0 0 10px rgba(251,191,36,.3); }
+  .card.playable:hover { transform: translateY(-4px); box-shadow: 0 6px 16px rgba(0,0,0,.4); }
+  .card.disabled { opacity: 0.4; cursor: not-allowed; }
+  .card.selected { transform: translateY(-8px); box-shadow: 0 8px 20px rgba(251,191,36,.4); border-color: var(--gold); }
+  .card.targetable { animation: pulse 1s ease-in-out infinite; }
+  .card.upgradable { animation: pulseGreen 1s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(251,191,36,.4); }
+    50% { box-shadow: 0 0 16px rgba(251,191,36,.8); }
+  }
+  @keyframes pulseGreen {
+    0%, 100% { box-shadow: 0 0 8px rgba(52,211,153,.4); }
+    50% { box-shadow: 0 0 16px rgba(52,211,153,.8); }
+  }
+  .card-head {
+    display: flex; justify-content: space-between;
+    font-size: 0.55rem; color: var(--muted); margin-bottom: 4px;
+  }
+  .card-cost {
+    background: var(--gold); color: var(--bg);
+    width: 14px; height: 14px; border-radius: 50%;
+    font-size: 0.62rem; font-weight: 900;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card-cost.zero { background: var(--green); color: white; }
+  .card-icon { font-size: 1.6rem; text-align: center; line-height: 1; margin: 2px 0; }
+  .card-name {
+    font-size: 0.7rem; font-weight: 800;
+    text-align: center; line-height: 1.1;
+    color: var(--text); min-height: 22px;
+  }
+  .card.turbine .card-name { color: var(--turbine); }
+  .card.tech    .card-name { color: var(--tech); }
+  .card.fault   .card-name { color: var(--fault); }
+  .card.func    .card-name { color: var(--func); }
+  .card-stat {
+    font-size: 0.6rem; text-align: center; margin-top: 3px;
+    background: rgba(0,0,0,.3); padding: 1px 4px;
+    border-radius: 3px; color: var(--gold);
+  }
+  .fault-badge {
+    position: absolute; top: -4px; right: -4px;
+    background: var(--fault); color: white;
+    font-size: 0.55rem; font-weight: 900;
+    padding: 1px 5px; border-radius: 8px;
+    box-shadow: 0 0 6px rgba(248,113,113,.5);
+  }
+  .upgrade-badge {
+    position: absolute; top: -4px; left: -4px;
+    background: var(--green); color: white;
+    font-size: 0.55rem; font-weight: 900;
+    padding: 1px 5px; border-radius: 8px;
+  }
+
+  .hand-area {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 14px;
+  }
+  .hand-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .hand-cards {
+    display: flex; gap: 8px; overflow-x: auto;
+    padding: 4px 2px 8px; min-height: 130px;
+  }
+  .hand-cards .card { width: 100px; flex-shrink: 0; }
+  .hand-empty { color: var(--muted); font-size: 0.85rem; text-align: center; padding: 30px; width: 100%; }
+
+  .action-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .actions-left {
+    background: rgba(251,191,36,.1); padding: 6px 12px;
+    border-radius: 6px; font-size: 0.78rem;
+  }
+  .actions-left b { color: var(--gold); font-size: 1.1rem; }
+  .btn {
+    background: var(--accent); color: var(--bg); border: none;
+    padding: 8px 18px; border-radius: 6px;
+    font-weight: 700; font-size: 0.85rem; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(56,189,248,.3); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn.gold { background: var(--gold); }
+  .btn.secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+
+  .side-panel { display: flex; flex-direction: column; gap: 12px; }
+  .panel {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 14px;
+  }
+  .panel h3 {
+    font-size: 0.78rem; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 8px; padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .wind-display { text-align: center; padding: 14px 0; }
+  .wind-icon { font-size: 2.4rem; line-height: 1; }
+  .wind-speed { font-size: 1.4rem; font-weight: 900; color: var(--gold); margin-top: 4px; }
+  .wind-coeff { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+  .wind-label { font-size: 0.85rem; margin-top: 4px; color: var(--text); }
+
+  .log { max-height: 200px; overflow-y: auto; font-size: 0.74rem; line-height: 1.5; }
+  .log-line { padding: 4px 8px; border-radius: 4px; margin-bottom: 3px; color: var(--text); }
+  .log-line:nth-child(odd) { background: rgba(255,255,255,.03); }
+  .log-line.score { color: var(--gold); font-weight: 700; }
+  .log-line.attack { color: var(--red); }
+  .log-line.heal { color: var(--green); }
+  .log-line.round { color: var(--accent); font-weight: 800; padding-top: 8px; }
+  .log-line.func { color: var(--func); }
+  .log-line.ai-think { color: var(--purple); font-style: italic; font-size: 0.7rem; }
+
+  .ai-thought-title {
+    font-size: 0.68rem; color: var(--purple); font-weight: 700;
+    margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .ai-action-row {
+    display: flex; justify-content: space-between;
+    padding: 3px 0; font-size: 0.7rem;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+  }
+  .ai-action-row:last-child { border: none; }
+  .ai-action-row.chosen .ai-action-name { color: var(--green); font-weight: 700; }
+  .ai-action-row.chosen .ai-action-score { color: var(--green); }
+  .ai-action-score { color: var(--gold); font-family: monospace; font-weight: 700; }
+  .ai-strategy {
+    background: rgba(0,0,0,.2); padding: 6px 10px;
+    border-radius: 4px; font-size: 0.7rem; color: var(--muted);
+    margin-top: 6px;
+  }
+  .ai-strategy b { color: var(--purple); }
+
+  .card-detail {
+    position: fixed; background: var(--bg);
+    border: 2px solid var(--accent); border-radius: 8px;
+    padding: 14px; width: 270px; z-index: 100;
+    pointer-events: none; opacity: 0;
+    transition: opacity 0.15s;
+    box-shadow: 0 10px 30px rgba(0,0,0,.6);
+  }
+  .card-detail.visible { opacity: 1; }
+  .card-detail h4 { font-size: 1rem; margin-bottom: 4px; }
+  .card-detail .det-effect {
+    background: rgba(0,0,0,.3); padding: 8px;
+    border-radius: 5px; font-size: 0.78rem; margin: 8px 0;
+  }
+  .card-detail .det-counter { font-size: 0.74rem; color: var(--gold); margin-top: 4px; }
+  .card-detail .det-flavor { font-size: 0.7rem; color: var(--muted); font-style: italic; margin-top: 6px; }
+  .card-detail .det-iec { font-size: 0.66rem; color: #06b6d4; margin-top: 6px; font-family: monospace; }
+
+  .ai-toggle {
+    background: var(--bg3); padding: 6px 10px;
+    border-radius: 6px; font-size: 0.78rem;
+    cursor: pointer; user-select: none;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .ai-toggle input { cursor: pointer; }
+
+  /* New: Help panel */
+  .help-panel {
+    background: linear-gradient(135deg, rgba(236,72,153,.08), rgba(167,139,250,.04));
+    border: 1px solid rgba(236,72,153,.3);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+  .help-panel h3 { color: var(--func); border-bottom-color: rgba(236,72,153,.2); }
+  .help-tip {
+    font-size: 0.74rem;
+    color: var(--text);
+    line-height: 1.6;
+    margin-bottom: 4px;
+  }
+  .help-tip b { color: var(--func); }
+
+  .victory-overlay {
+    position: fixed; inset: 0; background: rgba(10,17,25,.85);
+    display: none; align-items: center; justify-content: center; z-index: 1000;
+  }
+  .victory-overlay.show { display: flex; }
+  .victory-card {
+    background: var(--bg2); border: 2px solid var(--gold);
+    border-radius: 16px; padding: 30px 40px; text-align: center; max-width: 400px;
+  }
+  .victory-card h1 {
+    font-size: 2rem;
+    background: linear-gradient(120deg, var(--gold), var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 12px;
+  }
+  .victory-scores {
+    display: flex; justify-content: space-around;
+    margin: 20px 0; padding: 16px;
+    background: rgba(0,0,0,.3); border-radius: 10px;
+  }
+  .vs-name { font-size: 0.85rem; color: var(--muted); }
+  .vs-val { font-size: 1.6rem; font-weight: 900; color: var(--gold); }
+
+  /* Choice modal */
+  .choice-overlay {
+    position: fixed; inset: 0; background: rgba(10,17,25,.85);
+    display: none; align-items: center; justify-content: center; z-index: 999;
+  }
+  .choice-overlay.show { display: flex; }
+  .choice-card {
+    background: var(--bg2); border: 2px solid var(--func);
+    border-radius: 16px; padding: 24px; max-width: 600px;
+  }
+  .choice-card h2 { color: var(--func); margin-bottom: 12px; }
+  .choice-options { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .choice-options .card { width: 100px; cursor: pointer; }
+
+  /* Sim controls */
+  .sim-panel {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 22px; margin-top: 12px;
+  }
+  .sim-panel h2 { font-size: 1.1rem; color: var(--purple); margin-bottom: 14px; }
+  .sim-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .sim-controls input, .sim-controls select {
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text); padding: 7px 12px;
+    border-radius: 6px; font-size: 0.85rem;
+  }
+  .sim-controls input { width: 100px; }
+  .sim-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+  }
+  .stat-box {
+    background: var(--bg3); padding: 12px;
+    border-radius: 8px; border-left: 3px solid var(--accent);
+  }
+  .stat-box.gold { border-color: var(--gold); }
+  .stat-box.green { border-color: var(--green); }
+  .stat-box.red { border-color: var(--red); }
+  .stat-label { font-size: 0.7rem; color: var(--muted); }
+  .stat-value { font-size: 1.3rem; font-weight: 900; color: var(--text); margin-top: 3px; }
+  .stat-extra { font-size: 0.65rem; color: var(--muted); margin-top: 2px; }
+  .histogram {
+    background: var(--bg3); border-radius: 8px;
+    padding: 14px; margin-top: 14px;
+  }
+  .hist-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 0.74rem; }
+  .hist-label { width: 80px; color: var(--muted); }
+  .hist-track { flex: 1; background: rgba(0,0,0,.3); border-radius: 4px; height: 16px; position: relative; overflow: hidden; }
+  .hist-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); transition: width 0.3s; }
+  .hist-count { width: 50px; text-align: right; color: var(--text); font-family: monospace; }
+
+  @media (max-width: 900px) {
+    .game-container { grid-template-columns: 1fr; }
+    .card { width: 78px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⚡ WindField Battle v3</div>
+  <div class="mode-select">
+    <button class="mode-btn active" data-mode="vs-ai">🤖 對戰 AI</button>
+    <button class="mode-btn" data-mode="simulation">📊 自動模擬</button>
+  </div>
+  <div class="difficulty-select">
+    <button class="diff-btn" data-diff="easy">😊 入門</button>
+    <button class="diff-btn" data-diff="medium">😐 中級</button>
+    <button class="diff-btn active" data-diff="hard">😈 高手</button>
+  </div>
+  <div class="info-pill">回合 <b id="round-display">1</b> / 12</div>
+  <div class="info-pill">風速 <span class="wind-info" id="wind-pill">--</span></div>
+  <label class="ai-toggle">
+    <input type="checkbox" id="show-ai-thought"> AI 思考
+  </label>
+  <button class="btn secondary" onclick="newGame()" style="margin-left:auto">🔄 重新開始</button>
+</header>
+
+<div id="game-mode">
+  <div class="game-container">
+    <div class="play-area">
+      <div class="player opponent" id="player-1">
+        <div class="player-head">
+          <div class="player-name p2">🤖 AI 對手 <span id="ai-diff-label" style="font-size:0.7rem;color:var(--muted)">[高手]</span></div>
+          <div class="player-score"><span class="label">MWh</span><span id="score-1">0</span></div>
+        </div>
+        <div class="player-buffs" id="buffs-1"></div>
+        <div class="field">
+          <div class="field-section">
+            <div class="field-label">機組 (<span id="turbine-count-1">0</span>/3)</div>
+            <div class="field-cards" id="turbines-1"><div class="field-empty">尚未部署機組</div></div>
+          </div>
+          <div class="field-section">
+            <div class="field-label">技師 (<span id="tech-count-1">0</span>)</div>
+            <div class="field-cards" id="techs-1"><div class="field-empty">尚未派遣技師</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="player current-turn" id="player-0">
+        <div class="player-head">
+          <div class="player-name p1">⚡ 你</div>
+          <div class="player-score"><span class="label">MWh</span><span id="score-0">0</span></div>
+        </div>
+        <div class="player-buffs" id="buffs-0"></div>
+        <div class="field">
+          <div class="field-section">
+            <div class="field-label">機組 (<span id="turbine-count-0">0</span>/3)</div>
+            <div class="field-cards" id="turbines-0"><div class="field-empty">尚未部署機組</div></div>
+          </div>
+          <div class="field-section">
+            <div class="field-label">技師 (<span id="tech-count-0">0</span>)</div>
+            <div class="field-cards" id="techs-0"><div class="field-empty">尚未派遣技師</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hand-area">
+        <div class="hand-head">
+          <h3 style="font-size:0.85rem;color:var(--gold)">🎴 你的手牌 <span id="action-hint" style="color:var(--muted);font-size:0.7rem;margin-left:8px"></span></h3>
+          <div class="action-bar">
+            <div class="actions-left">本回合剩餘：<b id="actions-left">2</b> 動作</div>
+            <button class="btn gold" id="end-turn-btn" onclick="endHumanTurn()">⏭️ 結束回合</button>
+          </div>
+        </div>
+        <div class="hand-cards" id="hand-0">
+          <div class="hand-empty">起手抽牌中...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-panel">
+      <div class="help-panel">
+        <h3 style="font-size:0.78rem;font-weight:700;letter-spacing:1px">💡 新功能提示</h3>
+        <div class="help-tip"><b>機組已滿？</b>打新機組時可選擇<b>替換</b>場上一台！</div>
+        <div class="help-tip"><b>手牌卡死？</b>使用 <b>FN02 召喚研究員</b> 重抽牌</div>
+        <div class="help-tip"><b>小機組想升級？</b>使用 <b>FN01 機組汰換</b> 收回手牌</div>
+      </div>
+
+      <div class="panel">
+        <h3>🌬️ 風速指示</h3>
+        <div class="wind-display">
+          <div class="wind-icon" id="wind-icon">🌫️</div>
+          <div class="wind-speed" id="wind-speed">--</div>
+          <div class="wind-coeff" id="wind-coeff">效率係數 --</div>
+          <div class="wind-label" id="wind-label">遊戲尚未開始</div>
+        </div>
+      </div>
+
+      <div class="panel" id="ai-thought-panel" style="display:none">
+        <h3>🧠 AI 思考過程</h3>
+        <div id="ai-thought-content"></div>
+      </div>
+
+      <div class="panel">
+        <h3>📜 戰況記錄</h3>
+        <div class="log" id="log-area"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="sim-mode" style="display:none">
+  <div class="game-container" style="grid-template-columns:1fr;max-width:900px">
+    <div class="sim-panel">
+      <h2>📊 電腦自動模擬</h2>
+      <div class="sim-controls">
+        <label>次數：</label>
+        <input type="number" id="sim-count" value="100" min="10" max="10000" step="10">
+        <label>P1：</label>
+        <select id="sim-p1-diff"><option value="easy">入門</option><option value="medium">中級</option><option value="hard" selected>高手</option></select>
+        <label>P2：</label>
+        <select id="sim-p2-diff"><option value="easy">入門</option><option value="medium">中級</option><option value="hard" selected>高手</option></select>
+        <button class="btn" onclick="runSimulation()">🚀 開始模擬</button>
+        <span id="sim-progress" style="font-size:0.85rem;color:var(--muted)"></span>
+      </div>
+      <div id="sim-results" style="display:none">
+        <h3 style="color:var(--gold);margin-bottom:10px">📈 統計結果</h3>
+        <div class="sim-stats" id="sim-stats-grid"></div>
+        <h3 style="color:var(--gold);margin:18px 0 10px">📊 分數分佈</h3>
+        <div class="histogram" id="histogram"></div>
+        <h3 style="color:var(--gold);margin:18px 0 10px">🃏 卡牌使用統計</h3>
+        <div class="histogram" id="card-stats"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card-detail" id="card-detail"></div>
+
+<div class="victory-overlay" id="victory-modal">
+  <div class="victory-card">
+    <h1 id="victory-title">🏆 勝利！</h1>
+    <p id="victory-subtitle" style="color:var(--muted);font-size:0.9rem"></p>
+    <div class="victory-scores">
+      <div><div class="vs-name">⚡ 你</div><div class="vs-val" id="vs-p0">0</div></div>
+      <div><div class="vs-name">🤖 AI</div><div class="vs-val" id="vs-p1">0</div></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button class="btn gold" onclick="newGame();hideVictory()">🔄 再來一局</button>
+      <button class="btn secondary" onclick="hideVictory()">📋 查看戰況</button>
+    </div>
+  </div>
+</div>
+
+<!-- Choice modal for FN05 etc -->
+<div class="choice-overlay" id="choice-modal">
+  <div class="choice-card">
+    <h2 id="choice-title">選擇一張</h2>
+    <p id="choice-desc" style="color:var(--muted);font-size:0.85rem;margin-bottom:14px"></p>
+    <div class="choice-options" id="choice-options"></div>
+  </div>
+</div>
+
+<script>
+// ============== 卡牌資料庫（含新功能卡）==============
+const CARDS = {
+  // ===== 機組 =====
+  M01: { id:'M01', type:'turbine', name:'綠源 2MW', icon:'🌀', cost:1, mw:2, avail:95, iec:'61400-1', flavor:'入門陸域' },
+  M02: { id:'M02', type:'turbine', name:'北能 3MW', icon:'⚙️', cost:1, mw:3, avail:93, iec:'61400-1', flavor:'標準陸域' },
+  M03: { id:'M03', type:'turbine', name:'巨力 4MW', icon:'🏗️', cost:2, mw:4, avail:92, iec:'61400-6', flavor:'大型陸域' },
+  M04: { id:'M04', type:'turbine', name:'浪行者 5MW', icon:'🌊', cost:2, mw:5, avail:90, special:'salt', iec:'61400-3-1', flavor:'海岸型' },
+  M05: { id:'M05', type:'turbine', name:'深海 6MW', icon:'🌊', cost:2, mw:6, avail:91, iec:'61400-3-1', flavor:'離岸標準' },
+  M06: { id:'M06', type:'turbine', name:'藍鯨 8MW', icon:'🐋', cost:2, mw:8, avail:90, special:'storm-vulnerable', iec:'61400-3-1', flavor:'大型離岸' },
+  M07: { id:'M07', type:'turbine', name:'天鯨 12MW', icon:'🚀', cost:2, mw:12, avail:88, special:'big-fail', iec:'61400-3-2', flavor:'次世代浮動', rare:true },
+
+  // ===== 技師 =====
+  T01: { id:'T01', type:'tech', name:'初階維修工', icon:'🔧', cost:1, repairsUpTo:2, counters:['F01','F02','F03'], iec:'61400-28', flavor:'通用維修' },
+  T02: { id:'T02', type:'tech', name:'葉片檢查員', icon:'🪂', cost:1, repairsUpTo:5, counters:['F04'], required:['F04'], iec:'61400-5', flavor:'葉片專家' },
+  T03: { id:'T03', type:'tech', name:'齒輪箱技師', icon:'⚙️', cost:1, repairsUpTo:5, counters:['F06','F07'], required:['F06'], iec:'61400-4', flavor:'機械專家' },
+  T04: { id:'T04', type:'tech', name:'電氣工程師', icon:'⚡', cost:1, repairsUpTo:3, counters:['F01','F05'], iec:'61400-21', flavor:'電控專家' },
+  T05: { id:'T05', type:'tech', name:'SCADA 工程師', icon:'📡', cost:2, repairsUpTo:0, counters:[], special:'predict', iec:'61400-25', flavor:'資料分析' },
+  T06: { id:'T06', type:'tech', name:'診斷工程師', icon:'🔬', cost:2, repairsUpTo:3, counters:['F01','F02','F03','F04','F05'], special:'free-repair', iec:'61400-25-6', flavor:'CMS 專家' },
+  T07: { id:'T07', type:'tech', name:'資深運維主管', icon:'👔', cost:2, repairsUpTo:0, counters:[], special:'extra-action', iec:'61400-28', flavor:'領導者', rare:true },
+
+  // ===== 故障 =====
+  F01: { id:'F01', type:'fault', name:'感測器異常', icon:'📊', cost:1, sev:1, drop:5, rounds:1, counters:['T01','T04'], iec:'61400-12', flavor:'輕微異常' },
+  F02: { id:'F02', type:'fault', name:'偏航誤差', icon:'🧭', cost:1, sev:1, drop:10, rounds:1, counters:['T01'], iec:'61400-1', flavor:'方向偏差' },
+  F03: { id:'F03', type:'fault', name:'液壓漏油', icon:'💧', cost:1, sev:2, drop:10, rounds:2, counters:['T01'], iec:'61400-1', flavor:'液壓問題', spreading:true },
+  F04: { id:'F04', type:'fault', name:'葉片損傷', icon:'🪂', cost:2, sev:3, drop:20, rounds:2, counters:['T02'], required:['T02'], iec:'61400-5', flavor:'葉片受損' },
+  F05: { id:'F05', type:'fault', name:'變槳系統失效', icon:'📐', cost:2, sev:3, drop:25, rounds:2, counters:['T04'], iec:'61400-1', flavor:'變槳失效' },
+  F06: { id:'F06', type:'fault', name:'齒輪箱磨損', icon:'⚙️', cost:2, sev:4, drop:30, rounds:3, counters:['T03'], required:['T03'], iec:'61400-4', flavor:'重大故障', cascade:0.2 },
+  F07: { id:'F07', type:'fault', name:'主軸承故障', icon:'💥', cost:2, sev:5, drop:50, rounds:3, counters:['T03','T06'], iec:'61400-4', flavor:'災難級', rare:true, cascade:0.3 },
+
+  // ===== 🎁 新增功能卡 =====
+  FN01: { id:'FN01', type:'func', name:'機組汰換', icon:'🔄', cost:1, effect:'returnTurbine', iec:'61400-28', flavor:'把場上一台機組收回手牌（保留可用率），可同回合部署新機組' },
+  FN02: { id:'FN02', type:'func', name:'召喚研究員', icon:'🔬', cost:1, effect:'draw2', iec:'61400-28', flavor:'抽 2 張牌' },
+  FN03: { id:'FN03', type:'func', name:'改裝套件', icon:'🔧', cost:2, effect:'upgradeMW', iec:'61400-1', flavor:'場上一台機組永久 +2 MW（每機組限一次）' },
+  FN04: { id:'FN04', type:'func', name:'預支動作', icon:'⏩', cost:0, effect:'extraAction', iec:'61400-28', flavor:'下回合 +1 動作（最多累積 +2）' },
+  FN05: { id:'FN05', type:'func', name:'風能預測', icon:'🔮', cost:1, effect:'predictWind', iec:'61400-15', flavor:'查看下 3 回合的風速骰子結果' },
+  FN06: { id:'FN06', type:'func', name:'緊急投標', icon:'⚡', cost:1, effect:'mwhBoost', iec:'61400-26', flavor:'本回合自己的 MWh ×1.5' },
+};
+
+const ALL_CARD_IDS = Object.keys(CARDS);
+const AVG_WIND_COEFF = 0.65;
+
+// ============== 風速骰子 ==============
+function rollWind() {
+  const r = Math.floor(Math.random() * 6) + 1;
+  if (r === 1) return { roll:1, speed:0, coeff:0, label:'無風停機', icon:'🌫️' };
+  if (r === 2 || r === 3) return { roll:r, speed:5, coeff:0.4, label:'低風', icon:'🍃' };
+  if (r === 4 || r === 5) return { roll:r, speed:10, coeff:1.0, label:'額定 ✅', icon:'💨' };
+  const r2 = Math.floor(Math.random() * 6) + 1;
+  if (r2 === 6) return { roll:'6+6', speed:25, coeff:0, label:'🌀 颱風！', icon:'🌀', typhoon:true };
+  return { roll:6, speed:20, coeff:0.7, label:'高風（風險）', icon:'💨' };
+}
+
+// ============== 遊戲狀態 ==============
+let game = null;
+let selectedCard = null;
+let pendingAction = null; // for multi-step actions
+let currentMode = 'vs-ai';
+let aiDifficulty = 'hard';
+let showAIThought = false;
+let cardUsageStats = {};
+let lastAIDecision = null;
+
+function newGame() {
+  game = {
+    round:1, maxRounds:12, // 延長至 12 回合
+    wind: { speed:0, coeff:0, label:'尚未開始', icon:'🌫️' },
+    currentPlayer:0, actionsLeft:2, firstPlayer:0,
+    players: [createPlayer('你'), createPlayer('AI')],
+    log: [], gameOver: false,
+    futureWind: [], // For FN05 predictions
+  };
+  selectedCard = null; pendingAction = null; lastAIDecision = null;
+  game.players[0].turbines.push({ cardId:'M01', avail:95, faults:[], mwBonus:0 });
+  game.players[1].turbines.push({ cardId:'M01', avail:95, faults:[], mwBonus:0 });
+  log(`🎮 新遊戲開始！場上各 1 台 綠源 2MW · 12 回合 · AI [${getAIDiffLabel()}]`, 'round');
+  log(`💡 新功能：可替換已滿機組、6 張功能卡（FN01-FN06）`, 'func');
+  startRound();
+  render();
+  hideVictory();
+}
+
+function getAIDiffLabel() {
+  return { easy:'😊 入門', medium:'😐 中級', hard:'😈 高手' }[aiDifficulty];
+}
+
+function createPlayer(name) {
+  const deck = [...ALL_CARD_IDS];
+  shuffle(deck);
+  return {
+    name, deck, hand:[], turbines:[], techs:[], score:0,
+    pendingExtraActions: 0, // FN04 buff
+    mwhBoostActive: false,  // FN06 buff
+    techCooldowns: {},
+  };
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+function startRound() {
+  game.wind = rollWind();
+  log(`━━ 第 ${game.round} 回合 · 風速 ${game.wind.speed} m/s ${game.wind.label} ━━`, 'round');
+
+  // Process fault rounds
+  for (const player of game.players) {
+    for (const turbine of player.turbines) {
+      for (const fault of turbine.faults) {
+        const card = CARDS[fault.cardId];
+        if (card.spreading && fault.roundsLeft > 1) fault.drop += 5;
+      }
+      turbine.faults = turbine.faults.filter(f => {
+        f.roundsLeft--;
+        if (f.roundsLeft <= 0) {
+          log(`  ${player.name} 的 ${CARDS[turbine.cardId].name} 故障「${CARDS[f.cardId].name}」自動修復`, 'heal');
+          return false;
+        }
+        return true;
+      });
+    }
+    // Reset MWh boost
+    player.mwhBoostActive = false;
+  }
+
+  drawCard(0); drawCard(1);
+  game.currentPlayer = game.firstPlayer;
+  game.actionsLeft = 2 + (hasSeniorManager(game.currentPlayer) ? 1 : 0) + game.players[game.currentPlayer].pendingExtraActions;
+  game.players[game.currentPlayer].pendingExtraActions = 0;
+
+  if (game.currentPlayer === 1 && currentMode === 'vs-ai') {
+    setTimeout(() => doAITurn(), 800);
+  }
+}
+
+function hasSeniorManager(playerId) {
+  return game.players[playerId].techs.includes('T07');
+}
+
+function drawCard(playerId) {
+  const player = game.players[playerId];
+  if (player.deck.length === 0) {
+    // Reshuffle from a fresh pool (simplified)
+    player.deck = [...ALL_CARD_IDS];
+    shuffle(player.deck);
+    log(`  🔄 ${player.name} 牌庫重置`);
+  }
+  const cardId = player.deck.pop();
+  if (player.hand.length < 7) player.hand.push(cardId); // hand size +1
+  return cardId;
+}
+
+function canPlayCard(playerId, handIdx) {
+  if (playerId !== game.currentPlayer) return false;
+  const cardId = game.players[playerId].hand[handIdx];
+  const card = CARDS[cardId];
+  let cost = card.cost;
+  if (card.type === 'tech' && hasSeniorManager(playerId)) cost = Math.max(1, cost - 1);
+  if (cost > game.actionsLeft) return false;
+
+  // Turbine: allow replacement if at limit
+  const player = game.players[playerId];
+  if (card.type === 'turbine' && player.turbines.length >= 3) {
+    // Can replace via menu, still playable
+    return true;
+  }
+  if (card.type === 'tech' && player.techs.includes(cardId)) return false;
+  if (card.type === 'fault' && game.players[1-playerId].turbines.length === 0) return false;
+
+  // Function card validity
+  if (card.type === 'func') {
+    if (card.effect === 'returnTurbine' && player.turbines.length === 0) return false;
+    if (card.effect === 'upgradeMW' && player.turbines.length === 0) return false;
+  }
+
+  return true;
+}
+
+function playCardFromHand(playerId, handIdx, options = {}) {
+  if (!canPlayCard(playerId, handIdx)) return false;
+  const player = game.players[playerId];
+  const cardId = player.hand[handIdx];
+  const card = CARDS[cardId];
+  let cost = card.cost;
+  if (card.type === 'tech' && hasSeniorManager(playerId)) cost = Math.max(1, cost - 1);
+
+  cardUsageStats[cardId] = (cardUsageStats[cardId] || 0) + 1;
+
+  if (card.type === 'turbine') {
+    if (player.turbines.length >= 3) {
+      // Replace specified turbine
+      const replaceIdx = options.replaceIdx !== undefined ? options.replaceIdx : findWeakestTurbine(playerId);
+      const oldCard = CARDS[player.turbines[replaceIdx].cardId];
+      player.turbines.splice(replaceIdx, 1);
+      log(`  🔄 ${player.name} 用 ${card.name} 替換了 ${oldCard.name}`, 'func');
+    }
+    player.turbines.push({ cardId, avail: card.avail, faults:[], mwBonus:0 });
+    log(`  ⚙️ ${player.name} 部署 ${card.name}`);
+  }
+  else if (card.type === 'tech') {
+    player.techs.push(cardId);
+    log(`  👷 ${player.name} 派遣 ${card.name}`);
+    if (card.special === 'free-repair') {
+      const repaired = autoRepairBestFault(playerId, 3);
+      if (repaired) log(`    🔬 診斷工程師立即修復 ${CARDS[repaired].name}`, 'heal');
+    }
+  }
+  else if (card.type === 'fault') {
+    const oppId = 1 - playerId;
+    const opponent = game.players[oppId];
+    let tIdx = options.target;
+    if (tIdx === undefined) {
+      tIdx = 0;
+      let maxMW = 0;
+      for (let i = 0; i < opponent.turbines.length; i++) {
+        const mw = CARDS[opponent.turbines[i].cardId].mw + opponent.turbines[i].mwBonus;
+        if (mw > maxMW) { maxMW = mw; tIdx = i; }
+      }
+    }
+    const target = opponent.turbines[tIdx];
+    let dropAmount = card.drop;
+    if (CARDS[target.cardId].special === 'big-fail') dropAmount += 5;
+    target.faults.push({ cardId, roundsLeft: card.rounds, sev: card.sev, drop: dropAmount });
+    log(`  💥 ${player.name} 對 ${opponent.name} 的 ${CARDS[target.cardId].name} 打出 ${card.name}！`, 'attack');
+
+    if (card.cascade && Math.random() < card.cascade && opponent.turbines.length > 1) {
+      const otherIdx = opponent.turbines.findIndex((_, i) => i !== tIdx);
+      if (otherIdx !== -1) {
+        const other = opponent.turbines[otherIdx];
+        other.faults.push({ cardId, roundsLeft: card.rounds, sev: card.sev, drop: Math.floor(dropAmount / 2) });
+        log(`    🔥 連鎖故障！${CARDS[other.cardId].name} 也受影響`, 'attack');
+      }
+    }
+  }
+  else if (card.type === 'func') {
+    executeFuncCard(playerId, card, options);
+  }
+
+  player.hand.splice(handIdx, 1);
+  game.actionsLeft -= cost;
+  return true;
+}
+
+function findWeakestTurbine(playerId) {
+  const player = game.players[playerId];
+  let weakestIdx = 0, weakestMW = Infinity;
+  for (let i = 0; i < player.turbines.length; i++) {
+    const mw = CARDS[player.turbines[i].cardId].mw + player.turbines[i].mwBonus;
+    if (mw < weakestMW) { weakestMW = mw; weakestIdx = i; }
+  }
+  return weakestIdx;
+}
+
+function executeFuncCard(playerId, card, options) {
+  const player = game.players[playerId];
+
+  if (card.effect === 'returnTurbine') {
+    // Return weakest (or specified) turbine to hand
+    const idx = options.targetTurbine !== undefined ? options.targetTurbine : findWeakestTurbine(playerId);
+    if (idx >= 0 && player.turbines[idx]) {
+      const turbine = player.turbines.splice(idx, 1)[0];
+      // Add back to hand (preserve availability is symbolic, treat as fresh)
+      player.hand.push(turbine.cardId);
+      log(`  🔄 ${player.name} 把 ${CARDS[turbine.cardId].name} 收回手牌`, 'func');
+    }
+  }
+  else if (card.effect === 'draw2') {
+    drawCard(playerId);
+    drawCard(playerId);
+    log(`  📚 ${player.name} 抽 2 張牌`, 'func');
+  }
+  else if (card.effect === 'upgradeMW') {
+    // Choose strongest turbine without bonus
+    let bestIdx = -1, bestMW = 0;
+    for (let i = 0; i < player.turbines.length; i++) {
+      if (player.turbines[i].mwBonus === 0) {
+        const mw = CARDS[player.turbines[i].cardId].mw;
+        if (mw > bestMW) { bestMW = mw; bestIdx = i; }
+      }
+    }
+    if (bestIdx >= 0) {
+      player.turbines[bestIdx].mwBonus = 2;
+      log(`  🔧 ${player.name} 為 ${CARDS[player.turbines[bestIdx].cardId].name} 加裝改裝套件 (+2 MW)`, 'func');
+    } else {
+      log(`  ⚠️ 沒有可升級的機組`, 'func');
+    }
+  }
+  else if (card.effect === 'extraAction') {
+    player.pendingExtraActions = Math.min(2, player.pendingExtraActions + 1);
+    log(`  ⏩ ${player.name} 下回合 +1 動作 (累積 ${player.pendingExtraActions})`, 'func');
+  }
+  else if (card.effect === 'predictWind') {
+    // Pre-generate next 3 wind rolls
+    game.futureWind = [rollWind(), rollWind(), rollWind()];
+    log(`  🔮 ${player.name} 預見：下 3 回合 [${game.futureWind.map(w => w.label).join(', ')}]`, 'func');
+  }
+  else if (card.effect === 'mwhBoost') {
+    player.mwhBoostActive = true;
+    log(`  ⚡ ${player.name} 啟動緊急投標！本回合 MWh ×1.5`, 'func');
+  }
+}
+
+function autoRepairBestFault(playerId, maxSev) {
+  const player = game.players[playerId];
+  let bestT = -1, bestF = -1, bestSev = 0;
+  for (let i = 0; i < player.turbines.length; i++) {
+    for (let j = 0; j < player.turbines[i].faults.length; j++) {
+      const fault = player.turbines[i].faults[j];
+      const card = CARDS[fault.cardId];
+      if (card.sev <= maxSev && card.sev > bestSev) {
+        bestSev = card.sev; bestT = i; bestF = j;
+      }
+    }
+  }
+  if (bestT >= 0) return player.turbines[bestT].faults.splice(bestF, 1)[0].cardId;
+  return null;
+}
+
+function processAutoRepair(playerId) {
+  const player = game.players[playerId];
+  const techIds = player.techs;
+  for (const turbine of player.turbines) {
+    turbine.faults = turbine.faults.filter(fault => {
+      const faultCard = CARDS[fault.cardId];
+      for (const techId of techIds) {
+        const tech = CARDS[techId];
+        if (tech.counters && tech.counters.includes(faultCard.id)) {
+          if (!faultCard.required || faultCard.required.includes(techId)) {
+            log(`    🛠️ ${tech.name} 修復了 ${CARDS[turbine.cardId].name} 上的 ${faultCard.name}`, 'heal');
+            return false;
+          }
+        }
+      }
+      return true;
+    });
+  }
+}
+
+function endHumanTurn() {
+  if (game.gameOver) return;
+  processAutoRepair(game.currentPlayer);
+  if (game.currentPlayer === game.firstPlayer) {
+    game.currentPlayer = 1 - game.firstPlayer;
+    game.actionsLeft = 2 + (hasSeniorManager(game.currentPlayer) ? 1 : 0) + game.players[game.currentPlayer].pendingExtraActions;
+    game.players[game.currentPlayer].pendingExtraActions = 0;
+    log(`  ⏭️ 換 ${game.players[game.currentPlayer].name} 行動`);
+    if (game.currentPlayer === 1 && currentMode === 'vs-ai') {
+      setTimeout(() => doAITurn(), 600);
+    }
+  } else {
+    endRound();
+  }
+  render();
+}
+
+function endRound() {
+  for (let i = 0; i < 2; i++) {
+    const player = game.players[i];
+    let mwh = 0;
+    for (const t of player.turbines) {
+      const card = CARDS[t.cardId];
+      const effectiveMW = card.mw + t.mwBonus;
+      const totalDrop = t.faults.reduce((s, f) => s + f.drop, 0);
+      let avail = Math.max(0, t.avail - totalDrop);
+      mwh += effectiveMW * game.wind.coeff * (avail / 100);
+    }
+    if (player.mwhBoostActive) {
+      mwh *= 1.5;
+      log(`  ⚡ ${player.name} 緊急投標生效！`, 'func');
+    }
+    mwh = Math.round(mwh);
+    player.score += mwh;
+    if (mwh > 0) log(`  ⚡ ${player.name} 本回合 +${mwh} MWh (累計 ${player.score})`, 'score');
+  }
+
+  if (game.round % 4 === 0) {
+    for (const player of game.players) {
+      for (const turbine of player.turbines) {
+        if (CARDS[turbine.cardId].special === 'salt') {
+          turbine.avail = Math.max(0, turbine.avail - 2);
+          log(`  🌊 ${player.name} 的 ${CARDS[turbine.cardId].name} 受鹽霧腐蝕 -2%`, 'attack');
+        }
+      }
+    }
+  }
+
+  game.round++;
+  if (game.round > game.maxRounds) { endGame(); return; }
+  game.firstPlayer = 1 - game.firstPlayer;
+  // Consume predicted wind if available
+  if (game.futureWind.length > 0) {
+    game.wind = game.futureWind.shift();
+  }
+  startRound();
+}
+
+function endGame() {
+  game.gameOver = true;
+  const [s0, s1] = [game.players[0].score, game.players[1].score];
+  if (s0 > s1) { log(`🏆 ${game.players[0].name} 獲勝！ ${s0} vs ${s1}`, 'round'); showVictory(0); }
+  else if (s1 > s0) { log(`🏆 ${game.players[1].name} 獲勝！ ${s0} vs ${s1}`, 'round'); showVictory(1); }
+  else { log(`🤝 平手！ ${s0} : ${s1}`, 'round'); showVictory(-1); }
+  render();
+}
+
+function showVictory(winnerId) {
+  const modal = document.getElementById('victory-modal');
+  const title = document.getElementById('victory-title');
+  const sub = document.getElementById('victory-subtitle');
+  document.getElementById('vs-p0').textContent = game.players[0].score;
+  document.getElementById('vs-p1').textContent = game.players[1].score;
+  if (winnerId === 0) { title.textContent = '🏆 你贏了！'; sub.textContent = '出色的風場運維'; }
+  else if (winnerId === 1) { title.textContent = '😔 你輸了'; sub.textContent = '再試一次！'; }
+  else { title.textContent = '🤝 平手'; sub.textContent = '勢均力敵的對決'; }
+  modal.classList.add('show');
+}
+
+function hideVictory() { document.getElementById('victory-modal').classList.remove('show'); }
+
+// ============== AI 評估系統 ==============
+function evaluateBoard(playerId) {
+  const player = game.players[playerId];
+  const opponent = game.players[1 - playerId];
+  let myMWhPerRound = 0;
+  for (const t of player.turbines) {
+    const card = CARDS[t.cardId];
+    const totalDrop = t.faults.reduce((s, f) => s + f.drop, 0);
+    const avail = Math.max(0, t.avail - totalDrop);
+    myMWhPerRound += (card.mw + t.mwBonus) * AVG_WIND_COEFF * (avail / 100);
+  }
+  let oppMWhPerRound = 0;
+  for (const t of opponent.turbines) {
+    const card = CARDS[t.cardId];
+    const totalDrop = t.faults.reduce((s, f) => s + f.drop, 0);
+    const avail = Math.max(0, t.avail - totalDrop);
+    oppMWhPerRound += (card.mw + t.mwBonus) * AVG_WIND_COEFF * (avail / 100);
+  }
+  return {
+    myMWhPerRound, oppMWhPerRound,
+    scoreDiff: player.score - opponent.score,
+    roundsLeft: game.maxRounds - game.round + 1,
+  };
+}
+
+function getStrategy(playerId) {
+  const eval_ = evaluateBoard(playerId);
+  let phase = game.round <= 4 ? 'early' : (game.round <= 8 ? 'mid' : 'late');
+  let position;
+  const futureScoreDiff = eval_.scoreDiff + (eval_.myMWhPerRound - eval_.oppMWhPerRound) * eval_.roundsLeft;
+  if (futureScoreDiff > 15) position = 'winning';
+  else if (futureScoreDiff < -15) position = 'losing';
+  else position = 'even';
+  return { phase, position, ...eval_ };
+}
+
+function evaluateTurbinePlay(card, playerId, strategy) {
+  const player = game.players[playerId];
+  const expectedMWh = card.mw * AVG_WIND_COEFF * (card.avail / 100) * strategy.roundsLeft;
+  let score = expectedMWh * 1.5;
+  score -= card.cost * 4;
+
+  // Replacement consideration: if at limit, score is the DELTA
+  if (player.turbines.length >= 3) {
+    const weakest = player.turbines[findWeakestTurbine(playerId)];
+    const weakestMW = CARDS[weakest.cardId].mw + weakest.mwBonus;
+    const newMW = card.mw;
+    if (newMW <= weakestMW) return -50; // not worth replacing
+    const upgrade = (newMW - weakestMW) * AVG_WIND_COEFF * strategy.roundsLeft;
+    score = upgrade * 1.5 - card.cost * 4;
+  } else {
+    score *= Math.pow(0.75, player.turbines.length);
+  }
+
+  if (strategy.phase === 'early') score *= 1.4;
+  if (strategy.phase === 'late') score *= 0.4;
+  if (strategy.roundsLeft <= 2) score *= 0.15;
+  if (card.special === 'big-fail') score -= 8;
+  if (card.special === 'storm-vulnerable') score -= 3;
+  if (strategy.position === 'losing') score *= 1.2;
+  return score;
+}
+
+function evaluateTechPlay(card, playerId, strategy) {
+  const player = game.players[playerId];
+  const opponent = game.players[1 - playerId];
+  if (player.techs.includes(card.id)) return -1000;
+
+  let score = 5;
+  for (const turbine of player.turbines) {
+    for (const fault of turbine.faults) {
+      if (card.counters && card.counters.includes(fault.cardId)) {
+        const turbineCard = CARDS[turbine.cardId];
+        const damageInRounds = fault.drop * (turbineCard.mw + turbine.mwBonus) * AVG_WIND_COEFF / 100 * fault.roundsLeft;
+        score += damageInRounds * 2;
+      }
+    }
+  }
+  if (card.special === 'free-repair') {
+    let worstDrop = 0;
+    for (const t of player.turbines) {
+      for (const f of t.faults) {
+        if (CARDS[f.cardId].sev <= 3 && f.drop > worstDrop) worstDrop = f.drop;
+      }
+    }
+    score += worstDrop * 0.8 + 8;
+  }
+  if (card.special === 'extra-action') score += 25 + strategy.roundsLeft * 4;
+  if (card.special === 'predict') score += strategy.roundsLeft * 0.8;
+  if (opponent.turbines.length > 0 && card.counters && card.counters.length > 0) {
+    score += card.counters.length * 2;
+    if (strategy.phase !== 'early') score += card.repairsUpTo * 2;
+  }
+  score -= card.cost * 4;
+  if (strategy.phase === 'late') score *= 0.5;
+  return score;
+}
+
+function evaluateFaultPlay(card, targetTurbine, playerId, strategy) {
+  const opponent = game.players[1 - playerId];
+  const targetCard = CARDS[targetTurbine.cardId];
+  let score = 0;
+
+  if (card.required) {
+    const hasRequired = card.required.some(t => opponent.techs.includes(t));
+    if (!hasRequired) score += 35;
+  } else {
+    const willBeCountered = opponent.techs.some(techId =>
+      CARDS[techId].counters && CARDS[techId].counters.includes(card.id)
+    );
+    if (willBeCountered) score -= 25;
+  }
+
+  let drop = card.drop;
+  if (targetCard.special === 'big-fail') drop += 5;
+  const rounds = Math.min(card.rounds, strategy.roundsLeft);
+  const targetMW = targetCard.mw + targetTurbine.mwBonus;
+  const damagePerRound = targetMW * AVG_WIND_COEFF * (drop / 100);
+  const totalDamage = damagePerRound * rounds;
+  score += totalDamage * 2.5;
+
+  if (card.cascade && opponent.turbines.length > 1) {
+    const otherTurbines = opponent.turbines.filter(t => t !== targetTurbine);
+    if (otherTurbines.length > 0) {
+      const avgOtherMW = otherTurbines.reduce((s, t) => s + CARDS[t.cardId].mw + t.mwBonus, 0) / otherTurbines.length;
+      const cascadeDamage = avgOtherMW * AVG_WIND_COEFF * (drop / 200) * rounds;
+      score += cascadeDamage * card.cascade * 1.5;
+    }
+  }
+  if (card.spreading) score += 6;
+  if (targetTurbine.faults.length > 0) score *= Math.pow(0.6, targetTurbine.faults.length);
+  score -= card.cost * 4;
+  if (strategy.phase === 'early') score *= 0.7;
+  if (strategy.phase === 'late') score *= 1.3;
+  if (strategy.position === 'losing') score *= 1.4;
+  if (strategy.position === 'winning') score *= 0.85;
+  return score;
+}
+
+function evaluateFuncPlay(card, playerId, strategy) {
+  const player = game.players[playerId];
+  let score = 0;
+
+  if (card.effect === 'returnTurbine') {
+    // Useful if we have a weak turbine and a stronger one in hand
+    if (player.turbines.length === 0) return -1000;
+    const weakest = player.turbines[findWeakestTurbine(playerId)];
+    const weakestMW = CARDS[weakest.cardId].mw + weakest.mwBonus;
+    // Check if hand has bigger turbine
+    let biggerInHand = false;
+    for (const cId of player.hand) {
+      if (CARDS[cId].type === 'turbine' && CARDS[cId].mw > weakestMW) { biggerInHand = true; break; }
+    }
+    if (player.turbines.length >= 3 && biggerInHand) {
+      score = 25 + (8 - weakestMW) * 2;
+    } else if (biggerInHand) {
+      score = 10;
+    } else {
+      score = -5;
+    }
+  }
+  else if (card.effect === 'draw2') {
+    // High value if hand is small
+    score = 8 + (5 - player.hand.length) * 3;
+    if (player.hand.length >= 6) score = -5;
+    // Late game less useful
+    if (strategy.phase === 'late') score *= 0.7;
+  }
+  else if (card.effect === 'upgradeMW') {
+    // Permanent +2 MW
+    let canUpgrade = false;
+    let bestMW = 0;
+    for (const t of player.turbines) {
+      if (t.mwBonus === 0) { canUpgrade = true; if (CARDS[t.cardId].mw > bestMW) bestMW = CARDS[t.cardId].mw; }
+    }
+    if (!canUpgrade) return -1000;
+    score = 2 * AVG_WIND_COEFF * 0.9 * strategy.roundsLeft * 1.5;
+    score -= card.cost * 4;
+  }
+  else if (card.effect === 'extraAction') {
+    score = 7; // +1 action next turn ~ value of one action
+    if (player.pendingExtraActions >= 2) return -1000;
+  }
+  else if (card.effect === 'predictWind') {
+    score = 4 + strategy.roundsLeft * 0.5;
+  }
+  else if (card.effect === 'mwhBoost') {
+    // Value = 50% of expected MWh this round
+    score = strategy.myMWhPerRound * 0.5 * 1.8;
+    score -= card.cost * 4;
+    // Better when wind is good
+    if (game.wind.coeff >= 0.7) score *= 1.3;
+    if (game.wind.coeff === 0) return -10;
+  }
+
+  return score;
+}
+
+function generateActions(playerId) {
+  const player = game.players[playerId];
+  const opponent = game.players[1 - playerId];
+  const strategy = getStrategy(playerId);
+  const actions = [];
+
+  for (let i = 0; i < player.hand.length; i++) {
+    const cardId = player.hand[i];
+    const card = CARDS[cardId];
+    if (!canPlayCard(playerId, i)) continue;
+
+    if (card.type === 'turbine') {
+      actions.push({
+        type:'turbine', cardId, handIdx:i,
+        score: evaluateTurbinePlay(card, playerId, strategy),
+        desc: player.turbines.length >= 3 ? `${card.name}（替換）` : `部署 ${card.name}`,
+      });
+    }
+    else if (card.type === 'tech') {
+      actions.push({
+        type:'tech', cardId, handIdx:i,
+        score: evaluateTechPlay(card, playerId, strategy),
+        desc: `派遣 ${card.name}`,
+      });
+    }
+    else if (card.type === 'fault') {
+      for (let t = 0; t < opponent.turbines.length; t++) {
+        const targetCard = CARDS[opponent.turbines[t].cardId];
+        actions.push({
+          type:'fault', cardId, handIdx:i, target:t,
+          score: evaluateFaultPlay(card, opponent.turbines[t], playerId, strategy),
+          desc: `${card.name} → ${targetCard.name}`,
+        });
+      }
+    }
+    else if (card.type === 'func') {
+      actions.push({
+        type:'func', cardId, handIdx:i,
+        score: evaluateFuncPlay(card, playerId, strategy),
+        desc: `${card.icon} ${card.name}`,
+      });
+    }
+  }
+
+  return { actions, strategy };
+}
+
+function aiChoose(playerId, difficulty = aiDifficulty) {
+  const { actions, strategy } = generateActions(playerId);
+  if (actions.length === 0) return null;
+  actions.sort((a, b) => b.score - a.score);
+  const positiveActions = actions.filter(a => a.score > 0);
+  const validActions = positiveActions.length > 0 ? positiveActions : actions;
+
+  let chosen;
+  if (difficulty === 'easy') {
+    if (Math.random() < 0.5 && validActions.length > 1) {
+      const top3 = validActions.slice(0, Math.min(3, validActions.length));
+      chosen = top3[Math.floor(Math.random() * top3.length)];
+    } else chosen = validActions[0];
+  } else if (difficulty === 'medium') {
+    if (Math.random() < 0.25 && validActions.length > 1) chosen = validActions[1];
+    else chosen = validActions[0];
+  } else chosen = validActions[0];
+
+  if (playerId === 1) {
+    lastAIDecision = { strategy, actions: validActions.slice(0, 5), chosen };
+  }
+  return chosen;
+}
+
+function doAITurn() {
+  if (game.gameOver || game.currentPlayer !== 1) return;
+  const playOne = () => {
+    if (game.gameOver || game.currentPlayer !== 1) return;
+    if (game.actionsLeft <= 0) {
+      processAutoRepair(1);
+      setTimeout(() => {
+        if (game.firstPlayer === 1) {
+          game.currentPlayer = 0;
+          game.actionsLeft = 2 + (hasSeniorManager(0) ? 1 : 0) + game.players[0].pendingExtraActions;
+          game.players[0].pendingExtraActions = 0;
+          log(`  ⏭️ 換你行動`);
+          render();
+        } else { endRound(); render(); }
+      }, 500);
+      return;
+    }
+    const choice = aiChoose(1);
+    if (!choice || choice.score < -10) {
+      log(`  💭 AI 選擇保留行動`, 'ai-think');
+      game.actionsLeft = 0;
+      processAutoRepair(1);
+      setTimeout(() => {
+        if (game.firstPlayer === 1) {
+          game.currentPlayer = 0;
+          game.actionsLeft = 2 + (hasSeniorManager(0) ? 1 : 0) + game.players[0].pendingExtraActions;
+          game.players[0].pendingExtraActions = 0;
+          render();
+        } else { endRound(); render(); }
+      }, 500);
+      return;
+    }
+    playCardFromHand(1, choice.handIdx, { target: choice.target });
+    render();
+    setTimeout(playOne, 700);
+  };
+  playOne();
+}
+
+// ============== 渲染 ==============
+function render() {
+  if (!game) return;
+  document.getElementById('round-display').textContent = game.round;
+  document.getElementById('wind-pill').textContent = `${game.wind.speed} m/s ×${game.wind.coeff}`;
+  document.getElementById('wind-icon').textContent = game.wind.icon;
+  document.getElementById('wind-speed').textContent = `${game.wind.speed} m/s`;
+  document.getElementById('wind-coeff').textContent = `效率係數 ×${game.wind.coeff}`;
+  document.getElementById('wind-label').textContent = game.wind.label;
+  document.getElementById('ai-diff-label').textContent = `[${getAIDiffLabel()}]`;
+
+  for (let i = 0; i < 2; i++) {
+    document.getElementById(`score-${i}`).textContent = game.players[i].score;
+    const playerEl = document.getElementById(`player-${i}`);
+    playerEl.classList.toggle('current-turn', i === game.currentPlayer && !game.gameOver);
+
+    // Buffs
+    const buffsEl = document.getElementById(`buffs-${i}`);
+    buffsEl.innerHTML = '';
+    if (game.players[i].pendingExtraActions > 0) {
+      buffsEl.innerHTML += `<div class="buff bonus">⏩ 下回合 +${game.players[i].pendingExtraActions} 動作</div>`;
+    }
+    if (game.players[i].mwhBoostActive && i === game.currentPlayer) {
+      buffsEl.innerHTML += `<div class="buff bonus">⚡ MWh ×1.5（本回合）</div>`;
+    }
+    if (i === 0 && game.futureWind.length > 0) {
+      buffsEl.innerHTML += `<div class="buff">🔮 預知 ${game.futureWind.length} 回合風速</div>`;
+    }
+
+    const turbContainer = document.getElementById(`turbines-${i}`);
+    turbContainer.innerHTML = '';
+    document.getElementById(`turbine-count-${i}`).textContent = game.players[i].turbines.length;
+    if (game.players[i].turbines.length === 0) {
+      turbContainer.innerHTML = '<div class="field-empty">尚未部署機組</div>';
+    } else {
+      game.players[i].turbines.forEach((t, tIdx) => {
+        const card = CARDS[t.cardId];
+        const effectiveMW = card.mw + t.mwBonus;
+        const totalDrop = t.faults.reduce((s, f) => s + f.drop, 0);
+        const effAvail = Math.max(0, t.avail - totalDrop);
+        const el = makeCardEl(card, {
+          stat: `${effectiveMW}MW · ${effAvail}%`,
+          faultCount: t.faults.length,
+          upgraded: t.mwBonus > 0,
+        });
+        // Targetable for selected fault
+        if (i === 1 - game.currentPlayer && selectedCard && CARDS[selectedCard.cardId].type === 'fault') {
+          el.classList.add('targetable');
+          el.onclick = () => useSelectedOnTarget(i, tIdx);
+        }
+        // Replaceable for selected turbine
+        if (i === game.currentPlayer && selectedCard && CARDS[selectedCard.cardId].type === 'turbine' && pendingAction === 'replace') {
+          el.classList.add('upgradable');
+          el.onclick = () => replaceWithSelected(tIdx);
+        }
+        turbContainer.appendChild(el);
+      });
+    }
+
+    const techContainer = document.getElementById(`techs-${i}`);
+    techContainer.innerHTML = '';
+    document.getElementById(`tech-count-${i}`).textContent = game.players[i].techs.length;
+    if (game.players[i].techs.length === 0) {
+      techContainer.innerHTML = '<div class="field-empty">尚未派遣技師</div>';
+    } else {
+      game.players[i].techs.forEach(cId => {
+        const card = CARDS[cId];
+        const el = makeCardEl(card, { stat: card.flavor });
+        techContainer.appendChild(el);
+      });
+    }
+  }
+
+  const handContainer = document.getElementById('hand-0');
+  handContainer.innerHTML = '';
+  if (game.players[0].hand.length === 0) {
+    handContainer.innerHTML = '<div class="hand-empty">手牌為空</div>';
+  } else {
+    game.players[0].hand.forEach((cId, hIdx) => {
+      const card = CARDS[cId];
+      const el = makeCardEl(card, { stat: getStatLabel(card), large: true });
+      const canPlay = canPlayCard(0, hIdx) && game.currentPlayer === 0 && !game.gameOver;
+      el.classList.toggle('playable', canPlay);
+      el.classList.toggle('disabled', !canPlay);
+      if (canPlay) el.onclick = () => selectCard(hIdx);
+      if (selectedCard && selectedCard.handIdx === hIdx) el.classList.add('selected');
+      handContainer.appendChild(el);
+    });
+  }
+
+  document.getElementById('actions-left').textContent = game.actionsLeft;
+  document.getElementById('end-turn-btn').disabled = (game.currentPlayer !== 0 || game.gameOver);
+
+  // Action hint
+  let hint = '';
+  if (pendingAction === 'replace') hint = '🎯 點擊場上機組替換';
+  else if (selectedCard && CARDS[selectedCard.cardId].type === 'fault') hint = '🎯 點擊對手機組施加';
+  document.getElementById('action-hint').textContent = hint;
+
+  const logEl = document.getElementById('log-area');
+  logEl.innerHTML = game.log.slice(-25).map(l => `<div class="log-line ${l.type || ''}">${l.text}</div>`).join('');
+  logEl.scrollTop = logEl.scrollHeight;
+
+  const thoughtPanel = document.getElementById('ai-thought-panel');
+  if (showAIThought && lastAIDecision) {
+    thoughtPanel.style.display = 'block';
+    renderAIThought();
+  } else {
+    thoughtPanel.style.display = 'none';
+  }
+}
+
+function renderAIThought() {
+  const d = lastAIDecision;
+  const phaseLabel = { early:'🌱 開局', mid:'⚔️ 中盤', late:'🏁 終局' }[d.strategy.phase];
+  const positionLabel = { winning:'🟢 領先', even:'🟡 均勢', losing:'🔴 落後' }[d.strategy.position];
+  let html = `
+    <div class="ai-strategy">
+      <b>戰況：</b>${phaseLabel} · ${positionLabel}<br>
+      <span style="color:var(--muted)">期望差分：${(d.strategy.myMWhPerRound - d.strategy.oppMWhPerRound).toFixed(1)} MWh/回合 · 剩 ${d.strategy.roundsLeft} 回合</span>
+    </div>
+    <div class="ai-thought-title">候選行動（評分）</div>
+  `;
+  for (const a of d.actions) {
+    html += `
+      <div class="ai-action-row ${a === d.chosen ? 'chosen' : ''}">
+        <span class="ai-action-name">${a === d.chosen ? '✓ ' : ''}${a.desc}</span>
+        <span class="ai-action-score">${a.score.toFixed(1)}</span>
+      </div>
+    `;
+  }
+  document.getElementById('ai-thought-content').innerHTML = html;
+}
+
+function makeCardEl(card, opts={}) {
+  const div = document.createElement('div');
+  div.className = `card ${card.type}${card.rare ? ' rare' : ''}`;
+  let statHtml = '';
+  if (opts.stat) statHtml = `<div class="card-stat">${opts.stat}</div>`;
+  let badges = '';
+  if (opts.faultCount > 0) badges += `<div class="fault-badge">⚠️ ${opts.faultCount}</div>`;
+  if (opts.upgraded) badges += `<div class="upgrade-badge">⬆️</div>`;
+  div.innerHTML = `
+    ${badges}
+    <div class="card-head"><span>${card.id}</span><div class="card-cost ${card.cost === 0 ? 'zero' : ''}">${card.cost}</div></div>
+    <div class="card-icon">${card.icon}</div>
+    <div class="card-name">${card.name}</div>
+    ${statHtml}
+  `;
+  div.addEventListener('mouseenter', (e) => showCardDetail(card, e));
+  div.addEventListener('mouseleave', () => hideCardDetail());
+  return div;
+}
+
+function getStatLabel(card) {
+  if (card.type === 'turbine') return `${card.mw}MW · ${card.avail}%`;
+  if (card.type === 'fault') return `Sev.${card.sev} · -${card.drop}%`;
+  if (card.type === 'tech') return card.flavor;
+  if (card.type === 'func') return '功能卡';
+  return '';
+}
+
+function selectCard(handIdx) {
+  const cardId = game.players[0].hand[handIdx];
+  const card = CARDS[cardId];
+
+  if (card.type === 'fault') {
+    selectedCard = { handIdx, cardId };
+    pendingAction = null;
+    render();
+    log(`  👆 選擇 ${card.name}，點擊對手機組施加`);
+  }
+  else if (card.type === 'turbine' && game.players[0].turbines.length >= 3) {
+    // Need to replace
+    selectedCard = { handIdx, cardId };
+    pendingAction = 'replace';
+    render();
+    log(`  🔄 機組已滿！點擊場上機組進行替換`);
+  }
+  else {
+    playCardFromHand(0, handIdx);
+    selectedCard = null;
+    pendingAction = null;
+    render();
+    if (game.actionsLeft <= 0) endHumanTurn();
+  }
+}
+
+function useSelectedOnTarget(playerId, turbineIdx) {
+  if (!selectedCard) return;
+  if (playerId === game.currentPlayer) return;
+  playCardFromHand(0, selectedCard.handIdx, { target: turbineIdx });
+  selectedCard = null;
+  pendingAction = null;
+  render();
+  if (game.actionsLeft <= 0) endHumanTurn();
+}
+
+function replaceWithSelected(turbineIdx) {
+  if (!selectedCard || pendingAction !== 'replace') return;
+  playCardFromHand(0, selectedCard.handIdx, { replaceIdx: turbineIdx });
+  selectedCard = null;
+  pendingAction = null;
+  render();
+  if (game.actionsLeft <= 0) endHumanTurn();
+}
+
+function showCardDetail(card, e) {
+  const det = document.getElementById('card-detail');
+  let html = `<h4 style="color:var(--${card.type === 'turbine' ? 'turbine' : card.type === 'tech' ? 'tech' : card.type === 'func' ? 'func' : 'fault'})">${card.icon} ${card.name}</h4>`;
+  html += `<div style="font-size:0.7rem;color:var(--muted)">${card.id} · 動作費 ${card.cost}</div>`;
+  if (card.type === 'turbine') {
+    html += `<div class="det-effect">每回合 <b>+${card.mw}×風速係數</b> MWh<br>基礎可用率 <b>${card.avail}%</b></div>`;
+  } else if (card.type === 'tech') {
+    let eff = '';
+    if (card.repairsUpTo > 0) eff += `可修復 Sev.${card.repairsUpTo} 以下故障<br>`;
+    if (card.special === 'predict') eff += '預擲下回合風速、預警對手故障<br>';
+    if (card.special === 'free-repair') eff += '出場時免費修復 Sev.3 以下故障<br>';
+    if (card.special === 'extra-action') eff += '每回合 +1 動作，技師費用 -1<br>';
+    html += `<div class="det-effect">${eff || '通用技師'}</div>`;
+    if (card.counters && card.counters.length > 0) {
+      html += `<div class="det-counter">克制：${card.counters.map(c => CARDS[c].name).join(', ')}</div>`;
+    }
+  } else if (card.type === 'fault') {
+    html += `<div class="det-effect"><b>Sev.${card.sev}</b> · 對手機組 <b>-${card.drop}%</b><br>持續 ${card.rounds} 回合${card.cascade ? `<br>${card.cascade*100}% 連鎖機率` : ''}</div>`;
+    html += `<div class="det-counter">克制：${card.counters.map(c => CARDS[c].name).join(', ')}</div>`;
+  } else if (card.type === 'func') {
+    html += `<div class="det-effect">${card.flavor}</div>`;
+  }
+  if (card.type !== 'func') html += `<div class="det-flavor">"${card.flavor}"</div>`;
+  html += `<div class="det-iec">📐 IEC ${card.iec}</div>`;
+  det.innerHTML = html;
+  det.style.left = Math.min(e.clientX + 12, window.innerWidth - 290) + 'px';
+  det.style.top = Math.min(e.clientY + 12, window.innerHeight - 200) + 'px';
+  det.classList.add('visible');
+}
+
+function hideCardDetail() { document.getElementById('card-detail').classList.remove('visible'); }
+
+function log(text, type) { game.log.push({ text, type }); }
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentMode = btn.dataset.mode;
+    if (currentMode === 'simulation') {
+      document.getElementById('game-mode').style.display = 'none';
+      document.getElementById('sim-mode').style.display = 'block';
+    } else {
+      document.getElementById('game-mode').style.display = 'block';
+      document.getElementById('sim-mode').style.display = 'none';
+      newGame();
+    }
+  });
+});
+
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    aiDifficulty = btn.dataset.diff;
+    if (game) log(`  ⚙️ AI 難度切換為 ${getAIDiffLabel()}`, 'ai-think');
+    render();
+  });
+});
+
+document.getElementById('show-ai-thought').addEventListener('change', (e) => {
+  showAIThought = e.target.checked;
+  render();
+});
+
+// ============== 模擬 ==============
+function runSimulation() {
+  const count = Math.min(10000, Math.max(10, parseInt(document.getElementById('sim-count').value) || 100));
+  const p1Diff = document.getElementById('sim-p1-diff').value;
+  const p2Diff = document.getElementById('sim-p2-diff').value;
+  const results = [];
+  cardUsageStats = {};
+  document.getElementById('sim-progress').textContent = `模擬中... (${p1Diff} vs ${p2Diff})`;
+  setTimeout(() => {
+    for (let i = 0; i < count; i++) {
+      const r = simulateOneGame(p1Diff, p2Diff);
+      results.push(r);
+    }
+    showSimResults(results, count, p1Diff, p2Diff);
+    document.getElementById('sim-progress').textContent = `完成 ${count} 場`;
+  }, 50);
+}
+
+function simulateOneGame(p1Diff, p2Diff) {
+  const g = {
+    round:1, maxRounds:12,
+    wind: rollWind(), currentPlayer:0, actionsLeft:2, firstPlayer:0,
+    players: [createPlayer('P1'), createPlayer('P2')],
+    log: [], gameOver: false, futureWind: [],
+  };
+  g.players[0].turbines.push({ cardId:'M01', avail:95, faults:[], mwBonus:0 });
+  g.players[1].turbines.push({ cardId:'M01', avail:95, faults:[], mwBonus:0 });
+  const realGame = game; game = g;
+  try {
+    for (let r = 1; r <= 12 && !g.gameOver; r++) {
+      g.round = r;
+      g.wind = g.futureWind.length > 0 ? g.futureWind.shift() : rollWind();
+      for (const p of g.players) {
+        for (const t of p.turbines) {
+          for (const f of t.faults) { const c = CARDS[f.cardId]; if (c.spreading && f.roundsLeft > 1) f.drop += 5; }
+          t.faults = t.faults.filter(f => { f.roundsLeft--; return f.roundsLeft > 0; });
+        }
+        p.mwhBoostActive = false;
+      }
+      drawCard(0); drawCard(1);
+      g.firstPlayer = (r - 1) % 2;
+      for (let turn = 0; turn < 2; turn++) {
+        g.currentPlayer = (g.firstPlayer + turn) % 2;
+        g.actionsLeft = 2 + (hasSeniorManager(g.currentPlayer) ? 1 : 0) + g.players[g.currentPlayer].pendingExtraActions;
+        g.players[g.currentPlayer].pendingExtraActions = 0;
+        let safety = 12;
+        while (g.actionsLeft > 0 && safety-- > 0) {
+          const diff = g.currentPlayer === 0 ? p1Diff : p2Diff;
+          const choice = aiChoose(g.currentPlayer, diff);
+          if (!choice || choice.score < -10) break;
+          playCardFromHand(g.currentPlayer, choice.handIdx, { target: choice.target });
+        }
+        processAutoRepair(g.currentPlayer);
+      }
+      for (let i = 0; i < 2; i++) {
+        const p = g.players[i];
+        let mwh = 0;
+        for (const t of p.turbines) {
+          const c = CARDS[t.cardId];
+          const totalDrop = t.faults.reduce((s, f) => s + f.drop, 0);
+          mwh += (c.mw + t.mwBonus) * g.wind.coeff * Math.max(0, t.avail - totalDrop) / 100;
+        }
+        if (p.mwhBoostActive) mwh *= 1.5;
+        p.score += Math.round(mwh);
+      }
+      if (r % 4 === 0) {
+        for (const p of g.players) for (const t of p.turbines) if (CARDS[t.cardId].special === 'salt') t.avail = Math.max(0, t.avail - 2);
+      }
+    }
+    return {
+      p1Score: g.players[0].score, p2Score: g.players[1].score,
+      winner: g.players[0].score > g.players[1].score ? 0 : (g.players[1].score > g.players[0].score ? 1 : -1),
+    };
+  } finally { game = realGame; }
+}
+
+function showSimResults(results, count, p1Diff, p2Diff) {
+  const p1Wins = results.filter(r => r.winner === 0).length;
+  const p2Wins = results.filter(r => r.winner === 1).length;
+  const draws = results.filter(r => r.winner === -1).length;
+  const avgP1 = results.reduce((s, r) => s + r.p1Score, 0) / count;
+  const avgP2 = results.reduce((s, r) => s + r.p2Score, 0) / count;
+  const closeGames = results.filter(r => Math.abs(r.p1Score - r.p2Score) <= 5).length;
+  const blowouts = results.filter(r => Math.abs(r.p1Score - r.p2Score) >= 30).length;
+
+  document.getElementById('sim-results').style.display = 'block';
+  document.getElementById('sim-stats-grid').innerHTML = `
+    <div class="stat-box"><div class="stat-label">總場次</div><div class="stat-value">${count}</div><div class="stat-extra">${p1Diff} vs ${p2Diff}</div></div>
+    <div class="stat-box gold"><div class="stat-label">平均分數</div><div class="stat-value">${avgP1.toFixed(1)} : ${avgP2.toFixed(1)}</div><div class="stat-extra">P1 vs P2</div></div>
+    <div class="stat-box green"><div class="stat-label">P1 勝率</div><div class="stat-value">${(p1Wins/count*100).toFixed(1)}%</div><div class="stat-extra">${p1Wins} 場</div></div>
+    <div class="stat-box red"><div class="stat-label">P2 勝率</div><div class="stat-value">${(p2Wins/count*100).toFixed(1)}%</div><div class="stat-extra">${p2Wins} 場</div></div>
+    <div class="stat-box"><div class="stat-label">平手率</div><div class="stat-value">${(draws/count*100).toFixed(1)}%</div><div class="stat-extra">${draws} 場</div></div>
+    <div class="stat-box green"><div class="stat-label">勢均力敵</div><div class="stat-value">${(closeGames/count*100).toFixed(0)}%</div><div class="stat-extra">差 ≤5</div></div>
+    <div class="stat-box red"><div class="stat-label">一面倒</div><div class="stat-value">${(blowouts/count*100).toFixed(0)}%</div><div class="stat-extra">差 ≥30</div></div>
+  `;
+
+  const buckets = {};
+  results.forEach(r => {
+    const avg = Math.floor((r.p1Score + r.p2Score) / 2 / 10) * 10;
+    buckets[avg] = (buckets[avg] || 0) + 1;
+  });
+  const sortedBuckets = Object.entries(buckets).sort((a,b) => +a[0] - +b[0]);
+  const maxBucket = Math.max(...sortedBuckets.map(b => b[1]));
+  document.getElementById('histogram').innerHTML = sortedBuckets.map(([range, c]) => `
+    <div class="hist-bar">
+      <span class="hist-label">${range}-${+range + 9}</span>
+      <div class="hist-track"><div class="hist-fill" style="width:${(c/maxBucket*100).toFixed(0)}%"></div></div>
+      <span class="hist-count">${c}</span>
+    </div>
+  `).join('');
+
+  const sortedCards = Object.entries(cardUsageStats).sort((a,b) => b[1] - a[1]).slice(0, 30);
+  const maxCard = sortedCards.length > 0 ? sortedCards[0][1] : 1;
+  document.getElementById('card-stats').innerHTML = sortedCards.map(([cId, c]) => {
+    const card = CARDS[cId];
+    return `<div class="hist-bar"><span class="hist-label" style="width:140px">${card.icon} ${card.name}</span><div class="hist-track"><div class="hist-fill" style="width:${(c/maxCard*100).toFixed(0)}%"></div></div><span class="hist-count">${c}</span></div>`;
+  }).join('');
+}
+
+newGame();
+</script>
+</body>
+</html>
