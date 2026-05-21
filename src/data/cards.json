@@ -1,0 +1,943 @@
+{
+  "$schema": "card-schema-v1",
+  "version": "v4.0",
+  "lastUpdated": "2025-01",
+  "totalCards": 47,
+  "categories": {
+    "turbine": {
+      "count": 12,
+      "color": "#38bdf8"
+    },
+    "tech": {
+      "count": 9,
+      "color": "#34d399"
+    },
+    "fault": {
+      "count": 9,
+      "color": "#f87171"
+    },
+    "func": {
+      "count": 8,
+      "color": "#ec4899"
+    },
+    "weather": {
+      "count": 5,
+      "color": "#fbbf24"
+    },
+    "contract": {
+      "count": 4,
+      "color": "#a78bfa"
+    }
+  },
+  "rarity": {
+    "1": "common",
+    "2": "uncommon",
+    "3": "rare",
+    "4": "epic",
+    "5": "legendary"
+  },
+  "cards": {
+    "M01": {
+      "id": "M01",
+      "type": "turbine",
+      "icon": "🌀",
+      "cost": 1,
+      "rarity": 1,
+      "stats": {
+        "mw": 2,
+        "avail": 95
+      },
+      "abilities": [],
+      "iec": "61400-1"
+    },
+    "M02": {
+      "id": "M02",
+      "type": "turbine",
+      "icon": "⚙️",
+      "cost": 1,
+      "rarity": 1,
+      "stats": {
+        "mw": 3,
+        "avail": 93
+      },
+      "abilities": [],
+      "iec": "61400-1"
+    },
+    "M03": {
+      "id": "M03",
+      "type": "turbine",
+      "icon": "🏗️",
+      "cost": 2,
+      "rarity": 2,
+      "stats": {
+        "mw": 4,
+        "avail": 92
+      },
+      "abilities": [
+        {
+          "tag": "lowwind-resist"
+        }
+      ],
+      "iec": "61400-6"
+    },
+    "M04": {
+      "id": "M04",
+      "type": "turbine",
+      "icon": "🌊",
+      "cost": 2,
+      "rarity": 2,
+      "stats": {
+        "mw": 5,
+        "avail": 90
+      },
+      "special": "salt",
+      "abilities": [
+        {
+          "tag": "salt-corrosion"
+        }
+      ],
+      "iec": "61400-3-1"
+    },
+    "M05": {
+      "id": "M05",
+      "type": "turbine",
+      "icon": "🌊",
+      "cost": 2,
+      "rarity": 2,
+      "stats": {
+        "mw": 6,
+        "avail": 91
+      },
+      "abilities": [
+        {
+          "tag": "offshore-delay"
+        }
+      ],
+      "iec": "61400-3-1"
+    },
+    "M06": {
+      "id": "M06",
+      "type": "turbine",
+      "icon": "🐋",
+      "cost": 2,
+      "rarity": 3,
+      "stats": {
+        "mw": 8,
+        "avail": 90
+      },
+      "special": "storm-vulnerable",
+      "abilities": [
+        {
+          "tag": "storm-vulnerable"
+        }
+      ],
+      "iec": "61400-3-1"
+    },
+    "M07": {
+      "id": "M07",
+      "type": "turbine",
+      "icon": "🐋",
+      "cost": 5,
+      "rarity": 5,
+      "legendary": true,
+      "stats": {
+        "mw": 12,
+        "avail": 88
+      },
+      "abilities": [
+        {
+          "tag": "aura-mw",
+          "value": 1
+        },
+        {
+          "tag": "weather-immune"
+        },
+        {
+          "tag": "card-draw-trigger"
+        }
+      ],
+      "iec": "61400-3-2"
+    },
+    "M08": {
+      "id": "M08",
+      "type": "turbine",
+      "icon": "⚡",
+      "cost": 1,
+      "rarity": 3,
+      "stats": {
+        "mw": 6,
+        "avail": 85
+      },
+      "abilities": [
+        {
+          "tag": "cheap-deploy"
+        },
+        {
+          "tag": "fragile"
+        }
+      ],
+      "iec": "61400-1"
+    },
+    "M09": {
+      "id": "M09",
+      "type": "turbine",
+      "icon": "🗿",
+      "cost": 2,
+      "rarity": 4,
+      "stats": {
+        "mw": 10,
+        "avail": 87
+      },
+      "abilities": [
+        {
+          "tag": "immune-hydraulic"
+        },
+        {
+          "tag": "slow-recovery"
+        }
+      ],
+      "iec": "61400-6"
+    },
+    "M10": {
+      "id": "M10",
+      "type": "turbine",
+      "icon": "🍃",
+      "cost": 1,
+      "rarity": 2,
+      "stats": {
+        "mw": 1,
+        "avail": 98
+      },
+      "abilities": [
+        {
+          "tag": "no-slot"
+        },
+        {
+          "tag": "fault-immune"
+        }
+      ],
+      "iec": "61400-2"
+    },
+    "M11": {
+      "id": "M11",
+      "type": "turbine",
+      "icon": "🌪️",
+      "cost": 2,
+      "rarity": 3,
+      "stats": {
+        "mw": 7,
+        "avail": 88
+      },
+      "abilities": [
+        {
+          "tag": "lowwind-boost"
+        },
+        {
+          "tag": "highwind-penalty"
+        }
+      ],
+      "iec": "61400-1"
+    },
+    "M12": {
+      "id": "M12",
+      "type": "turbine",
+      "icon": "🔋",
+      "cost": 2,
+      "rarity": 4,
+      "stats": {
+        "mw": 5,
+        "avail": 92
+      },
+      "abilities": [
+        {
+          "tag": "no-wind-power"
+        },
+        {
+          "tag": "once-per-game"
+        }
+      ],
+      "iec": "61400-27"
+    },
+    "T01": {
+      "id": "T01",
+      "type": "tech",
+      "icon": "🔧",
+      "cost": 1,
+      "rarity": 1,
+      "stats": {
+        "repairsUpTo": 2
+      },
+      "counters": [
+        "F01",
+        "F02",
+        "F03"
+      ],
+      "abilities": [
+        {
+          "tag": "auto-repair-low"
+        }
+      ],
+      "iec": "61400-28"
+    },
+    "T02": {
+      "id": "T02",
+      "type": "tech",
+      "icon": "🪂",
+      "cost": 1,
+      "rarity": 2,
+      "stats": {
+        "repairsUpTo": 5
+      },
+      "counters": [
+        "F04"
+      ],
+      "required": [
+        "F04"
+      ],
+      "abilities": [
+        {
+          "tag": "blade-master"
+        }
+      ],
+      "iec": "61400-5"
+    },
+    "T03": {
+      "id": "T03",
+      "type": "tech",
+      "icon": "⚙️",
+      "cost": 1,
+      "rarity": 2,
+      "stats": {
+        "repairsUpTo": 5
+      },
+      "counters": [
+        "F06",
+        "F07"
+      ],
+      "required": [
+        "F06"
+      ],
+      "abilities": [
+        {
+          "tag": "gearbox-master"
+        }
+      ],
+      "iec": "61400-4"
+    },
+    "T04": {
+      "id": "T04",
+      "type": "tech",
+      "icon": "⚡",
+      "cost": 1,
+      "rarity": 2,
+      "stats": {
+        "repairsUpTo": 3
+      },
+      "counters": [
+        "F01",
+        "F05"
+      ],
+      "abilities": [
+        {
+          "tag": "electrical"
+        }
+      ],
+      "iec": "61400-21"
+    },
+    "T05": {
+      "id": "T05",
+      "type": "tech",
+      "icon": "📡",
+      "cost": 2,
+      "rarity": 3,
+      "stats": {
+        "repairsUpTo": 0
+      },
+      "counters": [],
+      "special": "predict",
+      "abilities": [
+        {
+          "tag": "predict-wind"
+        },
+        {
+          "tag": "fault-warning"
+        }
+      ],
+      "iec": "61400-25"
+    },
+    "T06": {
+      "id": "T06",
+      "type": "tech",
+      "icon": "🔬",
+      "cost": 2,
+      "rarity": 3,
+      "stats": {
+        "repairsUpTo": 3
+      },
+      "counters": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05"
+      ],
+      "special": "free-repair",
+      "abilities": [
+        {
+          "tag": "instant-repair"
+        },
+        {
+          "tag": "periodic-repair"
+        }
+      ],
+      "iec": "61400-25-6"
+    },
+    "T07": {
+      "id": "T07",
+      "type": "tech",
+      "icon": "👔",
+      "cost": 2,
+      "rarity": 5,
+      "legendary": true,
+      "stats": {
+        "repairsUpTo": 0
+      },
+      "counters": [],
+      "special": "extra-action",
+      "abilities": [
+        {
+          "tag": "aura-action"
+        },
+        {
+          "tag": "tech-discount"
+        }
+      ],
+      "iec": "61400-28"
+    },
+    "T08": {
+      "id": "T08",
+      "type": "tech",
+      "icon": "🛸",
+      "cost": 1,
+      "rarity": 3,
+      "stats": {
+        "repairsUpTo": 3
+      },
+      "counters": [
+        "F04"
+      ],
+      "abilities": [
+        {
+          "tag": "peek-hand"
+        },
+        {
+          "tag": "remote-blade"
+        }
+      ],
+      "iec": "61400-5"
+    },
+    "T09": {
+      "id": "T09",
+      "type": "tech",
+      "icon": "🧪",
+      "cost": 2,
+      "rarity": 4,
+      "stats": {
+        "repairsUpTo": 0
+      },
+      "counters": [],
+      "abilities": [
+        {
+          "tag": "func-bonus"
+        },
+        {
+          "tag": "func-discount"
+        }
+      ],
+      "iec": "61400-1"
+    },
+    "F01": {
+      "id": "F01",
+      "type": "fault",
+      "icon": "📊",
+      "cost": 1,
+      "rarity": 1,
+      "stats": {
+        "sev": 1,
+        "drop": 5,
+        "rounds": 1
+      },
+      "counters": [
+        "T01",
+        "T04"
+      ],
+      "abilities": [
+        {
+          "tag": "auto-repair"
+        }
+      ],
+      "iec": "61400-12"
+    },
+    "F02": {
+      "id": "F02",
+      "type": "fault",
+      "icon": "🧭",
+      "cost": 1,
+      "rarity": 1,
+      "stats": {
+        "sev": 1,
+        "drop": 10,
+        "rounds": 1
+      },
+      "counters": [
+        "T01"
+      ],
+      "abilities": [
+        {
+          "tag": "temporary"
+        }
+      ],
+      "iec": "61400-1"
+    },
+    "F03": {
+      "id": "F03",
+      "type": "fault",
+      "icon": "💧",
+      "cost": 1,
+      "rarity": 1,
+      "stats": {
+        "sev": 2,
+        "drop": 10,
+        "rounds": 2
+      },
+      "counters": [
+        "T01"
+      ],
+      "spreading": true,
+      "abilities": [
+        {
+          "tag": "spreading"
+        }
+      ],
+      "iec": "61400-1"
+    },
+    "F04": {
+      "id": "F04",
+      "type": "fault",
+      "icon": "🪂",
+      "cost": 2,
+      "rarity": 2,
+      "stats": {
+        "sev": 3,
+        "drop": 20,
+        "rounds": 2
+      },
+      "counters": [
+        "T02",
+        "T08"
+      ],
+      "required": [
+        "T02",
+        "T08"
+      ],
+      "abilities": [
+        {
+          "tag": "specialist-only"
+        }
+      ],
+      "iec": "61400-5"
+    },
+    "F05": {
+      "id": "F05",
+      "type": "fault",
+      "icon": "📐",
+      "cost": 2,
+      "rarity": 2,
+      "stats": {
+        "sev": 3,
+        "drop": 25,
+        "rounds": 2
+      },
+      "counters": [
+        "T04"
+      ],
+      "abilities": [
+        {
+          "tag": "storm-amplify"
+        }
+      ],
+      "iec": "61400-1"
+    },
+    "F06": {
+      "id": "F06",
+      "type": "fault",
+      "icon": "⚙️",
+      "cost": 2,
+      "rarity": 3,
+      "stats": {
+        "sev": 4,
+        "drop": 30,
+        "rounds": 3
+      },
+      "counters": [
+        "T03"
+      ],
+      "required": [
+        "T03"
+      ],
+      "cascade": 0.2,
+      "abilities": [
+        {
+          "tag": "cascade"
+        },
+        {
+          "tag": "specialist-only"
+        }
+      ],
+      "iec": "61400-4"
+    },
+    "F07": {
+      "id": "F07",
+      "type": "fault",
+      "icon": "💥",
+      "cost": 2,
+      "rarity": 5,
+      "legendary": true,
+      "stats": {
+        "sev": 5,
+        "drop": 50,
+        "rounds": 3
+      },
+      "counters": [
+        "T03",
+        "T06"
+      ],
+      "cascade": 0.3,
+      "abilities": [
+        {
+          "tag": "cascade-high"
+        },
+        {
+          "tag": "devastating"
+        }
+      ],
+      "iec": "61400-4"
+    },
+    "F08": {
+      "id": "F08",
+      "type": "fault",
+      "icon": "⚡",
+      "cost": 1,
+      "rarity": 3,
+      "stats": {
+        "sev": 3,
+        "drop": 25,
+        "rounds": 1
+      },
+      "counters": [
+        "T02",
+        "T08"
+      ],
+      "cascade": 0.3,
+      "abilities": [
+        {
+          "tag": "fast-damage"
+        },
+        {
+          "tag": "unpredictable"
+        }
+      ],
+      "iec": "61400-24"
+    },
+    "F09": {
+      "id": "F09",
+      "type": "fault",
+      "icon": "🛡️",
+      "cost": 1,
+      "rarity": 3,
+      "stats": {
+        "sev": 3,
+        "drop": 20,
+        "rounds": 2
+      },
+      "counters": [
+        "T04"
+      ],
+      "abilities": [
+        {
+          "tag": "disable-scada"
+        },
+        {
+          "tag": "info-leak"
+        }
+      ],
+      "iec": "61400-25"
+    },
+    "FN01": {
+      "id": "FN01",
+      "type": "func",
+      "icon": "🔄",
+      "cost": 1,
+      "rarity": 2,
+      "effect": "returnTurbine",
+      "abilities": [
+        {
+          "tag": "return-turbine"
+        }
+      ],
+      "iec": "61400-28"
+    },
+    "FN02": {
+      "id": "FN02",
+      "type": "func",
+      "icon": "🔬",
+      "cost": 1,
+      "rarity": 1,
+      "effect": "draw2",
+      "abilities": [
+        {
+          "tag": "draw-2"
+        }
+      ],
+      "iec": "61400-28"
+    },
+    "FN03": {
+      "id": "FN03",
+      "type": "func",
+      "icon": "🔧",
+      "cost": 2,
+      "rarity": 2,
+      "effect": "upgradeMW",
+      "abilities": [
+        {
+          "tag": "permanent-mw"
+        }
+      ],
+      "iec": "61400-1"
+    },
+    "FN04": {
+      "id": "FN04",
+      "type": "func",
+      "icon": "⏩",
+      "cost": 0,
+      "rarity": 1,
+      "effect": "extraAction",
+      "abilities": [
+        {
+          "tag": "extra-action-future"
+        }
+      ],
+      "iec": "61400-28"
+    },
+    "FN05": {
+      "id": "FN05",
+      "type": "func",
+      "icon": "🔮",
+      "cost": 1,
+      "rarity": 2,
+      "effect": "predictWind",
+      "abilities": [
+        {
+          "tag": "predict-wind-3"
+        }
+      ],
+      "iec": "61400-15"
+    },
+    "FN06": {
+      "id": "FN06",
+      "type": "func",
+      "icon": "⚡",
+      "cost": 1,
+      "rarity": 3,
+      "effect": "mwhBoost",
+      "abilities": [
+        {
+          "tag": "mwh-boost"
+        }
+      ],
+      "iec": "61400-26"
+    },
+    "FN07": {
+      "id": "FN07",
+      "type": "func",
+      "icon": "🏛️",
+      "cost": 0,
+      "rarity": 3,
+      "effect": "searchTurbine",
+      "abilities": [
+        {
+          "tag": "tutor-turbine"
+        }
+      ],
+      "iec": "61400-15"
+    },
+    "FN08": {
+      "id": "FN08",
+      "type": "func",
+      "icon": "🛡️",
+      "cost": 2,
+      "rarity": 3,
+      "effect": "insurance",
+      "abilities": [
+        {
+          "tag": "insurance-shield"
+        }
+      ],
+      "iec": "61400-28"
+    },
+    "W01": {
+      "id": "W01",
+      "type": "weather",
+      "icon": "🌬️",
+      "cost": 1,
+      "rarity": 2,
+      "effect": "highWind",
+      "duration": 3,
+      "abilities": [
+        {
+          "tag": "wind-boost"
+        }
+      ],
+      "iec": "61400-15"
+    },
+    "W02": {
+      "id": "W02",
+      "type": "weather",
+      "icon": "🌀",
+      "cost": 1,
+      "rarity": 3,
+      "effect": "typhoon",
+      "duration": 1,
+      "abilities": [
+        {
+          "tag": "shutdown-all"
+        },
+        {
+          "tag": "damage-storm-vulnerable"
+        }
+      ],
+      "iec": "61400-1"
+    },
+    "W03": {
+      "id": "W03",
+      "type": "weather",
+      "icon": "☁️",
+      "cost": 1,
+      "rarity": 2,
+      "effect": "lowWind",
+      "duration": 2,
+      "abilities": [
+        {
+          "tag": "wind-penalty"
+        }
+      ],
+      "iec": "61400-15"
+    },
+    "W04": {
+      "id": "W04",
+      "type": "weather",
+      "icon": "⚡",
+      "cost": 1,
+      "rarity": 3,
+      "effect": "gridSurge",
+      "duration": 1,
+      "abilities": [
+        {
+          "tag": "mwh-double"
+        }
+      ],
+      "iec": "61400-26"
+    },
+    "W05": {
+      "id": "W05",
+      "type": "weather",
+      "icon": "🥶",
+      "cost": 1,
+      "rarity": 3,
+      "effect": "iceWind",
+      "duration": 2,
+      "abilities": [
+        {
+          "tag": "random-blade"
+        },
+        {
+          "tag": "wind-penalty"
+        }
+      ],
+      "iec": "61400-24"
+    },
+    "C01": {
+      "id": "C01",
+      "type": "contract",
+      "icon": "📋",
+      "cost": 0,
+      "rarity": 2,
+      "target": {
+        "type": "highAvail",
+        "rounds": 3,
+        "threshold": 90,
+        "reward": 15
+      },
+      "abilities": [
+        {
+          "tag": "contract-stable"
+        }
+      ],
+      "iec": "61400-26"
+    },
+    "C02": {
+      "id": "C02",
+      "type": "contract",
+      "icon": "🏗️",
+      "cost": 0,
+      "rarity": 3,
+      "target": {
+        "type": "totalMW",
+        "threshold": 18,
+        "reward": 25
+      },
+      "abilities": [
+        {
+          "tag": "contract-scale"
+        }
+      ],
+      "iec": "61400-15"
+    },
+    "C03": {
+      "id": "C03",
+      "type": "contract",
+      "icon": "🎓",
+      "cost": 0,
+      "rarity": 3,
+      "target": {
+        "type": "techCount",
+        "threshold": 4,
+        "reward": 20
+      },
+      "abilities": [
+        {
+          "tag": "contract-techs"
+        }
+      ],
+      "iec": "61400-1"
+    },
+    "C04": {
+      "id": "C04",
+      "type": "contract",
+      "icon": "🏆",
+      "cost": 0,
+      "rarity": 4,
+      "target": {
+        "type": "killOpponent",
+        "rounds": 2,
+        "reward": 30
+      },
+      "abilities": [
+        {
+          "tag": "contract-suppress"
+        }
+      ],
+      "iec": "61400-26"
+    }
+  }
+}
