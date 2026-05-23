@@ -1,11 +1,11 @@
 {
   "$schema": "card-schema-v1",
-  "version": "v4.0",
-  "lastUpdated": "2025-01",
-  "totalCards": 47,
+  "version": "v5.0",
+  "lastUpdated": "2026-05",
+  "totalCards": 50,
   "categories": {
     "turbine": {
-      "count": 12,
+      "count": 15,
       "color": "#38bdf8"
     },
     "tech": {
@@ -137,7 +137,7 @@
       "id": "M07",
       "type": "turbine",
       "icon": "🐋",
-      "cost": 5,
+      "cost": 4,
       "rarity": 5,
       "legendary": true,
       "stats": {
@@ -258,6 +258,49 @@
       ],
       "iec": "61400-27"
     },
+    "OS8": {
+      "id": "OS8",
+      "type": "turbine",
+      "icon": "🌊",
+      "cost": 0,
+      "rarity": 3,
+      "special": "starting-fleet",
+      "stats": {
+        "mw": 8,
+        "avail": 90
+      },
+      "abilities": [],
+      "iec": "61400-3-1"
+    },
+    "OS10": {
+      "id": "OS10",
+      "type": "turbine",
+      "icon": "🌊",
+      "cost": 0,
+      "rarity": 4,
+      "special": "starting-fleet",
+      "stats": {
+        "mw": 10,
+        "avail": 88
+      },
+      "abilities": [],
+      "iec": "61400-3-1"
+    },
+    "OS12": {
+      "id": "OS12",
+      "type": "turbine",
+      "icon": "🐋",
+      "cost": 0,
+      "rarity": 5,
+      "legendary": true,
+      "special": "starting-fleet",
+      "stats": {
+        "mw": 12,
+        "avail": 86
+      },
+      "abilities": [],
+      "iec": "61400-3-2"
+    },
     "T01": {
       "id": "T01",
       "type": "tech",
@@ -285,6 +328,7 @@
       "icon": "🪂",
       "cost": 1,
       "rarity": 2,
+      "specialty": "blade",
       "stats": {
         "repairsUpTo": 5
       },
@@ -307,6 +351,7 @@
       "icon": "⚙️",
       "cost": 1,
       "rarity": 2,
+      "specialty": "mechanical",
       "stats": {
         "repairsUpTo": 5
       },
@@ -330,6 +375,7 @@
       "icon": "⚡",
       "cost": 1,
       "rarity": 2,
+      "specialty": "electrical",
       "stats": {
         "repairsUpTo": 3
       },
@@ -350,6 +396,7 @@
       "icon": "📡",
       "cost": 2,
       "rarity": 3,
+      "specialty": "sensor",
       "stats": {
         "repairsUpTo": 0
       },
@@ -371,6 +418,7 @@
       "icon": "🔬",
       "cost": 2,
       "rarity": 3,
+      "specialty": "hydraulic",
       "stats": {
         "repairsUpTo": 3
       },
@@ -420,6 +468,7 @@
       "icon": "🛸",
       "cost": 1,
       "rarity": 3,
+      "specialty": "blade",
       "stats": {
         "repairsUpTo": 3
       },
@@ -462,6 +511,7 @@
       "icon": "📊",
       "cost": 1,
       "rarity": 1,
+      "faultCategory": "sensor",
       "stats": {
         "sev": 1,
         "drop": 5,
@@ -484,6 +534,7 @@
       "icon": "🧭",
       "cost": 1,
       "rarity": 1,
+      "faultCategory": "mechanical",
       "stats": {
         "sev": 1,
         "drop": 10,
@@ -505,13 +556,15 @@
       "icon": "💧",
       "cost": 1,
       "rarity": 1,
+      "faultCategory": "hydraulic",
       "stats": {
         "sev": 2,
         "drop": 10,
         "rounds": 2
       },
       "counters": [
-        "T01"
+        "T01",
+        "T06"
       ],
       "spreading": true,
       "abilities": [
@@ -527,6 +580,7 @@
       "icon": "🪂",
       "cost": 2,
       "rarity": 2,
+      "faultCategory": "blade",
       "stats": {
         "sev": 3,
         "drop": 20,
@@ -553,13 +607,15 @@
       "icon": "📐",
       "cost": 2,
       "rarity": 2,
+      "faultCategory": "electrical",
       "stats": {
         "sev": 3,
         "drop": 25,
         "rounds": 2
       },
       "counters": [
-        "T04"
+        "T04",
+        "T06"
       ],
       "abilities": [
         {
@@ -574,6 +630,7 @@
       "icon": "⚙️",
       "cost": 2,
       "rarity": 3,
+      "faultCategory": "mechanical",
       "stats": {
         "sev": 4,
         "drop": 30,
@@ -603,14 +660,14 @@
       "cost": 2,
       "rarity": 5,
       "legendary": true,
+      "faultCategory": "mechanical",
       "stats": {
         "sev": 5,
         "drop": 50,
         "rounds": 3
       },
       "counters": [
-        "T03",
-        "T06"
+        "T03"
       ],
       "cascade": 0.3,
       "abilities": [
@@ -629,6 +686,7 @@
       "icon": "⚡",
       "cost": 1,
       "rarity": 3,
+      "faultCategory": "blade",
       "stats": {
         "sev": 3,
         "drop": 25,
@@ -655,6 +713,7 @@
       "icon": "🛡️",
       "cost": 1,
       "rarity": 3,
+      "faultCategory": "sensor",
       "stats": {
         "sev": 3,
         "drop": 20,

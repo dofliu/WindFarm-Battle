@@ -7,12 +7,29 @@ import type { GameState } from './types';
 export type GameEvent =
   | { kind: 'round-start'; round: number; windLabel: string }
   | { kind: 'card-played'; player: 0 | 1; cardId: string }
+  | { kind: 'card-drawn'; player: 0 | 1; cardId: string }
+  | { kind: 'card-discarded'; player: 0 | 1; cardId: string }
+  | { kind: 'turbine-shutdown'; player: 0 | 1; turbineIdx: number; cardId: string }
+  | { kind: 'turbine-restart'; player: 0 | 1; turbineIdx: number; cardId: string }
   | { kind: 'turbine-deployed'; player: 0 | 1; cardId: string }
   | { kind: 'turbine-replaced'; player: 0 | 1; oldCardId: string; newCardId: string }
+  | { kind: 'turbine-returned'; player: 0 | 1; cardId: string }
+  | { kind: 'turbine-upgraded'; player: 0 | 1; cardId: string; bonus: number }
   | { kind: 'tech-deployed'; player: 0 | 1; cardId: string }
   | { kind: 'fault-applied'; player: 0 | 1; targetIdx: number; cardId: string; drop: number }
   | { kind: 'fault-cascaded'; player: 0 | 1; targetIdx: number; cardId: string }
-  | { kind: 'fault-repaired'; player: 0 | 1; targetIdx: number; cardId: string; by?: string }
+  | { kind: 'fault-repaired'; player: 0 | 1; targetIdx: number; cardId: string; by?: string; quality?: 'full' | 'partial'; availLost?: number }
+  | { kind: 'func-played'; player: 0 | 1; cardId: string; effect: string }
+  | { kind: 'predict-wind'; player: 0 | 1; labels: string[] }
+  | { kind: 'extra-action-banked'; player: 0 | 1; pending: number }
+  | { kind: 'mwh-boost'; player: 0 | 1 }
+  | { kind: 'turn-ended'; player: 0 | 1 }
+  | { kind: 'weather-applied'; player: 0 | 1; cardId: string; duration: number }
+  | { kind: 'weather-expired'; cardId: string }
+  | { kind: 'tutor-turbine'; player: 0 | 1; cardId: string }
+  | { kind: 'contract-applied'; player: 0 | 1; cardId: string }
+  | { kind: 'contract-progress'; player: 0 | 1; cardId: string; progress: number }
+  | { kind: 'contract-fulfilled'; player: 0 | 1; cardId: string; reward: number }
   | { kind: 'round-scored'; player: 0 | 1; mwh: number; total: number }
   | { kind: 'game-over'; winner: 0 | 1 | -1 };
 

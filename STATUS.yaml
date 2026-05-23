@@ -1,0 +1,22 @@
+name: WindFarm Battle
+name_zh: 風場大戰
+category: edtech
+progress: 95
+status: active
+last_updated: "2026-05-22"
+next_milestone: "Android Studio 實機測試（npx cap open android）+ 學生首輪試玩回饋 + 卡牌插畫製作（AI art prompts in CARD_PROMPTS.md）"
+technologies:
+  - React 18
+  - TypeScript 5
+  - Vite
+  - Zustand
+  - TailwindCSS
+  - Vitest
+  - Capacitor 8
+outputs:
+  - tool
+  - paper
+  - course
+description: "Educational wind farm operations card game (PvAI, 50 cards, 12 rounds, knowledge-effectiveness repair model)"
+description_zh: "風場運維教學卡牌遊戲（玩家 vs AI，50 張牌，12 回合，Route B 知識效益修復模型）"
+key_metrics: "209 tests passing / 50 cards / 3 AI difficulty levels / tsc+lint+build clean / Route B full UI + originalAvail permanent damage display / Sprint 4 CardTemplate+CardGallery / SimulatorPanel Web mode / 1000-game balance all-pass / AI M07/M10/M12 evaluator fixed / Android+iOS synced"

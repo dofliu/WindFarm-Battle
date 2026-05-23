@@ -1,6 +1,8 @@
-# 🚀 HANDOFF — WindFarm Battle 專案交接（v2）
+# 🚀 HANDOFF — WindFarm Battle 專案交接（v3）
 
 > **這是給 Claude Code 看的第一份文件。** 整個專案的現狀、決策、與下一步行動都在這裡。
+>
+> **最後更新：2026-05-22（progress 95%）**
 
 ---
 
@@ -9,107 +11,80 @@
 **WindFarm Battle / 風場大戰** 是一個風電運維主題的策略卡牌遊戲，由 NCUT 智慧自動化工程系 DOF Lab（劉瑞弘副教授）開發。
 
 **核心特點：**
-- 🎓 教學工具：對應 IEC 61400 標準
-- 🎴 47 張卡片，6 種類別（機組/技師/故障/功能/天氣/合約）
-- 🤖 含智慧 AI 對戰、自動模擬器
-- 🎨 已建立完整視覺風格指引
+- 🎓 教學工具：對應 IEC 61400 標準，Route B 知識效益修復模型
+- 🎴 50 張卡片，6 種類別（機組/技師/故障/功能/天氣/合約）
+- 🤖 含智慧 AI 對戰（3 難度）、CLI 自動模擬器（`npm run simulate`）
+- 📱 Capacitor 8 已同步（Android + iOS 準備就緒）
+- 🎨 Sprint 4 卡牌模板系統完成（CardTemplate + CardGallery + 列印功能）
 
-**目前階段：** 設計完成、HTML 原型可玩、**準備重構為 React + TS 正式專案**
+**目前階段：** **可玩完整遊戲。** React+TS 重構完成、全測試通過、Capacitor 已同步、待實機測試。
 
 ---
 
-## 🎯 你（Claude Code）接手時的現況
+## 🎯 接手時的現況（2026-05-22）
 
-### ✅ 已完成
-- [x] 完整遊戲機制設計（規則、平衡、AI）
-- [x] 4 代 HTML 原型（v1-v4，47 張卡可玩）
-- [x] 卡牌結構化資料（`data/cards.json`）
-- [x] AI 評估函式與三段難度
-- [x] 自動模擬器（驗證平衡性）
-- [x] **視覺風格決策**（混合策略，見 VISUAL_WORKFLOW.md）
-- [x] **AI 插畫 prompt 模板**（已測試三張，方向確認）
+### ✅ 已完成（Sprint 1–5 + Sprint 4 模板）
 
-### 🔨 你即將做的
-- [ ] **第一步：閱讀所有文件、玩過 v4 原型**
-- [ ] 提出重構計畫（不要直接寫程式）
-- [ ] Sprint 1：建立 React + TS 專案骨架
-- [ ] Sprint 2：核心邏輯（`core/`）層重構
-- [ ] Sprint 3：UI 層遷移
-- [ ] Sprint 4：卡牌模板系統（套版工具）
-- [ ] Sprint 5：模擬器整合
-- [ ] Sprint 6：Capacitor 包裝為手機 App
+- [x] Vite + React 18 + TypeScript 5 + Tailwind + Zustand 專案骨架
+- [x] `core/` 層純 TS（零 React 依賴）：types, cards, game-state, rules-engine, actions, abilities
+- [x] AI 三難度（easy/medium/hard）+ evaluator + strategy + difficulty
+- [x] 50 張卡完整資料（cards.json v4）+ i18n 中文文案
+- [x] Route B 知識效益修復模型：faultCategory × specialty 完全/部分修復
+- [x] 開局固定艦隊：OS8(8MW) + OS10(10MW) + OS12(12MW) 雙方對稱
+- [x] 完整 UI：GameHeader / PlayerArea / Hand / EventLog / StatusPanel / CardChip / TurbineSlot
+- [x] CardLibraryModal / HowToPlayModal（含 Route B 教學說明）
+- [x] **Sprint 4**：CardTemplate.tsx + CardGallery.tsx（列印 Modal，🎴 列印按鈕）
+- [x] CLI 模擬器：`npm run simulate -- --games 1000 --p1 hard --p2 hard`
+- [x] 1000 場平衡驗證全通過（勝率/緊湊度/卡牌涵蓋 ✅）
+- [x] **Route B 永久損傷視覺化**：`DeployedTurbine.originalAvail` + TurbineSlot `⬇ −N% 永久` + 4 新測試
+- [x] **模擬器 Web 模式**：SimulatorPanel.tsx（📊 模擬按鈕，200/500/1000 場，熱門/冷門卡排行）
+- [x] **209 個測試全通過**（tsc/eslint/build 全綠）
+- [x] Capacitor 8 同步（Android + iOS）
 
-### 🧠 目前的重大決策
+### 🔨 待完成（需 Dof 配合）
+
+- [ ] **Android Studio 實機測試**：`npx cap open android`（需本機環境）
+- [ ] **學生首輪試玩**：10-20 名學生 × 5 場，回饋收集
+- [ ] **卡牌插畫製作**：使用 CARD_PROMPTS.md 的 AI prompt 產圖
+
+### 🤖 如果繼續 coding，可做的事
+
+- 卡牌批次導出 PDF（Sprint 4 CardExporter，需 `html2canvas` 或 puppeteer）
+- App icon / splash screen（Capacitor 設定）
+- 多語言（英文版 i18n，已有架構）
+
+---
+
+## 🧠 重大決策紀錄
 
 | 決策項目 | 結論 | 詳見 |
 |---|---|---|
 | **專案名稱** | WindFarm Battle / 風場大戰 | README.md |
-| **卡牌數量** | 47 張（v4 完整版） | data/cards.json |
-| **技術棧** | React + TS + Vite + Zustand + Tailwind | DESIGN.md Part 8 |
-| **手機方案** | Capacitor（共用 90% Web 程式） | ROADMAP.md |
-| **視覺工作流** | AI 生純插畫 + 統一模板套版 | VISUAL_WORKFLOW.md ⭐ |
-| **AI 風格** | 機組真實 CG、技師半寫實、故障工程示意圖 | VISUAL_WORKFLOW.md |
+| **卡牌數量** | 50 張（含 OS8/OS10/OS12 開局艦隊） | data/cards.json |
+| **技術棧** | React 18 + TS 5 + Vite + Zustand + Tailwind | DESIGN.md |
+| **手機方案** | Capacitor 8（已同步） | ROADMAP.md |
+| **視覺工作流** | AI 生純插畫 + CardTemplate 統一套版 | VISUAL_WORKFLOW.md ⭐ |
+| **Route B** | specialty×faultCategory → 完全/部分修復 | DESIGN.md |
+| **平衡門檻** | 勝率差距 ≤12pp；closeRate 相對差 ≤3%；usage ≥1.5% | scripts/simulate.ts |
+| **M07 cost** | 4（原 5，已修正：max actions=5 才能出傳說卡） | cards.json |
+| **M10/M12/W02** | 情境性豁免卡（不計冷門警示） | scripts/simulate.ts |
 
 ---
 
-## 📚 文件閱讀順序（按重要性）
+## 📚 文件閱讀順序
 
 ```
-必讀（依此順序）：
-1. HANDOFF.md                ← 你正在看
-2. PROJECT_STATUS.md         ← 詳細進度
-3. DESIGN.md                 ← 完整設計（最重要）
-4. VISUAL_WORKFLOW.md        ⭐ 視覺工作流（新）
-5. CLAUDE.md                 ← 你的工作規範
-6. data/cards.json           ← 卡牌資料
+必讀：
+1. HANDOFF.md          ← 你正在看（現況）
+2. NOTES.md            ← 最新技術注意事項（最先看）
+3. PROJECT_STATUS.md   ← 詳細 Sprint 進度
+4. DESIGN.md           ← 完整設計規範（最重要）
+5. VISUAL_WORKFLOW.md  ⭐ 視覺工作流
 
 選讀：
-7. ROADMAP.md                ← 未來計畫
-8. CARD_PROMPTS.md           ← AI 插畫 prompt 庫
-9. prototypes/v4-expansion.html ← 親自玩過
-```
-
----
-
-## 🚦 你的第一個任務（不要寫程式！）
-
-**請依以下順序執行，然後回報給使用者：**
-
-### 階段 1：理解專案（半天）
-
-```
-1. 完整讀完 HANDOFF.md、PROJECT_STATUS.md、DESIGN.md、VISUAL_WORKFLOW.md
-2. 開啟 prototypes/v4-expansion.html 在瀏覽器中玩 3 場
-3. 觀察 cards.json 的結構
-4. 列出你的疑問清單
-```
-
-### 階段 2：提交計畫（不要寫程式）
-
-```
-回報以下文件給使用者審核：
-
-## 我的理解
-- 用 5-10 句話總結你理解的專案目標
-- 列出你看到的最關鍵設計決策
-
-## Sprint 1 計畫
-- 預定建立的檔案結構
-- 預定使用的套件清單
-- 預估時間
-- 風險點
-
-## 我的疑問
-- 任何規格不清的地方
-- 任何你覺得設計有問題的地方
-- 任何需要使用者決策的事項
-```
-
-### 階段 3：等待確認
-
-```
-不要自己開始寫程式！
-等使用者明確說「OK 開始實作 Sprint 1」再動手。
+6. CLAUDE.md           ← 工作規範（每次對話開始前讀）
+7. CARD_PROMPTS.md     ← AI 插畫 prompt 庫
+8. ROADMAP.md          ← 未來計畫
 ```
 
 ---
@@ -130,9 +105,9 @@
 
 ### 技術約束
 
-- ❌ **core/ 層禁止 import React / 任何 UI 框架** （為了未來跨平台）
-- ❌ **不可刪除 prototypes/** （v1-v4 是設計史與 fallback）
-- ❌ **不可直接修改 cards.json 中的卡牌數值** 沒有跑過 1000 場模擬驗證
+- ❌ **core/ 層禁止 import React / 任何 UI 框架**（為了未來跨平台）
+- ❌ **不可刪除 prototypes/**（v1-v4 是設計史）
+- ❌ **不可直接修改 cards.json 中的卡牌數值**（沒有跑 1000 場模擬驗證不可合併）
 - ✅ **每個 Sprint 結束都要有可運行成果**（不只是程式碼）
 
 ---
@@ -143,9 +118,9 @@
 |---|---|
 | 規格不清 | 問使用者，給 2-3 個選項 + 你的推薦 |
 | 設計矛盾 | 引用 DESIGN.md 對應段落，提出修正建議 |
-| 重構後行為不一致 | 跑「對齊測試」（與 v4 原型比對） |
-| 平衡崩壞 | 跑 1000 場模擬，看 CLAUDE.md 驗收標準 |
-| 視覺問題 | 看 VISUAL_WORKFLOW.md 的工作流 |
+| 平衡崩壞 | 跑 `npm run simulate -- --games 1000 --p1 hard --p2 hard`，看 scripts/simulate.ts 門檻 |
+| 視覺問題 | 看 VISUAL_WORKFLOW.md |
+| tsc 錯誤 | core/ 層不可有 React import；所有型別明確標注 |
 
 ---
 
@@ -153,34 +128,9 @@
 
 - **使用者**：劉瑞弘 副教授（NCUT IAE / DOF Lab）
 - **網站**：[doflab.cc](https://doflab.cc)
-- **設計協作 AI**：Claude（這份文件由 Claude 整理）
 
 ---
 
-## 🎬 開場白範例
-
-如果這是你和使用者的第一次對話，可以這樣開始：
-
-```
-你好！我剛讀完 HANDOFF、PROJECT_STATUS、DESIGN、VISUAL_WORKFLOW 四份文件，
-也玩了 v4 原型 3 場。
-
-我的初步理解：
-- WindFarm Battle 是一個 47 張卡的策略卡牌遊戲
-- 教學目的（風電 + IEC 61400）+ 研究價值
-- 你已經完成所有設計，現在要做的是把 HTML 原型重構為 React + TS
-- 視覺方面採「AI 純插畫 + 統一模板」工作流
-- 最終要包裝為手機 App（Capacitor）
-
-我有幾個問題想先釐清：
-[列 3-5 個關鍵問題]
-
-如果這些確認後，我打算先做 Sprint 1 的技術骨架（Vite + React + TS）。
-要我提交詳細的 Sprint 1 計畫嗎？
-```
-
----
-
-**文件版本**：v2.0
-**最後更新**：2025-05
-**狀態**：準備交接給 Claude Code
+**文件版本**：v3.0（接管重構後、實機測試前）
+**最後更新**：2026-05-22
+**狀態**：React 重構完成，待 Android Studio 實機測試 + 學生試玩

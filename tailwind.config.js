@@ -13,6 +13,21 @@ export default {
         contract: '#a78bfa',
         legendary: '#fbbf24',
       },
+      // 自定義動畫
+      keyframes: {
+        'fade-in-down': {
+          '0%': { opacity: '0', transform: 'translateY(-16px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'fade-out': {
+          '0%': { opacity: '1' },
+          '100%': { opacity: '0' },
+        },
+      },
+      animation: {
+        'fade-in': 'fade-in-down 0.3s ease-out both',
+        'fade-out': 'fade-out 0.3s ease-in both',
+      },
     },
   },
   plugins: [],

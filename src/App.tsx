@@ -1,48 +1,57 @@
-import { t } from './i18n';
-import { allCardIds, cardsByType } from './core/cards';
-import type { CardType } from './core/types';
-import { createRng } from './core/rng';
-import { rollWind } from './core/rules-engine';
+// ============================================================
+// App 入口：Stage（1440×900 scale-to-fit）+ ThemeProvider，
+// 在 title / battle / gameOver 三個畫面之間切換。
+// 邏輯與資料完全來自 Zustand store（src/store/game-store.ts）。
+// ============================================================
+import { useCallback, useState } from 'react';
+import { useGameStore } from './store/game-store';
+import { Stage } from './ui/stage/Stage';
+import { ThemeProvider } from './ui/theme/ThemeContext';
+import { TitleScreen } from './ui/screens/TitleScreen';
+import { BattleScreen } from './ui/screens/BattleScreen';
+import { GameOverScreen } from './ui/screens/GameOverScreen';
+import { ThemeSwitcher } from './ui/components/ThemeSwitcher';
 
-const CATEGORIES: readonly CardType[] = [
-  'turbine',
-  'tech',
-  'fault',
-  'func',
-  'weather',
-  'contract',
-];
+type ScreenKey = 'title' | 'battle' | 'gameover';
 
-/**
- * Sprint 1 的「Hello」畫面：同時驗證資料載入、seeded RNG、i18n 三條線都接通。
- * 真正的遊戲畫面在 Sprint 5（UI 層）。
- */
-export default function App() {
-  const total = allCardIds.length;
-  // 用固定 seed 展示可重現亂數（也是「天氣對抗同題競賽」的基礎）
-  const rng = createRng(20260521);
-  const demoWind = Array.from({ length: 5 }, () => rollWind(rng).label);
+function AppInner() {
+  const newGame = useGameStore((s) => s.newGame);
+  const state = useGameStore((s) => s.state);
+  const [screen, setScreen] = useState<ScreenKey>('title');
+  const [showTheme, setShowTheme] = useState(false);
+
+  const handleStart = useCallback(() => {
+    newGame();
+    setScreen('battle');
+  }, [newGame]);
+
+  const handleRestart = useCallback(() => {
+    newGame();
+    setScreen('battle');
+  }, [newGame]);
+
+  const handleTitle = useCallback(() => {
+    setScreen('title');
+  }, []);
+
+  const handleGameOver = useCallback(() => {
+    setScreen('gameover');
+  }, []);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-5 bg-slate-900 p-6 text-slate-100">
-      <h1 className="text-4xl font-bold tracking-wide">{t('app.title')}</h1>
-      <p className="text-slate-400">{t('app.subtitle')}</p>
-      <p className="text-sm text-slate-200">{t('app.cardsLoaded', { n: total })}</p>
+    <Stage>
+      {screen === 'title' && <TitleScreen onStart={handleStart} onTheme={() => setShowTheme(true)} />}
+      {screen === 'battle' && <BattleScreen onTitle={handleTitle} onGameOver={handleGameOver} />}
+      {screen === 'gameover' && <GameOverScreen state={state} onRestart={handleRestart} onTitle={handleTitle} />}
+      {showTheme && <ThemeSwitcher onClose={() => setShowTheme(false)} />}
+    </Stage>
+  );
+}
 
-      <div className="flex flex-wrap justify-center gap-2 text-xs">
-        {CATEGORIES.map((ty) => (
-          <span
-            key={ty}
-            className="rounded-full border border-slate-600 px-3 py-1 text-slate-300"
-          >
-            {t(`category.${ty}`)} × {cardsByType(ty).length}
-          </span>
-        ))}
-      </div>
-
-      <p className="text-xs text-slate-500">
-        {t('app.windDemo')}：{demoWind.join('、')}
-      </p>
-    </main>
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppInner />
+    </ThemeProvider>
   );
 }

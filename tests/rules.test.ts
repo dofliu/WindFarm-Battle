@@ -9,26 +9,28 @@ function withWind(s: GameState, coeff: number): GameState {
 }
 
 describe('S2.1 結算公式（對齊 v3）', () => {
-  it('M01(2MW,95%) × 額定(×1.0) = round(1.9) = 2', () => {
-    const s = createInitialState(createRng(1)); // 各 1 台 M01
+  it('Route B 開局艦隊(OS8+OS10+OS12) × 額定(×1.0) = round(26.32) = 26', () => {
+    // OS8: 8×1.0×0.90=7.2  OS10: 10×1.0×0.88=8.8  OS12: 12×1.0×0.86=10.32  Total: 26.32 → 26
+    const s = createInitialState(createRng(1));
     const r = scoreRound(withWind(s, 1.0));
-    expect(r.state.players[0].score).toBe(2);
-    expect(r.state.players[1].score).toBe(2);
+    expect(r.state.players[0].score).toBe(26);
+    expect(r.state.players[1].score).toBe(26);
   });
 
   it('故障扣可用率會降低發電', () => {
     const s2 = structuredClone(createInitialState(createRng(1)));
+    // 對 turbines[0]（OS8, 8MW, avail=90）施加 drop=30 → effectiveAvail=60
+    // OS8: 8×1.0×0.60=4.8 → 5; OS10: 8.8 → 9; OS12: 10.32 → 10 → 合計 24
     s2.players[0].turbines[0].faults.push({ cardId: 'F06', roundsLeft: 3, sev: 4, drop: 30 });
-    // avail 95-30=65 → 2*1.0*0.65=1.3 → round 1
-    expect(scoreRound(withWind(s2, 1.0)).state.players[0].score).toBe(1);
+    expect(scoreRound(withWind(s2, 1.0)).state.players[0].score).toBe(24);
   });
 
-  it('mwhBoost ×1.5（M07 12MW,88%）', () => {
+  it('mwhBoost ×1.5（M07 12MW,88% + S3.1 aura-mw 自帶 +1）', () => {
     const s2 = structuredClone(createInitialState(createRng(1)));
     s2.players[0].mwhBoostActive = true;
     s2.players[0].turbines = [{ cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }];
-    // 12*1.0*0.88=10.56 ×1.5=15.84 → 16
-    expect(scoreRound(withWind(s2, 1.0)).state.players[0].score).toBe(16);
+    // S3.1：M07 aura-mw 對自家所有 turbine（含自身）+1 → (12+1)×1.0×0.88 = 11.44 ×1.5 = 17.16 → 17
+    expect(scoreRound(withWind(s2, 1.0)).state.players[0].score).toBe(17);
   });
 
   it('無風(×0)發電為 0', () => {

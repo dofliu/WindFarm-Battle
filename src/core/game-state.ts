@@ -2,21 +2,37 @@
 import type { GameState, GameMode, PlayerState } from './types';
 import type { Rng } from './rng';
 import { shuffle } from './rng';
-import { CARDS, allCardIds } from './cards';
+import { CARDS, deckCardIds } from './cards';
 
 /** 深拷貝狀態（確保 core 動作為純函式，不更動入參）。 */
 export function cloneState(state: GameState): GameState {
   return structuredClone(state);
 }
 
+/**
+ * Route B：建立開局離岸艦隊（雙方相同）。
+ * OS8 8MW / OS10 10MW / OS12 12MW 全為離岸機組，對應 IEC 61400-3-1/3-2。
+ * deployedRound=0 使 offshore-delay 能力不對開局機組生效（從 round 1 起就正常計分）。
+ */
+function makeStartingFleet(): import('./types').DeployedTurbine[] {
+  const os8Avail  = CARDS['OS8'].stats?.avail  ?? 90;
+  const os10Avail = CARDS['OS10'].stats?.avail ?? 88;
+  const os12Avail = CARDS['OS12'].stats?.avail ?? 86;
+  return [
+    { cardId: 'OS8',  avail: os8Avail,  originalAvail: os8Avail,  mwBonus: 0, faults: [], deployedRound: 0 },
+    { cardId: 'OS10', avail: os10Avail, originalAvail: os10Avail, mwBonus: 0, faults: [], deployedRound: 0 },
+    { cardId: 'OS12', avail: os12Avail, originalAvail: os12Avail, mwBonus: 0, faults: [], deployedRound: 0 },
+  ];
+}
+
 function createPlayer(name: string, rng: Rng): PlayerState {
-  const m01 = CARDS['M01'];
   return {
     name,
-    deck: shuffle(allCardIds, rng),
+    // Route B：牌組只含可抽卡池（排除開局艦隊和汰除升級牌）
+    deck: shuffle(deckCardIds as string[], rng),
     hand: [],
-    // 對齊 v3：每位玩家開局各 1 台 綠源 2MW
-    turbines: [{ cardId: 'M01', avail: m01.stats?.avail ?? 95, mwBonus: 0, faults: [] }],
+    // Route B：雙方開局各有相同的離岸艦隊（OS8 + OS10 + OS12）
+    turbines: makeStartingFleet(),
     techs: [],
     score: 0,
     pendingExtraActions: 0,
@@ -35,6 +51,9 @@ export function createInitialState(rng: Rng, mode: GameMode = 'versus'): GameSta
     firstPlayer: 0,
     actionsLeft: 2,
     players: [createPlayer('P1', rng), createPlayer('P2', rng)],
+    futureWind: [],
+    activeWeather: [],
+    activeContracts: [],
     gameOver: false,
   };
 }

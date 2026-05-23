@@ -11,3 +11,18 @@ coverage
 .idea
 .vscode/*
 !.vscode/extensions.json
+
+# Capacitor 原生平台（由 cap add 自動產生，Gradle/CocoaPods 建置快取）
+# 注意：android/ 與 ios/ 主體需要納入版控（含原生設定），
+# 僅排除建置中間產物：
+android/.gradle
+android/app/build
+android/app/release
+android/build
+ios/App/App/build
+ios/App/.build
+ios/DerivedData
+
+# Keystore（不可上傳）
+*.keystore
+*.jks

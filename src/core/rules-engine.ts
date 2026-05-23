@@ -1,21 +1,39 @@
 // ============================================================
-// 規則引擎（純函式，零 UI 依賴）。S2.1：核心迴圈，全部對齊 v3。
-//   - 風速骰、發電結算、動作經濟、鹽霧、12 回合流程、勝負
-//   - 故障「施加/克制/cascade」在 S2.2；玩家動作 playCard 在 S2.3；AI 在 S2.4
+// 規則引擎（純函式，零 UI 依賴）。
+//   - S2.1：風速骰、發電結算、動作經濟、鹽霧、12 回合流程、勝負（對齊 v3）
+//   - S2.2：故障「施加 / cascade / 克制修復」（對齊 v3 playCardFromHand+processAutoRepair）
+//   - 玩家動作 playCard 在 S2.3；AI 在 S2.4
 // 內部以 mutate 工作副本求效率，對外一律回傳新狀態（cloneState）。
 // ============================================================
 import type { GameState, PlayerState, Wind } from './types';
 import type { Rng } from './rng';
 import { shuffle } from './rng';
 import type { GameEvent, ApplyResult } from './events';
-import { CARDS, allCardIds } from './cards';
+import { CARDS, deckCardIds } from './cards';
 import { cloneState } from './game-state';
+import {
+  getAuraMwBonus, effectiveCoeff, isFaultImmune, isFragile, FRAGILE_DROP_MULT, hasPeriodicRepair,
+  isStormAmplifyFault, STORM_AMPLIFY_MULT, isUnpredictableFault, isDisableScadaFault, UNPREDICTABLE_PROB,
+  applyWeatherToWind, isShutdownAllActive, isMwhDoubleActive, WEATHER_MWH_DOUBLE_MULT,
+  evaluateContractCondition,
+} from './abilities';
+
+/** 計算機組有效可用率（base - 所有故障 drop 加總，最低 0）。 */
+function effectiveAvail(t: import('./types').DeployedTurbine): number {
+  return Math.max(0, t.avail - t.faults.reduce((s, f) => s + f.drop, 0));
+}
 
 /** legacyV3=true 用於 β 逐場精確重現（含 v3 bug）；預設為修正後的正式版。 */
 export interface RulesConfig {
   readonly legacyV3: boolean;
+  /** 開局發給每位玩家的初始手牌張數（v3=0；UI MVP 用 3 增加選擇空間）。預設 0 對齊 v3 */
+  readonly initialDraws?: number;
+  /** 每回合 startRound 每位玩家抽幾張（v3=1）。預設 1 對齊 v3 */
+  readonly drawsPerRound?: number;
 }
-export const DEFAULT_CONFIG: RulesConfig = { legacyV3: false };
+export const DEFAULT_CONFIG: RulesConfig = { legacyV3: false, initialDraws: 0, drawsPerRound: 1 };
+/** UI MVP 用的較豐富設定：開局 3 張 + 每回合 2 張（手牌上限仍 7） */
+export const UI_RICH_CONFIG: RulesConfig = { legacyV3: false, initialDraws: 3, drawsPerRound: 2 };
 
 /** 一個玩家的「行動函式」：在傳入狀態上行動並回傳事件。S2.1 用 no-op；S2.4 接 AI。 */
 export type TakeTurn = (state: GameState, player: 0 | 1, rng: Rng) => GameEvent[];
@@ -42,23 +60,51 @@ function turbineMW(cardId: string, mwBonus: number): number {
   return (CARDS[cardId].stats?.mw ?? 0) + mwBonus;
 }
 
-// ---------- 內部 mutate 版（runGame 內使用單一工作副本）----------
-function _drawCard(s: GameState, player: 0 | 1, rng: Rng, _config: RulesConfig): void {
+/** 對手最高 MW 非停機機組之索引（v3 fault 預設目標）。無可攻擊目標回 -1。 */
+function highestMwIndex(p: PlayerState): number {
+  // 優先選非停機機組；若全停機也不該到這裡（canPlayCard 已擋）
+  const candidates = p.turbines
+    .map((t, i) => ({ i, mw: turbineMW(t.cardId, t.mwBonus), shutdown: t.shutdown }))
+    .filter((c) => !c.shutdown);
+  if (candidates.length === 0) return p.turbines.length > 0 ? 0 : -1; // fallback
+  return candidates.reduce((best, c) => (c.mw > best.mw ? c : best)).i;
+}
+
+/** 該技師是否帶 auto-repair-low 標籤（D4：每回合 1 次上限的判定依據）。 */
+function isLowLevelAutoRepair(techId: string): boolean {
+  return CARDS[techId].abilities.some((a) => a.tag === 'auto-repair-low');
+}
+
+/**
+ * Route B 知識-效能模型：技師的 specialty 是否與故障的 faultCategory 相符。
+ * 相符 → 100% 修復（完全移除故障，無 avail 損失）。
+ * 不符（包含一方無 specialty/faultCategory）→ 50% 修復（故障移除但 avail 永久下修）。
+ */
+function doesTechMatchFault(techCardId: string, faultCardId: string): boolean {
+  const tech = CARDS[techCardId];
+  const fault = CARDS[faultCardId];
+  return !!(tech.specialty && fault.faultCategory && tech.specialty === fault.faultCategory);
+}
+
+// ---------- 內部 mutate 版（runGame 內使用單一工作副本；actions.ts 共用）----------
+/** @internal 給 actions.ts 共用；外部請改用 drawCard() 純函式版。 */
+export function _drawCard(s: GameState, player: 0 | 1, rng: Rng, _config: RulesConfig): void {
   const p = s.players[player];
-  // v3 行為：牌庫空則以全卡池重洗（D4 棄牌堆改良延後到平衡階段，避免改動牌組經濟）
-  if (p.deck.length === 0) p.deck = shuffle(allCardIds, rng);
+  // Route B：牌庫空則以 deckCardIds（可抽卡池）重洗，排除開局艦隊和汰除升級牌
+  if (p.deck.length === 0) p.deck = shuffle(deckCardIds as string[], rng);
   const cardId = p.deck.pop();
   if (cardId !== undefined && p.hand.length < 7) p.hand.push(cardId); // 手牌上限 7（對齊 v3）
 }
 
-function _beginTurn(s: GameState, player: 0 | 1): void {
+/** @internal 給 actions.ts 共用；外部請改用 beginTurn() 純函式版。 */
+export function _beginTurn(s: GameState, player: 0 | 1): void {
   const p = s.players[player];
   s.currentPlayer = player;
   s.actionsLeft = 2 + (hasActionAura(p) ? 1 : 0) + p.pendingExtraActions;
   p.pendingExtraActions = 0;
 }
 
-function _tickFaults(s: GameState): GameEvent[] {
+export function _tickFaults(s: GameState): GameEvent[] {
   const events: GameEvent[] = [];
   s.players.forEach((p, pi) => {
     p.turbines.forEach((t, ti) => {
@@ -78,16 +124,42 @@ function _tickFaults(s: GameState): GameEvent[] {
   return events;
 }
 
-function _scoreRound(s: GameState): GameEvent[] {
+export function _scoreRound(s: GameState): GameEvent[] {
   const events: GameEvent[] = [];
+  // S3.6：套用 W 卡風況修飾（wind-boost / wind-penalty）到 base wind
+  const effectiveWind = applyWeatherToWind(s.wind, s.activeWeather);
+  // S3.6：W02 shutdown-all 生效時，所有機組計分跳過（duration 內持續）
+  const shutdownAll = isShutdownAllActive(s.activeWeather);
+  // S3.5：F05 storm-amplify 觸發條件（用修飾後的 effectiveWind）— 颱風 OR 高風 0.7
+  const stormAmplifyActive = effectiveWind.typhoon === true || effectiveWind.coeff === 0.7;
   s.players.forEach((p, pi) => {
     let mwh = 0;
-    for (const t of p.turbines) {
-      const totalDrop = t.faults.reduce((sum, f) => sum + f.drop, 0);
-      const avail = Math.max(0, t.avail - totalDrop);
-      mwh += turbineMW(t.cardId, t.mwBonus) * s.wind.coeff * (avail / 100);
+    if (!shutdownAll) {
+      // S3.1：M07 aura-mw 是 player-level 光環（自家所有機組共享 +value MW，含自身）
+      const auraMw = getAuraMwBonus(p);
+      for (const t of p.turbines) {
+        // S3.5：對每個 fault 計算 effDrop（storm-amplify 在颱風/高風時 ×2）
+        const totalDrop = t.faults.reduce((sum, f) => {
+          const effDrop = stormAmplifyActive && isStormAmplifyFault(f.cardId)
+            ? f.drop * STORM_AMPLIFY_MULT
+            : f.drop;
+          return sum + effDrop;
+        }, 0);
+        const avail = Math.max(0, t.avail - totalDrop);
+        // S3.1 + S3.2：weather-immune / lowwind-resist / storm-vulnerable / offshore-delay 一次套用
+        // 用 effectiveWind（已加上 W 卡修飾）
+        // 停機機組不計分
+        if (t.shutdown) continue;
+        const { coeff, skip } = effectiveCoeff(t, effectiveWind, s.round);
+        if (skip) continue;
+        mwh += (turbineMW(t.cardId, t.mwBonus) + auraMw) * coeff * (avail / 100);
+      }
     }
-    if (p.mwhBoostActive) mwh *= 1.5; // FN06 緊急投標
+    // S3.6：FN06 mwhBoost ×1.5 與 W04 mwh-double ×2 互斥取大（兩者同時 active 時 ×2）
+    const boostMult = isMwhDoubleActive(s.activeWeather)
+      ? WEATHER_MWH_DOUBLE_MULT
+      : p.mwhBoostActive ? 1.5 : 1.0;
+    mwh *= boostMult;
     mwh = Math.round(mwh);
     p.score += mwh;
     events.push({ kind: 'round-scored', player: pi as 0 | 1, mwh, total: p.score });
@@ -95,7 +167,268 @@ function _scoreRound(s: GameState): GameEvent[] {
   return events;
 }
 
-function _applySalt(s: GameState): void {
+/**
+ * S2.2：施加故障（對齊 v3 playCardFromHand 的 fault 分支）。
+ * - 目標預設＝對手最高 MW 機組；options.targetIdx 可指定。
+ * - drop = card.stats.drop；目標 special==='big-fail' 再 +5（v4 資料目前無 big-fail，留作 parity）。
+ * - cascade：rng.next() < card.cascade 且對手機組>1 → 另一台 +floor(drop/2)，發 fault-cascaded。
+ * 重要：rng 消耗順序固定為「先 cascade 機率擲骰」，β 對齊（legacyV3）依此一致。
+ */
+/** @internal 給 actions.ts 共用；外部請改用 applyFault() 純函式版。 */
+export function _applyFault(
+  s: GameState,
+  attacker: 0 | 1,
+  cardId: string,
+  rng: Rng,
+  targetIdx?: number,
+): GameEvent[] {
+  const events: GameEvent[] = [];
+  const oppId = (1 - attacker) as 0 | 1;
+  const opponent = s.players[oppId];
+  if (opponent.turbines.length === 0) return events;
+
+  const card = CARDS[cardId];
+  if (card.type !== 'fault') return events;
+
+  const tIdx = targetIdx ?? highestMwIndex(opponent);
+  if (tIdx < 0 || tIdx >= opponent.turbines.length) return events;
+
+  const target = opponent.turbines[tIdx];
+
+  // S3.3：fault-immune（M10）/ immune-hydraulic（M09，F03）→ 主目標完全短路，不發 fault-applied。
+  // 仍照常擲 cascade rng（保證 RNG 順序固定，β 對齊不受目標免疫影響）。
+  const targetImmune = isFaultImmune(target, cardId);
+
+  let drop = card.stats?.drop ?? 0;
+  if (CARDS[target.cardId].special === 'big-fail') drop += 5;
+  // S3.3：fragile（M08）→ drop ×1.5（受傷加重）
+  if (isFragile(target)) drop = Math.floor(drop * FRAGILE_DROP_MULT);
+
+  const rounds = card.stats?.rounds ?? 1;
+  const sev = card.stats?.sev ?? 1;
+
+  if (!targetImmune) {
+    target.faults.push({ cardId, roundsLeft: rounds, sev, drop });
+    events.push({ kind: 'fault-applied', player: oppId, targetIdx: tIdx, cardId, drop });
+  }
+
+  // S3.5：F09 disable-scada — 施加時清空 state.futureWind（雙方共享預測佇列；攻擊者本來也看不到對手）
+  // 沿用 v3「能放就有效」邏輯，即便目標 fault-immune 仍清空（標 estimate）
+  if (isDisableScadaFault(cardId)) {
+    s.futureWind.length = 0;
+  }
+
+  if (card.cascade && card.cascade > 0 && opponent.turbines.length > 1) {
+    const hit = rng.next() < card.cascade;
+    if (hit) {
+      const otherIdx = opponent.turbines.findIndex((_, i) => i !== tIdx);
+      if (otherIdx !== -1) {
+        const otherTurbine = opponent.turbines[otherIdx];
+        // S3.3：cascade 目標也檢查 fault-immune / fragile
+        if (!isFaultImmune(otherTurbine, cardId)) {
+          let cascadeDrop = Math.floor(drop / 2);
+          if (isFragile(otherTurbine)) cascadeDrop = Math.floor(cascadeDrop * FRAGILE_DROP_MULT);
+          otherTurbine.faults.push({
+            cardId,
+            roundsLeft: rounds,
+            sev,
+            drop: cascadeDrop,
+          });
+          events.push({ kind: 'fault-cascaded', player: oppId, targetIdx: otherIdx, cardId });
+          // 連鎖也觸發停機檢查
+          if (!otherTurbine.shutdown && effectiveAvail(otherTurbine) <= 0) {
+            otherTurbine.shutdown = true;
+            events.push({ kind: 'turbine-shutdown', player: oppId, turbineIdx: otherIdx, cardId: otherTurbine.cardId });
+          }
+        }
+      }
+    }
+  }
+
+  // 主目標：施加故障後若有效可用率 ≤ 0 → 緊急停機
+  if (!targetImmune && !target.shutdown && effectiveAvail(target) <= 0) {
+    target.shutdown = true;
+    events.push({ kind: 'turbine-shutdown', player: oppId, turbineIdx: tIdx, cardId: target.cardId });
+  }
+
+  return events;
+}
+
+/**
+ * S2.2：克制修復（對齊 v3 processAutoRepair，並套上 D4 + Route B 修正）。
+ * 條件：tech.counters 含此 faultId 且（fault.required 不存在 或 含此 techId）。
+ * D4：帶 auto-repair-low 標籤的技師（T01）每回合最多修 1 次（legacyV3=false 才生效；
+ *      legacyV3=true 不限，重現 v3 過強行為）。其他技師沿用 v3 不限次數。
+ *
+ * Route B 知識-效能模型：
+ *   - tech.specialty === fault.faultCategory → 100% 修復（移除故障，avail 不受損）
+ *   - 不符或其中一方無對應欄位 → 50% 修復（故障移除，但 turbine.avail 永久下修 ⌊drop/2⌋）
+ */
+/** @internal 給 actions.ts / runGame 共用；外部請改用 repairFaults() 純函式版。 */
+export function _repairFaults(s: GameState, player: 0 | 1, config: RulesConfig): GameEvent[] {
+  const events: GameEvent[] = [];
+  const p = s.players[player];
+  const lowLevelUsed = new Set<string>(); // 以 techId 為鍵；若手上有多張 T01，每張各算一次
+  for (let ti = 0; ti < p.turbines.length; ti++) {
+    const t = p.turbines[ti];
+    t.faults = t.faults.filter((fault) => {
+      const faultCard = CARDS[fault.cardId];
+      for (const techId of p.techs) {
+        const tech = CARDS[techId];
+        if (!tech.counters?.includes(faultCard.id)) continue;
+        if (faultCard.required && !faultCard.required.includes(techId)) continue;
+        if (!config.legacyV3 && isLowLevelAutoRepair(techId)) {
+          if (lowLevelUsed.has(techId)) continue;
+          lowLevelUsed.add(techId);
+        }
+        // Route B：專長相符 → 完全修復；不符 → 部分修復（avail 永久損失 50% drop）
+        const fullRepair = doesTechMatchFault(techId, fault.cardId);
+        let availLost = 0;
+        if (!fullRepair) {
+          // 部分修復：機組 avail 永久下修半個 drop（代表維修品質不足的長期影響）
+          availLost = Math.floor(fault.drop * 0.5);
+          t.avail = Math.max(0, t.avail - availLost);
+        }
+        events.push({
+          kind: 'fault-repaired',
+          player,
+          targetIdx: ti,
+          cardId: fault.cardId,
+          by: techId,
+          quality: fullRepair ? 'full' : 'partial',
+          ...(availLost > 0 ? { availLost } : {}),
+        });
+        return false; // 無論修復品質，故障均從列表移除
+      }
+      return true;
+    });
+    // 停機復機檢查：修復後若有效可用率 > 0 且之前停機 → 恢復運轉
+    if (t.shutdown && effectiveAvail(t) > 0) {
+      t.shutdown = false;
+      events.push({ kind: 'turbine-restart', player, turbineIdx: ti, cardId: t.cardId });
+    }
+  }
+  return events;
+}
+
+/**
+ * S3.4：T06 periodic-repair — 每回合（玩家回合結束後）自動修復 1 個 sev≤3 故障。
+ * 與 T06 部署時的 'free-repair'（一次性）不同：這是「持續性」效果。
+ * 估計值：選 drop 最高的 sev≤3 故障；若無可修則跳過。
+ */
+export function _periodicRepair(s: GameState, player: 0 | 1): GameEvent[] {
+  const events: GameEvent[] = [];
+  const p = s.players[player];
+  if (!hasPeriodicRepair(p)) return events;
+  // 找 sev≤3 且 drop 最高的故障（與 _deployTech 的 findBestRepairableFaultIdx 同邏輯，但內聯避免循環依賴）
+  let bestT = -1;
+  let bestF = -1;
+  let bestDrop = -1;
+  for (let ti = 0; ti < p.turbines.length; ti++) {
+    const t = p.turbines[ti];
+    for (let fi = 0; fi < t.faults.length; fi++) {
+      const f = t.faults[fi];
+      if ((CARDS[f.cardId].stats?.sev ?? 99) > 3) continue;
+      if (f.drop > bestDrop) {
+        bestDrop = f.drop;
+        bestT = ti;
+        bestF = fi;
+      }
+    }
+  }
+  if (bestT >= 0) {
+    const removed = p.turbines[bestT].faults.splice(bestF, 1)[0];
+    // by 標記用「periodic」標籤型字串，與技師 id 區隔（事件型別仍是 by?: string）
+    events.push({ kind: 'fault-repaired', player, targetIdx: bestT, cardId: removed.cardId, by: 'periodic-repair' });
+  }
+  return events;
+}
+
+/**
+ * S3.5：F08 unpredictable — 回合開始時，對每個 unpredictable 故障 50% 機率 swap 到對手另一台機組。
+ * RNG 消耗：每個 unpredictable 故障 1 次（決定是否 shuffle）+ 1 次（決定 swap 到哪台，只在多台時）。
+ * 注意：本函式被 runGame 在 _tickFaults 之後呼叫；β 對齊需確保 RNG 順序穩定。
+ */
+export function _unpredictableShuffle(s: GameState, rng: Rng): GameEvent[] {
+  const events: GameEvent[] = [];
+  for (let pi = 0; pi < 2; pi++) {
+    const p = s.players[pi];
+    if (p.turbines.length < 2) continue; // 少於 2 台無處 swap
+    for (let ti = 0; ti < p.turbines.length; ti++) {
+      const t = p.turbines[ti];
+      // 從尾向前找，以便 splice 不影響 index
+      for (let fi = t.faults.length - 1; fi >= 0; fi--) {
+        const f = t.faults[fi];
+        if (!isUnpredictableFault(f.cardId)) continue;
+        if (rng.next() >= UNPREDICTABLE_PROB) continue;
+        // 從其他機組挑一台
+        const others = p.turbines.map((_, i) => i).filter((i) => i !== ti);
+        const newIdx = others[Math.floor(rng.next() * others.length)];
+        const moved = t.faults.splice(fi, 1)[0];
+        p.turbines[newIdx].faults.push(moved);
+        events.push({
+          kind: 'fault-applied', player: pi as 0 | 1, targetIdx: newIdx, cardId: moved.cardId, drop: moved.drop,
+        });
+      }
+    }
+  }
+  return events;
+}
+
+/**
+ * S3.6：天氣倒數 — duration -= 1，0 時移除並發 weather-expired 事件。
+ * 在 _tickFaults 後、套用 weather 風況前呼叫；確保新施加的天氣（duration=1）本回合就生效後再倒數。
+ * 邏輯：先「本回合使用」→ 結算結束後 → 下回合開頭 tick。實際接點放在 runGame 結算後。
+ */
+export function _tickWeather(s: GameState): GameEvent[] {
+  const events: GameEvent[] = [];
+  s.activeWeather = s.activeWeather.filter((w) => {
+    w.duration -= 1;
+    if (w.duration <= 0) {
+      events.push({ kind: 'weather-expired', cardId: w.cardId });
+      return false;
+    }
+    return true;
+  });
+  return events;
+}
+
+/**
+ * S3.7：合約評估 — 每回合結算後對每個未達成合約檢查條件。
+ * - 一次性條件（C02 totalMW / C03 techCount）：達標立即 +reward 並 fulfilled=true
+ * - 持續條件（C01 highAvail / C04 killOpponent，target.rounds 存在）：達標 progress++；
+ *   progress >= target.rounds → +reward + fulfilled；未達標時 progress 不重置（estimate；
+ *   v3 無基準。若未來要嚴格「連續」，可在未達標時 progress=0）
+ * Fulfilled 的合約留在清單但不再評估；下一步在 runGame 結束時可選擇移除（目前保留作 audit 紀錄）。
+ */
+export function _checkContracts(s: GameState): GameEvent[] {
+  const events: GameEvent[] = [];
+  for (const c of s.activeContracts) {
+    if (c.fulfilled) continue;
+    const card = CARDS[c.cardId];
+    const target = card.target;
+    if (!target) continue;
+    const meetsThisRound = evaluateContractCondition(c.cardId, c.player, s);
+    if (!meetsThisRound) continue;
+    if (target.rounds && target.rounds > 1) {
+      c.progress += 1;
+      events.push({ kind: 'contract-progress', player: c.player, cardId: c.cardId, progress: c.progress });
+      if (c.progress >= target.rounds) {
+        s.players[c.player].score += target.reward;
+        c.fulfilled = true;
+        events.push({ kind: 'contract-fulfilled', player: c.player, cardId: c.cardId, reward: target.reward });
+      }
+    } else {
+      // 一次性條件
+      s.players[c.player].score += target.reward;
+      c.fulfilled = true;
+      events.push({ kind: 'contract-fulfilled', player: c.player, cardId: c.cardId, reward: target.reward });
+    }
+  }
+  return events;
+}
+
+export function _applySalt(s: GameState): void {
   if (s.round % 4 !== 0) return;
   for (const p of s.players) {
     for (const t of p.turbines) {
@@ -135,6 +468,30 @@ export function applySalt(state: GameState): GameState {
   return s;
 }
 
+/** S2.2：對外純函式，施加故障（cascade 機率擲骰會消耗 1 次 rng.next）。 */
+export function applyFault(
+  state: GameState,
+  attacker: 0 | 1,
+  cardId: string,
+  rng: Rng,
+  targetIdx?: number,
+): ApplyResult {
+  const s = cloneState(state);
+  const events = _applyFault(s, attacker, cardId, rng, targetIdx);
+  return { state: s, events };
+}
+
+/** S2.2：對外純函式，結束回合時的克制修復。 */
+export function repairFaults(
+  state: GameState,
+  player: 0 | 1,
+  config: RulesConfig = DEFAULT_CONFIG,
+): ApplyResult {
+  const s = cloneState(state);
+  const events = _repairFaults(s, player, config);
+  return { state: s, events };
+}
+
 export function determineWinner(state: GameState): 0 | 1 | -1 {
   const a = state.players[0].score;
   const b = state.players[1].score;
@@ -152,28 +509,54 @@ export function runGame(
   const s = cloneState(initial);
   const events: GameEvent[] = [];
 
+  // S5.X：開局發 initialDraws 張（v3 預設 0；UI MVP 用 3）
+  const initialDraws = config.initialDraws ?? 0;
+  for (let i = 0; i < initialDraws; i++) {
+    _drawCard(s, 0, rng, config);
+    _drawCard(s, 1, rng, config);
+  }
+
+  const drawsPerRound = config.drawsPerRound ?? 1;
+
   for (let r = 1; r <= s.maxRounds; r++) {
     s.round = r;
-    s.wind = rollWind(rng);
+    // FN05 D4 修正：若 futureWind 有預存，優先消費（legacyV3=true 時忽略以重現 v3 bug）
+    if (!config.legacyV3 && s.futureWind.length > 0) {
+      s.wind = s.futureWind.shift() as Wind;
+    } else {
+      s.wind = rollWind(rng);
+    }
     events.push({ kind: 'round-start', round: r, windLabel: s.wind.label });
 
     events.push(..._tickFaults(s));
+    // S3.5：F08 unpredictable 隨機 shuffle（_tickFaults 之後、抽牌前；保持 RNG 順序穩定）
+    events.push(..._unpredictableShuffle(s, rng));
     s.players.forEach((p) => {
       p.mwhBoostActive = false;
     });
-    _drawCard(s, 0, rng, config);
-    _drawCard(s, 1, rng, config);
+    for (let i = 0; i < drawsPerRound; i++) {
+      _drawCard(s, 0, rng, config);
+      _drawCard(s, 1, rng, config);
+    }
 
     s.firstPlayer = ((r - 1) % 2) as 0 | 1;
     for (let turn = 0; turn < 2; turn++) {
       const p = ((s.firstPlayer + turn) % 2) as 0 | 1;
       _beginTurn(s, p);
       events.push(...takeTurn(s, p, rng));
-      // S2.2 會在此插入：events.push(..._repairFaults(s, p));
+      // S2.2：每位玩家結束回合後處理克制修復（對齊 v3 endHumanTurn → processAutoRepair）
+      events.push(..._repairFaults(s, p, config));
+      // S3.4：T06 periodic-repair 在 _repairFaults 之後追加修一張 sev≤3 故障（持續性效果）
+      events.push(..._periodicRepair(s, p));
     }
 
     events.push(..._scoreRound(s));
     _applySalt(s);
+    // S3.7：合約評估（每回合結算後檢查條件、累積 progress、發 reward）
+    events.push(..._checkContracts(s));
+    // S3.6：結算後 tick 天氣（duration -= 1；0 移除並發 weather-expired）
+    // 接在結算後是因為新施加的天氣（duration=1）應於本回合生效後才倒數
+    events.push(..._tickWeather(s));
   }
 
   s.gameOver = true;

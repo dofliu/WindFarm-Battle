@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const cards = require\\('./src/data/cards.json'\\); ['M07','M10','M12'].forEach\\(id => console.log\\(id, JSON.stringify\\(cards[id], null, 2\\)\\)\\)\")",
+      "Bash(node -e \"const cards = require\\('./src/data/cards.json'\\); const keys = Object.keys\\(cards\\); console.log\\('Keys:', keys.slice\\(0,5\\), '...'\\); console.log\\('Type:', typeof cards\\); console.log\\('Is Array:', Array.isArray\\(cards\\)\\); if\\(Array.isArray\\(cards\\)\\) { const m07 = cards.find\\(c=>c.id==='M07'\\); console.log\\('M07:', JSON.stringify\\(m07\\)\\); }\")",
+      "Bash(node -e \"const raw = require\\('./src/data/cards.json'\\); const cards = {}; for \\(const cat of Object.values\\(raw.categories\\)\\) { if \\(Array.isArray\\(cat\\)\\) for \\(const c of cat\\) cards[c.id] = c; } ['M07','M10','M12'].forEach\\(id => { const c = cards[id]; console.log\\(id, JSON.stringify\\({type:c?.type, stats:c?.stats, cost:c?.cost, abilities:c?.abilities}\\)\\); }\\);\")",
+      "Bash(npx vite *)",
+      "Bash(node -e \"const raw = require\\('./src/data/cards.json'\\); console.log\\('Top keys:', Object.keys\\(raw\\)\\); if\\(raw.cards\\) { const c = raw.cards; console.log\\('cards keys:', Object.keys\\(c\\).slice\\(0,10\\)\\); ['M07','M10','M12'].forEach\\(id => console.log\\(id, JSON.stringify\\({stats:c[id]?.stats, cost:c[id]?.cost, abilities:c[id]?.abilities}\\)\\)\\); }\")",
+      "Bash(node -e \"const raw = require\\('./src/data/cards.json'\\); const c = raw.cards; ['OS8','OS10','OS12'].forEach\\(id => console.log\\(id, JSON.stringify\\({mw:c[id]?.stats?.mw, avail:c[id]?.stats?.avail, abilities:c[id]?.abilities}\\)\\)\\);\")",
+      "Bash(npx vitest *)",
+      "Bash(npx tsc *)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(f['testFilePath'].split\\('tests\\\\\\\\\\\\\\\\'\\)[-1], len\\([t for t in f['assertionResults'] if t['status']=='passed']\\)\\) for f in d['testResults']]\")",
+      "Bash(powershell -Command \"\\(Get-Content STATUS.yaml\\) -replace '206 tests passing', '209 tests passing' | Set-Content STATUS.yaml -Encoding utf8\")"
+    ]
+  }
+}
