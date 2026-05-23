@@ -2,7 +2,7 @@
 
 > **這是給 Claude Code 看的第一份文件。** 整個專案的現狀、決策、與下一步行動都在這裡。
 >
-> **最後更新：2026-05-22（progress 95%）**
+> **最後更新：2026-05-23（progress 97%）**
 
 ---
 
@@ -49,7 +49,7 @@
 
 ### 🤖 如果繼續 coding，可做的事
 
-- 卡牌批次導出 PDF（Sprint 4 CardExporter，需 `html2canvas` 或 puppeteer）
+- [x] **卡牌批次匯出 PDF**（Sprint 4 CardExporter）：`html2canvas` + `jsPDF`，A4 每頁 3×3，進度條，依過濾條件命名檔案（commit e8f6942）
 - App icon / splash screen（Capacitor 設定）
 - 多語言（英文版 i18n，已有架構）
 
@@ -131,6 +131,6 @@
 
 ---
 
-**文件版本**：v3.0（接管重構後、實機測試前）
-**最後更新**：2026-05-22
-**狀態**：React 重構完成，待 Android Studio 實機測試 + 學生試玩
+**文件版本**：v3.1（CardExporter PDF 匯出完成）
+**最後更新**：2026-05-23
+**狀態**：React 重構完成，CardExporter 完成，待 Android Studio 實機測試 + 學生試玩
