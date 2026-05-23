@@ -5,11 +5,13 @@
 //   1. 顯示全部 50 張卡牌的 CardTemplate 預覽
 //   2. 依類別/稀有度過濾
 //   3. 右上角「🖨 列印」觸發 window.print()（印出全部 30px 格）
-//   4. 可從 App.tsx 頂部列中喚出的 Modal
+//   4. 右上角「📄 匯出 PDF」批次截圖 → jsPDF A4（每頁 3×3）
+//   5. 可從 App.tsx 頂部列中喚出的 Modal
 // ============================================================
 import { useState, useMemo } from 'react';
 import { CARDS, allCardIds } from '../core/cards';
 import CardTemplate from './CardTemplate';
+import { exportCardsToPdf } from './CardExporter';
 import type { CardType } from '../core/types';
 
 interface Props {
@@ -42,6 +44,11 @@ export default function CardGallery({ onClose }: Props) {
   const [rarityFilter, setRarityFilter] = useState<number>(0);
   const [sizeMode, setSizeMode] = useState<'small' | 'medium'>('small');
 
+  // PDF 匯出狀態
+  const [exporting, setExporting] = useState(false);
+  const [exportDone, setExportDone] = useState(0);
+  const [exportTotal, setExportTotal] = useState(0);
+
   const filteredIds = useMemo(() => {
     return allCardIds.filter((id) => {
       const card = CARDS[id];
@@ -51,6 +58,34 @@ export default function CardGallery({ onClose }: Props) {
       return true;
     });
   }, [typeFilter, rarityFilter]);
+
+  // ── PDF 匯出處理 ──────────────────────────────────────────
+  async function handleExportPdf() {
+    if (exporting || filteredIds.length === 0) return;
+    setExporting(true);
+    setExportDone(0);
+    setExportTotal(filteredIds.length);
+    try {
+      const typeLabel = typeFilter === 'all' ? 'all' : typeFilter;
+      const rarityLabel = rarityFilter === 0 ? '' : `-r${rarityFilter}`;
+      const filename = `windfarm-cards-${typeLabel}${rarityLabel}.pdf`;
+      await exportCardsToPdf(
+        filteredIds,
+        filename,
+        (done, total) => {
+          setExportDone(done);
+          setExportTotal(total);
+        },
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  // ── 進度文字 ──────────────────────────────────────────────
+  const progressText = exporting
+    ? `匯出中… ${exportDone}/${exportTotal}`
+    : `📄 匯出 PDF（${filteredIds.length} 張）`;
 
   return (
     <>
@@ -117,14 +152,30 @@ export default function CardGallery({ onClose }: Props) {
             </div>
           </div>
 
-          {/* 右：列印 + 關閉 */}
+          {/* 右：匯出 PDF + 列印 + 關閉 */}
           <div className="flex items-center gap-2">
+            {/* 匯出 PDF 按鈕 */}
+            <button
+              onClick={handleExportPdf}
+              disabled={exporting || filteredIds.length === 0}
+              className={`rounded-lg px-3 py-1.5 text-sm font-semibold text-white shadow transition-all ${
+                exporting
+                  ? 'cursor-not-allowed bg-indigo-800 opacity-70'
+                  : 'bg-indigo-600 hover:bg-indigo-500 active:scale-95'
+              }`}
+            >
+              {progressText}
+            </button>
+
+            {/* 列印按鈕 */}
             <button
               onClick={() => window.print()}
               className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-semibold text-white shadow transition-all hover:bg-emerald-600 active:scale-95"
             >
               🖨 列印
             </button>
+
+            {/* 關閉按鈕 */}
             <button
               onClick={onClose}
               className="rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-semibold text-slate-200 shadow transition-all hover:bg-slate-600 active:scale-95"
@@ -133,6 +184,16 @@ export default function CardGallery({ onClose }: Props) {
             </button>
           </div>
         </div>
+
+        {/* ── 匯出進度條（匯出中才顯示） ── */}
+        {exporting && exportTotal > 0 && (
+          <div className="h-1 bg-slate-800 print:hidden">
+            <div
+              className="h-full bg-indigo-500 transition-all duration-200"
+              style={{ width: `${Math.round((exportDone / exportTotal) * 100)}%` }}
+            />
+          </div>
+        )}
 
         {/* ── 卡牌網格 ── */}
         <div className="flex-1 overflow-y-auto p-4 print:overflow-visible print:p-0">
