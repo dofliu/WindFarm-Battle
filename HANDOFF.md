@@ -49,7 +49,7 @@
 
 ### 🤖 如果繼續 coding，可做的事
 
-- [x] **卡牌批次匯出 PDF**（Sprint 4 CardExporter）：`html2canvas` + `jsPDF`，A4 每頁 3×3，進度條，依過濾條件命名檔案（commit e8f6942）
+- [x] **卡牌批次匯出 PDF**（Sprint 4 CardExporter）：`html2canvas` + `jsPDF`，A4 每頁 3×3，進度條，依過濾條件命名檔案，root.unmount 清理，匯出失敗錯誤 UI（commits e8f6942, afeffd2）
 - App icon / splash screen（Capacitor 設定）
 - 多語言（英文版 i18n，已有架構）
 
