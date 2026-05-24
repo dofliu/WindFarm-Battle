@@ -22,6 +22,8 @@ import { LibraryModal } from '../components/LibraryModal';
 import { ThemeSwitcher } from '../components/ThemeSwitcher';
 import { Hourglass, Crosshair } from '../icons';
 import { uiPreviewMwh } from '../../store/game-store';
+import { t } from '../../i18n';
+import { useLocale } from '../locale/LocaleContext';
 
 interface Props {
   readonly onTitle: () => void;
@@ -30,6 +32,7 @@ interface Props {
 
 export function BattleScreen({ onTitle, onGameOver }: Props) {
   const { theme, themeKey } = useTheme();
+  useLocale(); // 訂閱語言切換，觸發重新渲染
 
   const state = useGameStore((s) => s.state);
   const pendingFaultHandIdx = useGameStore((s) => s.pendingFaultHandIdx);
@@ -266,7 +269,7 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
             borderTop: themeKey === 'tideboard' ? '1px solid rgba(232,200,120,0.2)' : '1px solid rgba(58,167,200,0.1)',
           }}
         >
-          <ScoreBadge side="me" label="你" score={me.score} preview={myPreview} active={isMyTurn} />
+          <ScoreBadge side="me" label={t('side.you')} score={me.score} preview={myPreview} active={isMyTurn} />
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
             <div
               data-zone="play-mine"
@@ -349,7 +352,7 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
               }}
             >
               <Crosshair size={14} stroke="#fff" />
-              點選對手機組施加故障
+              {t('drag.fault')}
               <button
                 type="button"
                 onClick={cancelPending}
@@ -364,7 +367,7 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
                   fontFamily: 'inherit',
                 }}
               >
-                取消
+                ✕
               </button>
             </div>
           )}
@@ -387,7 +390,7 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
                 zIndex: 5,
               }}
             >
-              {CARDS[dragInfo.cardId]?.type === 'fault' ? '拖到對手機組上 · 或點對手機組目標' : '拖到你的場地上部署'}
+              {CARDS[dragInfo.cardId]?.type === 'fault' ? t('drag.fault') : t('drag.deploy')}
             </div>
           )}
 
@@ -429,10 +432,10 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
               }}
             >
               <Hourglass size={15} stroke="currentColor" />
-              {isAiThinking ? 'AI 回合' : '結束回合'}
+              {isAiThinking ? t('ui.aiTurn') : t('ui.endTurn')}
             </button>
             <div style={{ fontSize: 10, color: theme.textSecondary, fontFamily: theme.fontUI }}>
-              剩 {state.actionsLeft} 動作 · 1 抽 1 棄
+              {t('ui.actionsRemain', { n: state.actionsLeft })}
             </div>
           </div>
         </div>
@@ -472,7 +475,7 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
               fontFamily: themeKey === 'tideboard' ? '"Cinzel", Georgia, serif' : theme.fontDisplay,
             }}
           >
-            🌀 颱風來襲
+            {t('typhoon.alert')}
           </div>
         </div>
       )}

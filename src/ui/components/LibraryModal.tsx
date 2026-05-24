@@ -4,25 +4,26 @@ import { allCardIds, CARDS } from '../../core/cards';
 import { Card } from './Card';
 import { useTheme } from '../theme/ThemeContext';
 import type { CardType } from '../styles/themes';
+import { t } from '../../i18n';
+import { useLocale } from '../locale/LocaleContext';
 
 interface Props {
   readonly onClose: () => void;
 }
 
-const FILTERS: ReadonlyArray<readonly [CardType | 'all', string]> = [
-  ['all', '全部'],
-  ['turbine', '機組'],
-  ['tech', '技師'],
-  ['fault', '故障'],
-  ['func', '功能'],
-  ['weather', '天氣'],
-  ['contract', '合約'],
-];
+const FILTER_KEYS: ReadonlyArray<CardType | 'all'> = ['all', 'turbine', 'tech', 'fault', 'func', 'weather', 'contract'];
 
 export function LibraryModal({ onClose }: Props) {
   const { theme, themeKey } = useTheme();
+  useLocale(); // 訂閱語言切換，觸發重新渲染
   const [filter, setFilter] = useState<CardType | 'all'>('all');
   const filtered = filter === 'all' ? allCardIds : allCardIds.filter((id) => CARDS[id].type === filter);
+
+  const filterLabel = (k: CardType | 'all'): string => {
+    if (k === 'all') return t('category.all');
+    return t(`category.${k}` as Parameters<typeof t>[0]);
+  };
+
   return (
     <div
       role="dialog"
@@ -74,9 +75,9 @@ export function LibraryModal({ onClose }: Props) {
                 color: themeKey === 'tideboard' ? '#f4d68a' : '#1c2a3a',
               }}
             >
-              {themeKey === 'tideboard' ? 'CARD CODEX · 牌冊' : '📚 牌庫'}
+              {themeKey === 'tideboard' ? t('library.title.tideboard') : t('library.title.cumulus')}
             </span>
-            <span style={{ fontSize: 11, color: theme.textSecondary }}>{filtered.length} 張</span>
+            <span style={{ fontSize: 11, color: theme.textSecondary }}>{t('library.count', { n: filtered.length })}</span>
           </div>
           <button
             type="button"
@@ -103,7 +104,7 @@ export function LibraryModal({ onClose }: Props) {
             borderBottom: themeKey === 'tideboard' ? '1px solid #6e4a18' : '1px solid rgba(28,42,58,0.06)',
           }}
         >
-          {FILTERS.map(([k, label]) => (
+          {FILTER_KEYS.map((k) => (
             <button
               key={k}
               type="button"
@@ -132,7 +133,7 @@ export function LibraryModal({ onClose }: Props) {
                 fontFamily: 'inherit',
               }}
             >
-              {label}
+              {filterLabel(k)}
             </button>
           ))}
         </div>

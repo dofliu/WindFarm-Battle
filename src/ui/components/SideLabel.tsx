@@ -1,6 +1,8 @@
 // 玩家身分標籤（我/AI + 手牌/牌庫/MW/故障）
 import { useTheme } from '../theme/ThemeContext';
 import { FaultLightning, Compass } from '../icons';
+import { t } from '../../i18n';
+import { useLocale } from '../locale/LocaleContext';
 
 interface Props {
   readonly side: 'me' | 'opp';
@@ -14,6 +16,8 @@ interface Props {
 
 export function SideLabel({ side, hand, deck, mw, faulted, active, aiThinking }: Props) {
   const { themeKey } = useTheme();
+  useLocale(); // 訂閱語言切換，觸發重新渲染
+
   if (themeKey === 'tideboard') {
     return (
       <div
@@ -44,12 +48,12 @@ export function SideLabel({ side, hand, deck, mw, faulted, active, aiThinking }:
               fontFamily: 'Georgia, serif',
             }}
           >
-            {side === 'opp' ? 'AI' : '你'}
+            {side === 'opp' ? t('side.ai') : t('side.you')}
           </div>
           <div style={{ color: '#f4d68a', fontFamily: 'Georgia, serif' }}>
-            <div style={{ fontSize: 11, fontWeight: 700 }}>{side === 'opp' ? '對手' : '你的陣地'}</div>
+            <div style={{ fontSize: 11, fontWeight: 700 }}>{side === 'opp' ? t('side.aiOpponent') : t('side.yourField')}</div>
             <div style={{ fontSize: 9, color: '#c89848' }}>
-              手{hand} · 庫{deck}
+              {t('side.hand')}{hand} · {t('side.deck')}{deck}
             </div>
           </div>
         </div>
@@ -73,7 +77,7 @@ export function SideLabel({ side, hand, deck, mw, faulted, active, aiThinking }:
               }}
             >
               <FaultLightning size={12} stroke="#f4886a" />
-              故障
+              {t('side.fault')}
             </div>
           </>
         )}
@@ -89,7 +93,7 @@ export function SideLabel({ side, hand, deck, mw, faulted, active, aiThinking }:
                 animation: aiThinking ? 'wf-thinking-pulse 1.4s ease-in-out infinite' : 'none',
               }}
             >
-              {aiThinking ? 'AI 思考中…' : side === 'me' ? '你的回合' : '計算中'}
+              {aiThinking ? t('side.aiThinking') : side === 'me' ? t('side.yourTurn') : t('side.calculating')}
             </div>
           </>
         )}
@@ -126,12 +130,12 @@ export function SideLabel({ side, hand, deck, mw, faulted, active, aiThinking }:
             fontWeight: 700,
           }}
         >
-          {side === 'opp' ? 'AI' : '你'}
+          {side === 'opp' ? t('side.ai') : t('side.you')}
         </div>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#1c2a3a' }}>{side === 'opp' ? 'AI 對手' : '你的陣地'}</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#1c2a3a' }}>{side === 'opp' ? t('side.aiOpponent') : t('side.yourField')}</div>
           <div style={{ fontSize: 9, color: '#6a7888' }}>
-            {hand} 手 · {deck} 庫
+            {hand} {t('side.hand')} · {deck} {t('side.deck')}
           </div>
         </div>
       </div>
@@ -145,7 +149,7 @@ export function SideLabel({ side, hand, deck, mw, faulted, active, aiThinking }:
           <div style={{ height: 24, width: 1, background: 'rgba(28,42,58,0.1)' }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#a8453a', fontWeight: 600 }}>
             <FaultLightning size={12} stroke="#a8453a" />
-            故障中
+            {t('side.faulting')}
           </div>
         </>
       )}
@@ -164,7 +168,7 @@ export function SideLabel({ side, hand, deck, mw, faulted, active, aiThinking }:
             }}
           >
             <Compass size={12} stroke="currentColor" />
-            {aiThinking ? 'AI 思考中…' : side === 'me' ? '你的回合' : '計算中'}
+            {aiThinking ? t('side.aiThinking') : side === 'me' ? t('side.yourTurn') : t('side.calculating')}
           </div>
         </>
       )}

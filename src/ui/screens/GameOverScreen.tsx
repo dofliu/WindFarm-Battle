@@ -4,6 +4,8 @@ import { ThemeBackground } from '../effects/ThemeBackground';
 import { CountUp } from '../effects/CountUp';
 import { Compass } from '../icons';
 import type { GameState } from '../../core/types';
+import { t } from '../../i18n';
+import { useLocale } from '../locale/LocaleContext';
 
 interface Props {
   readonly state: GameState;
@@ -13,13 +15,21 @@ interface Props {
 
 export function GameOverScreen({ state, onRestart, onTitle }: Props) {
   const { theme, themeKey } = useTheme();
+  useLocale(); // 訂閱語言切換，觸發重新渲染
   const me = state.players[0];
   const opp = state.players[1];
   const winner = me.score > opp.score ? 'me' : me.score < opp.score ? 'ai' : 'draw';
-  const label = winner === 'me' ? '勝利' : winner === 'ai' ? '敗北' : '平手';
+  const label = winner === 'me' ? t('gameover.win') : winner === 'ai' ? t('gameover.lose') : t('gameover.draw');
   const subLabel =
-    winner === 'me' ? '您是優秀的風場運維者' : winner === 'ai' ? 'AI 略勝一籌，再戰一回？' : '勢均力敵的對手';
+    winner === 'me' ? t('gameover.winSub') : winner === 'ai' ? t('gameover.loseSub') : t('gameover.drawSub');
   const accent = winner === 'me' ? theme.success : winner === 'ai' ? theme.danger : theme.warning;
+
+  const stats: ReadonlyArray<[string, number]> = [
+    [t('gameover.stat.turbines'), me.turbines.length],
+    [t('gameover.stat.techs'), me.techs.length],
+    [t('gameover.stat.faults'), opp.turbines.reduce((s, tu) => s + tu.faults.length, 0)],
+    [t('gameover.stat.rounds'), state.round],
+  ];
 
   return (
     <div
@@ -101,7 +111,7 @@ export function GameOverScreen({ state, onRestart, onTitle }: Props) {
                   textTransform: 'uppercase',
                 }}
               >
-                你
+                {t('gameover.you')}
               </div>
               <div
                 style={{
@@ -151,14 +161,7 @@ export function GameOverScreen({ state, onRestart, onTitle }: Props) {
               flexWrap: 'wrap',
             }}
           >
-            {(
-              [
-                ['🏭 部署機組', me.turbines.length],
-                ['⚙️ 雇用技師', me.techs.length],
-                ['💥 對手故障', opp.turbines.reduce((s, t) => s + t.faults.length, 0)],
-                ['📅 完成回合', state.round],
-              ] as const
-            ).map(([lab, value]) => (
+            {stats.map(([lab, value]) => (
               <div key={lab} style={{ textAlign: 'center' }}>
                 <div
                   style={{
@@ -218,7 +221,7 @@ export function GameOverScreen({ state, onRestart, onTitle }: Props) {
             }}
           >
             <Compass size={16} stroke="currentColor" />
-            再戰一回
+            {t('gameover.restart')}
           </button>
           <button
             type="button"
@@ -236,7 +239,7 @@ export function GameOverScreen({ state, onRestart, onTitle }: Props) {
               cursor: 'pointer',
             }}
           >
-            返回
+            {t('gameover.title')}
           </button>
         </div>
       </div>

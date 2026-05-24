@@ -3,7 +3,8 @@ import { useTheme } from '../theme/ThemeContext';
 import { DiceRoller } from '../effects/Dice';
 import { Storm, Contract } from '../icons';
 import { CARDS } from '../../core/cards';
-import { cardName } from '../../i18n';
+import { cardName, t } from '../../i18n';
+import { useLocale } from '../locale/LocaleContext';
 import type { GameState, Wind, ActiveWeather, ActiveContract } from '../../core/types';
 
 /** 把 wind.roll 轉成兩顆骰子的點數陣列。'6+6' → [6,6]；單顆 → [n, null]；數字字串/數字皆支援 */
@@ -25,6 +26,7 @@ interface CenterProps {
 
 export function BattleCenter({ state, windRolling }: CenterProps) {
   const { themeKey } = useTheme();
+  useLocale(); // 訂閱語言切換，觸發重新渲染
   return (
     <div
       style={{
@@ -94,7 +96,7 @@ function RoundDisplay({ round, maxRounds }: { readonly round: number; readonly m
   }
   return (
     <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: 9, color: '#6a7888', letterSpacing: '0.2em', textTransform: 'uppercase' }}>回合</div>
+      <div style={{ fontSize: 9, color: '#6a7888', letterSpacing: '0.2em', textTransform: 'uppercase' }}>{t('ui.round')}</div>
       <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1, color: '#1c2a3a' }}>
         {round}
         <span style={{ fontSize: 12, color: '#6a7888', fontWeight: 400 }}>/{maxRounds}</span>
@@ -152,7 +154,7 @@ function WindDisplay({ wind, rolling }: { readonly wind: Wind; readonly rolling:
     >
       <DiceRoller dice={dice} rolling={rolling} typhoon={wind.typhoon} theme={themeKey} size={44} />
       <div>
-        <div style={{ fontSize: 9, color: '#6a7888', letterSpacing: '0.18em', textTransform: 'uppercase' }}>本回合風速</div>
+        <div style={{ fontSize: 9, color: '#6a7888', letterSpacing: '0.18em', textTransform: 'uppercase' }}>{t('ui.wind')}</div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 1 }}>
           <span style={{ fontSize: 20, fontWeight: 700, color: '#1c2a3a' }}>{wind.speed}</span>
           <span style={{ fontSize: 11, color: '#6a7888' }}>m/s</span>
@@ -191,7 +193,7 @@ function ActionPips({ actionsLeft }: { readonly actionsLeft: number }) {
   }
   return (
     <div>
-      <div style={{ fontSize: 9, color: '#6a7888', letterSpacing: '0.2em', textTransform: 'uppercase' }}>動作</div>
+      <div style={{ fontSize: 9, color: '#6a7888', letterSpacing: '0.2em', textTransform: 'uppercase' }}>{t('ui.actions')}</div>
       <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
         {[0, 1, 2, 3].map((i) => (
           <div
@@ -241,7 +243,7 @@ function StatusEffects({
               <Storm size={18} stroke="#f4886a" />
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#f4886a', fontFamily: 'Georgia, serif' }}>{name}</div>
-                <div style={{ fontSize: 9, color: '#f4886a', opacity: 0.7 }}>還剩 {w.duration} 回</div>
+                <div style={{ fontSize: 9, color: '#f4886a', opacity: 0.7 }}>{t('ui.remaining', { n: w.duration })}</div>
               </div>
             </div>
           );
@@ -262,7 +264,7 @@ function StatusEffects({
             <Storm size={18} stroke="#a87a2a" />
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, color: '#a87a2a' }}>{name}</div>
-              <div style={{ fontSize: 9, color: '#a87a2a', opacity: 0.7 }}>還剩 {w.duration} 回</div>
+              <div style={{ fontSize: 9, color: '#a87a2a', opacity: 0.7 }}>{t('ui.remaining', { n: w.duration })}</div>
             </div>
           </div>
         );
@@ -286,7 +288,7 @@ function StatusEffects({
               <Contract size={18} stroke="#a8d878" />
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#a8d878', fontFamily: 'Georgia, serif' }}>{name}</div>
-                <div style={{ fontSize: 9, color: '#a8d878', opacity: 0.7 }}>進度 {c.progress}</div>
+                <div style={{ fontSize: 9, color: '#a8d878', opacity: 0.7 }}>{t('ui.progress', { n: c.progress })}</div>
               </div>
             </div>
           );
@@ -307,7 +309,7 @@ function StatusEffects({
             <Contract size={18} stroke="#7a5ca8" />
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, color: '#7a5ca8' }}>{name}</div>
-              <div style={{ fontSize: 9, color: '#7a5ca8', opacity: 0.7 }}>進度 {c.progress}</div>
+              <div style={{ fontSize: 9, color: '#7a5ca8', opacity: 0.7 }}>{t('ui.progress', { n: c.progress })}</div>
             </div>
           </div>
         );
