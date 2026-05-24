@@ -48,6 +48,7 @@ export default function CardGallery({ onClose }: Props) {
   const [exporting, setExporting] = useState(false);
   const [exportDone, setExportDone] = useState(0);
   const [exportTotal, setExportTotal] = useState(0);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const filteredIds = useMemo(() => {
     return allCardIds.filter((id) => {
@@ -65,6 +66,7 @@ export default function CardGallery({ onClose }: Props) {
     setExporting(true);
     setExportDone(0);
     setExportTotal(filteredIds.length);
+    setExportError(null);
     try {
       const typeLabel = typeFilter === 'all' ? 'all' : typeFilter;
       const rarityLabel = rarityFilter === 0 ? '' : `-r${rarityFilter}`;
@@ -77,6 +79,11 @@ export default function CardGallery({ onClose }: Props) {
           setExportTotal(total);
         },
       );
+    } catch (err) {
+      // 匯出失敗：顯示錯誤訊息，5 秒後自動清除
+      const msg = err instanceof Error ? err.message : '未知錯誤';
+      setExportError(`匯出失敗：${msg}`);
+      setTimeout(() => setExportError(null), 5000);
     } finally {
       setExporting(false);
     }
@@ -184,6 +191,13 @@ export default function CardGallery({ onClose }: Props) {
             </button>
           </div>
         </div>
+
+        {/* ── 匯出錯誤提示（失敗時顯示） ── */}
+        {exportError && (
+          <div className="bg-rose-900/80 px-4 py-1.5 text-xs text-rose-200 print:hidden">
+            ⚠️ {exportError}
+          </div>
+        )}
 
         {/* ── 匯出進度條（匯出中才顯示） ── */}
         {exporting && exportTotal > 0 && (

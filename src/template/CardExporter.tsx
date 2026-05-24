@@ -1,5 +1,6 @@
 // ============================================================
-// Sprint 4：卡牌批次 PDF 匯出（CardExporter）
+// CardExporter.tsx
+// 卡牌批次 PDF 匯出工具
 //
 // 策略：
 //   1. 在 DOM 外建立隱藏容器，依序渲染每張 CardTemplate（print 尺寸 240×340px）
@@ -11,6 +12,7 @@
 //   - 此模組純 React（無 core/ 依賴）
 //   - html2canvas 不支援 CSS backdrop-filter，已用 useCssText 繞過
 //   - 字型若有 @font-face 需等 document.fonts.ready
+//   - 每張卡渲染後需 unmount React root，避免記憶體洩漏與重複 root 警告
 // ============================================================
 import { createRoot } from 'react-dom/client';
 import html2canvas from 'html2canvas';
@@ -147,10 +149,13 @@ function renderCardToContainer(container: HTMLElement, cardId: string): Promise<
       />,
     );
 
-    // 等一個 microtask + 一個 animation frame 讓 React 完成渲染
+    // 等兩個 animation frame 讓 React 完成渲染後再截圖
+    // 截圖完成後 unmount，避免記憶體洩漏與 React 重複 root 警告
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         resolve();
+        // 非同步 unmount（截圖已完成，不影響結果）
+        setTimeout(() => root.unmount(), 0);
       });
     });
   });
