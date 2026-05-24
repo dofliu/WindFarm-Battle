@@ -7,6 +7,7 @@ import { useCallback, useState } from 'react';
 import { useGameStore } from './store/game-store';
 import { Stage } from './ui/stage/Stage';
 import { ThemeProvider } from './ui/theme/ThemeContext';
+import { LocaleProvider } from './ui/locale/LocaleContext';
 import { TitleScreen } from './ui/screens/TitleScreen';
 import { BattleScreen } from './ui/screens/BattleScreen';
 import { GameOverScreen } from './ui/screens/GameOverScreen';
@@ -51,7 +52,9 @@ function AppInner() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AppInner />
+      <LocaleProvider>
+        <AppInner />
+      </LocaleProvider>
     </ThemeProvider>
   );
 }

@@ -2,6 +2,7 @@
 import { useTheme } from '../theme/ThemeContext';
 import { ThemeBackground } from '../effects/ThemeBackground';
 import { Compass, TurbineFloat } from '../icons';
+import { LocaleSwitcher } from '../components/LocaleSwitcher';
 
 interface Props {
   readonly onStart: () => void;
@@ -112,9 +113,12 @@ export function TitleScreen({ onStart, onTheme }: Props) {
               </button>
             </div>
           )}
+          <div style={{ marginTop: 14 }}>
+            <LocaleSwitcher style={{ color: '#c89848', borderColor: '#c89848', background: 'transparent' }} />
+          </div>
           <div
             style={{
-              marginTop: 18,
+              marginTop: 12,
               fontSize: 11,
               color: '#c89848',
               letterSpacing: '0.3em',
@@ -209,9 +213,12 @@ export function TitleScreen({ onStart, onTheme }: Props) {
             </button>
           </div>
         )}
+        <div style={{ marginTop: 14 }}>
+          <LocaleSwitcher style={{ color: '#6a7888', borderColor: 'rgba(28,42,58,0.2)', background: 'rgba(255,255,255,0.5)' }} />
+        </div>
         <div
           style={{
-            marginTop: 16,
+            marginTop: 10,
             fontSize: 11,
             color: '#6a7888',
             letterSpacing: '0.25em',

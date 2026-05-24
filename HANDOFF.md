@@ -51,7 +51,7 @@
 
 - [x] **卡牌批次匯出 PDF**（Sprint 4 CardExporter）：`html2canvas` + `jsPDF`，A4 每頁 3×3，進度條，依過濾條件命名檔案，root.unmount 清理，匯出失敗錯誤 UI（commits e8f6942, afeffd2）
 - App icon / splash screen（Capacitor 設定）
-- 多語言（英文版 i18n，已有架構）
+- [x] **英文版 i18n**：`en.ts` + `cards.en.ts` + `LocaleContext` + `LocaleSwitcher`，標題畫面已有 ZH/EN 切換按鈕，50 張卡完整英文文案，t() 支援多語言回退
 
 ---
 
@@ -131,6 +131,6 @@
 
 ---
 
-**文件版本**：v3.1（CardExporter PDF 匯出完成）
-**最後更新**：2026-05-23
-**狀態**：React 重構完成，CardExporter 完成，待 Android Studio 實機測試 + 學生試玩
+**文件版本**：v3.2（英文 i18n 完成）
+**最後更新**：2026-05-24
+**狀態**：React 重構完成，CardExporter 完成，英文 i18n 完成，待 Android Studio 實機測試 + 學生試玩
