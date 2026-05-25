@@ -53,6 +53,7 @@
 - App icon / splash screen（Capacitor 設定）
 - [x] **英文版 i18n**：`en.ts` + `cards.en.ts` + `LocaleContext` + `LocaleSwitcher`，標題畫面已有 ZH/EN 切換按鈕，50 張卡完整英文文案，t() 支援多語言回退
 - [x] **戰鬥畫面全面 i18n**：BattleScreen / SideLabel / BattleCenter / RoundSummaryToast / LibraryModal / GameOverScreen 所有硬編碼中文字串全部接入 t()，語言切換在整個遊戲中生效
+- [x] **TopBar 完整 i18n**：難度選項（簡單/普通/困難↔Easy/Normal/Hard）、按鈕標籤、副標題全部接入 t()，並在 TopBar 加入 LocaleSwitcher，進行中可隨時切換語言；同步更新測試以配合新 key
 
 ---
 
@@ -132,6 +133,6 @@
 
 ---
 
-**文件版本**：v3.3（戰鬥畫面全面 i18n 完成）
-**最後更新**：2026-05-25
-**狀態**：React 重構完成，CardExporter 完成，全面 i18n 完成，待 Android Studio 實機測試 + 學生試玩
+**文件版本**：v3.4（全面 i18n 完全完成）
+**最後更新**：2026-05-26
+**狀態**：React 重構完成，CardExporter 完成，全面 i18n 完全完成（包含 TopBar），待 Android Studio 實機測試 + 學生試玩

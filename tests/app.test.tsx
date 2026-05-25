@@ -33,14 +33,15 @@ describe('App（HANDOFF-UI 重寫後）', () => {
     expect(container.textContent).toContain('結束回合');
   });
 
-  it('戰場頂部欄包含難度切換與「新遊戲」按鈕', () => {
+  it('戰場頂部欄包含難度切換與重新開始按鈕', () => {
     const { container, getByText } = render(<App />);
     fireEvent.click(getByText('開始對戰'));
-    expect(container.textContent).toContain('新遊戲');
-    // 三個難度選項
-    expect(container.textContent).toContain('入門');
-    expect(container.textContent).toContain('中級');
-    expect(container.textContent).toContain('高手');
+    // 難度選項（使用 i18n key，預設 zh-TW）
+    expect(container.textContent).toContain('簡單');
+    expect(container.textContent).toContain('普通');
+    expect(container.textContent).toContain('困難');
+    // 重新開始按鈕
+    expect(container.textContent).toContain('重新開始');
   });
 
   it('store 初始狀態：round=1、雙方各 3 台 OS8/OS10/OS12 開局艦隊', () => {

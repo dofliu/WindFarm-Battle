@@ -1,7 +1,10 @@
-// 戰場頂部欄：標題 + 難度 + 動作按鈕 + 主題切換。
+// 戰場頂部欄：標題 + 難度 + 動作按鈕 + 主題切換 + 語言切換。
 import { useTheme } from '../theme/ThemeContext';
 import { Compass, TurbineFloat } from '../icons';
 import type { Difficulty } from '../../core/types';
+import { t } from '../../i18n';
+import { useLocale } from '../locale/LocaleContext';
+import { LocaleSwitcher } from './LocaleSwitcher';
 
 interface Props {
   readonly difficulty: Difficulty;
@@ -15,6 +18,7 @@ interface Props {
 
 export function TopBar({ difficulty, onDifficulty, onLibrary, onRestart, onTitle, onTheme, onHelp }: Props) {
   const { theme, themeKey } = useTheme();
+  useLocale(); // 訂閱語言切換，觸發重新渲染
 
   if (themeKey === 'tideboard') {
     return (
@@ -59,7 +63,7 @@ export function TopBar({ difficulty, onDifficulty, onLibrary, onRestart, onTitle
             WINDFARM BATTLE
           </div>
         </button>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <select
             value={difficulty}
             onChange={(e) => onDifficulty(e.target.value as Difficulty)}
@@ -72,14 +76,24 @@ export function TopBar({ difficulty, onDifficulty, onLibrary, onRestart, onTitle
               fontSize: 12,
             }}
           >
-            <option value="easy">入門</option>
-            <option value="medium">中級</option>
-            <option value="hard">高手</option>
+            <option value="easy">{t('topbar.difficulty.easy')}</option>
+            <option value="medium">{t('topbar.difficulty.medium')}</option>
+            <option value="hard">{t('topbar.difficulty.hard')}</option>
           </select>
-          {onHelp && <TideButton label="玩法" onClick={onHelp} />}
-          {onLibrary && <TideButton label="牌冊" onClick={onLibrary} />}
-          {onTheme && <TideButton label="主題" onClick={onTheme} />}
-          {onRestart && <TideButton label="新局" onClick={onRestart} />}
+          {onHelp && <TideButton label={t('topbar.help')} onClick={onHelp} />}
+          {onLibrary && <TideButton label={t('topbar.library')} onClick={onLibrary} />}
+          {onTheme && <TideButton label={t('topbar.theme')} onClick={onTheme} />}
+          {onRestart && <TideButton label={t('topbar.restart')} onClick={onRestart} />}
+          <LocaleSwitcher
+            style={{
+              color: '#f4d68a',
+              borderColor: '#c89848',
+              background: 'transparent',
+              fontFamily: 'Georgia, serif',
+              fontSize: 11,
+              padding: '4px 8px',
+            }}
+          />
         </div>
       </div>
     );
@@ -150,7 +164,7 @@ export function TopBar({ difficulty, onDifficulty, onLibrary, onRestart, onTitle
               whiteSpace: 'nowrap',
             }}
           >
-            對戰 · 風電運維
+            {t('app.subtitle')}
           </div>
         </div>
       </button>
@@ -168,14 +182,24 @@ export function TopBar({ difficulty, onDifficulty, onLibrary, onRestart, onTitle
             fontFamily: 'inherit',
           }}
         >
-          <option value="easy">😊 入門</option>
-          <option value="medium">😐 中級</option>
-          <option value="hard">😈 高手</option>
+          <option value="easy">😊 {t('topbar.difficulty.easy')}</option>
+          <option value="medium">😐 {t('topbar.difficulty.medium')}</option>
+          <option value="hard">😈 {t('topbar.difficulty.hard')}</option>
         </select>
-        {onHelp && <CumButton label="❓ 玩法" onClick={onHelp} />}
-        {onLibrary && <CumButton label="📚 牌庫" onClick={onLibrary} />}
-        {onTheme && <CumButton label="🎨 主題" onClick={onTheme} />}
-        {onRestart && <CumButton label="🔄 新遊戲" onClick={onRestart} />}
+        {onHelp && <CumButton label={`❓ ${t('topbar.help')}`} onClick={onHelp} />}
+        {onLibrary && <CumButton label={`📚 ${t('topbar.library')}`} onClick={onLibrary} />}
+        {onTheme && <CumButton label={`🎨 ${t('topbar.theme')}`} onClick={onTheme} />}
+        {onRestart && <CumButton label={`🔄 ${t('topbar.restart')}`} onClick={onRestart} />}
+        <LocaleSwitcher
+          style={{
+            color: '#3a4858',
+            borderColor: 'rgba(28,42,58,0.15)',
+            background: 'rgba(255,255,255,0.55)',
+            backdropFilter: 'blur(8px)',
+            fontSize: 11,
+            padding: '5px 10px',
+          }}
+        />
       </div>
     </div>
   );
