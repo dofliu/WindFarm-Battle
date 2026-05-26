@@ -74,4 +74,26 @@ export const en = {
   'topbar.theme': 'Theme',
   'topbar.restart': 'Restart',
   'topbar.title': 'Main Menu',
+  // ── ThemeSwitcher ─────────────────────────────────────────
+  'theme.title': 'Switch Theme',
+  'theme.subtitle': 'Your preference is saved automatically',
+  'theme.cumulus.desc': 'Modern Minimal · Sky Blue / Sand Gold',
+  'theme.tideboard.desc': 'Classic Board Game · Warm Wood / Brass',
+  'theme.active': 'Active',
+  'theme.close': 'Close',
+  // ── HoverPreview ─────────────────────────────────────────
+  'card.cost': 'Cost {n}',
+  'card.iecCost': 'IEC {iec} · Cost {n}',
+  // ── Hand ─────────────────────────────────────────────────
+  'hand.empty': 'Empty Hand',
+  // ── Card ─────────────────────────────────────────────────
+  'card.duration': '{n} rnd',
+  // ── TitleScreen ──────────────────────────────────────────
+  'title.tagline': 'Wind O&M Strategy Card Game · 12 Rounds',
+  'title.startTideboard': 'Set Sail',
+  'title.switchTheme': 'Switch Theme',
+  'title.lab': 'DOF LAB · National Chin-Yi University of Technology',
+  'title.gameName': 'WindFarm Battle',
+  'title.startCumulus': 'Start Battle',
+  'title.switchThemeCumulus': '🎨 Switch Theme',
 } as const;

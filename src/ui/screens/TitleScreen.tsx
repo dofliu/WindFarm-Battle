@@ -3,6 +3,8 @@ import { useTheme } from '../theme/ThemeContext';
 import { ThemeBackground } from '../effects/ThemeBackground';
 import { Compass, TurbineFloat } from '../icons';
 import { LocaleSwitcher } from '../components/LocaleSwitcher';
+import { useLocale } from '../locale/LocaleContext';
+import { t } from '../../i18n';
 
 interface Props {
   readonly onStart: () => void;
@@ -10,6 +12,7 @@ interface Props {
 }
 
 export function TitleScreen({ onStart, onTheme }: Props) {
+  useLocale(); // 訂閱語言切換，觸發重新渲染
   const { theme, themeKey } = useTheme();
 
   if (themeKey === 'tideboard') {
@@ -66,7 +69,7 @@ export function TitleScreen({ onStart, onTheme }: Props) {
               fontFamily: 'Georgia, serif',
             }}
           >
-            風場運維策略卡牌 · 12 回合決勝負
+            {t('title.tagline')}
           </div>
 
           <button
@@ -91,7 +94,7 @@ export function TitleScreen({ onStart, onTheme }: Props) {
             }}
           >
             <Compass size={20} stroke="#3d2a1e" />
-            開始航行
+            {t('title.startTideboard')}
           </button>
           {onTheme && (
             <div style={{ marginTop: 18 }}>
@@ -109,7 +112,7 @@ export function TitleScreen({ onStart, onTheme }: Props) {
                   cursor: 'pointer',
                 }}
               >
-                切換主題
+                {t('title.switchTheme')}
               </button>
             </div>
           )}
@@ -125,7 +128,7 @@ export function TitleScreen({ onStart, onTheme }: Props) {
               opacity: 0.7,
             }}
           >
-            DOF LAB · 國立勤益科技大學
+            {t('title.lab')}
           </div>
         </div>
       </div>
@@ -154,7 +157,7 @@ export function TitleScreen({ onStart, onTheme }: Props) {
           <TurbineFloat size={104} stroke="#1c2a3a" strokeWidth={1.2} />
         </div>
         <div style={{ marginTop: 16, fontSize: 72, fontWeight: 800, color: '#1c2a3a', letterSpacing: '-0.02em', lineHeight: 1.05 }}>
-          風場大戰
+          {t('title.gameName')}
         </div>
         <div
           style={{
@@ -167,7 +170,7 @@ export function TitleScreen({ onStart, onTheme }: Props) {
         >
           WINDFARM · BATTLE
         </div>
-        <div style={{ marginTop: 16, fontSize: 14, color: '#3a4858' }}>風場運維策略卡牌 · 12 回合決勝負</div>
+        <div style={{ marginTop: 16, fontSize: 14, color: '#3a4858' }}>{t('title.tagline')}</div>
 
         <button
           type="button"
@@ -191,7 +194,7 @@ export function TitleScreen({ onStart, onTheme }: Props) {
           }}
         >
           <Compass size={18} stroke="#fff" />
-          開始對戰
+          {t('title.startCumulus')}
         </button>
         {onTheme && (
           <div style={{ marginTop: 18 }}>
@@ -209,7 +212,7 @@ export function TitleScreen({ onStart, onTheme }: Props) {
                 cursor: 'pointer',
               }}
             >
-              🎨 切換主題
+              {t('title.switchThemeCumulus')}
             </button>
           </div>
         )}
@@ -225,7 +228,7 @@ export function TitleScreen({ onStart, onTheme }: Props) {
             textTransform: 'uppercase',
           }}
         >
-          DOF LAB · 國立勤益科技大學
+          {t('title.lab')}
         </div>
       </div>
     </div>

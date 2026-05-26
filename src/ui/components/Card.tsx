@@ -7,7 +7,7 @@
 import { forwardRef } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { CARDS } from '../../core/cards';
-import { cardName } from '../../i18n';
+import { cardName, t } from '../../i18n';
 import { useTheme } from '../theme/ThemeContext';
 import { pickIcon, StripedPlaceholder } from '../icons';
 import { getTypeColor, TYPE_META } from '../styles/themes';
@@ -181,7 +181,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(props, r
         >
           {mw !== undefined && <span>⚡{mw}MW</span>}
           {drop !== undefined && <span style={{ color: '#a8453a' }}>-{drop}%</span>}
-          {duration !== undefined && <span style={{ color: '#6e4a18' }}>{duration}回</span>}
+          {duration !== undefined && <span style={{ color: '#6e4a18' }}>{t('card.duration').replace('{n}', String(duration))}</span>}
         </div>
         {/* 稀有度 */}
         <div
@@ -310,7 +310,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(props, r
       <div style={{ display: 'flex', justifyContent: 'center', gap: 6, fontSize: 10, marginTop: 4 }}>
         {mw !== undefined && <span style={{ color: '#3aa7c8', fontWeight: 700 }}>⚡{mw}MW</span>}
         {drop !== undefined && <span style={{ color: '#a8453a', fontWeight: 700 }}>-{drop}%</span>}
-        {duration !== undefined && <span style={{ color: '#a87a2a', fontWeight: 600 }}>{duration}回</span>}
+        {duration !== undefined && <span style={{ color: '#a87a2a', fontWeight: 600 }}>{t('card.duration').replace('{n}', String(duration))}</span>}
       </div>
       {/* 稀有度（最多 5 顆，傳奇用金色）*/}
       <div style={{ display: 'flex', justifyContent: 'center', gap: 1, marginTop: 'auto', fontSize: 9 }}>

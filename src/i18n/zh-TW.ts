@@ -74,6 +74,28 @@ export const zhTW = {
   'topbar.theme': '主題',
   'topbar.restart': '重新開始',
   'topbar.title': '返回主選單',
+  // ── ThemeSwitcher ─────────────────────────────────────────
+  'theme.title': '切換主題',
+  'theme.subtitle': '偏好會自動記住',
+  'theme.cumulus.desc': '現代極簡 · 天空藍 / 沙金',
+  'theme.tideboard.desc': '古典桌遊 · 木質暖棕 / 黃銅',
+  'theme.active': '使用中',
+  'theme.close': '關閉',
+  // ── HoverPreview ─────────────────────────────────────────
+  'card.cost': '費用 {n}',
+  'card.iecCost': 'IEC {iec} · 費用 {n}',
+  // ── Hand ─────────────────────────────────────────────────
+  'hand.empty': '手牌空',
+  // ── Card ─────────────────────────────────────────────────
+  'card.duration': '{n}回',
+  // ── TitleScreen ──────────────────────────────────────────
+  'title.tagline': '風場運維策略卡牌 · 12 回合決勝負',
+  'title.startTideboard': '開始航行',
+  'title.switchTheme': '切換主題',
+  'title.lab': 'DOF LAB · 國立勤益科技大學',
+  'title.gameName': '風場大戰',
+  'title.startCumulus': '開始對戰',
+  'title.switchThemeCumulus': '🎨 切換主題',
 } as const;
 
 export type MessageKey = keyof typeof zhTW;

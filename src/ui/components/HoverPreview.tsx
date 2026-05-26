@@ -1,7 +1,8 @@
 // 手牌 hover 預覽：在卡片上方顯示能力描述（從 i18n 抓中文文案）。
 import { CARDS } from '../../core/cards';
-import { cardName, cardFlavor, abilityName, abilityDesc } from '../../i18n';
+import { cardName, cardFlavor, abilityName, abilityDesc, t } from '../../i18n';
 import { useTheme } from '../theme/ThemeContext';
+import { useLocale } from '../locale/LocaleContext';
 import { getTypeColor } from '../styles/themes';
 import { pickIcon } from '../icons';
 import type { CardType } from '../styles/themes';
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function HoverPreview({ cardId }: Props) {
+  useLocale(); // 訂閱語言切換，觸發重新渲染
   const card = CARDS[cardId];
   const { theme, themeKey } = useTheme();
   if (!card) return null;
@@ -45,7 +47,9 @@ export function HoverPreview({ cardId }: Props) {
           <div>
             <div style={{ fontSize: 14, fontWeight: 700 }}>{name}</div>
             <div style={{ fontSize: 10, color: '#6e4a18', fontStyle: 'italic' }}>
-              {card.iec ? `IEC ${card.iec} · ` : ''}費用 {card.cost}
+              {card.iec
+                ? t('card.iecCost').replace('{iec}', String(card.iec)).replace('{n}', String(card.cost))
+                : t('card.cost').replace('{n}', String(card.cost))}
             </div>
           </div>
         </div>
@@ -119,7 +123,9 @@ export function HoverPreview({ cardId }: Props) {
         <div>
           <div style={{ fontSize: 13, fontWeight: 700 }}>{name}</div>
           <div style={{ fontSize: 10, color: '#6a7888' }}>
-            {card.iec ? `IEC ${card.iec} · ` : ''}費用 {card.cost}
+            {card.iec
+              ? t('card.iecCost').replace('{iec}', String(card.iec)).replace('{n}', String(card.cost))
+              : t('card.cost').replace('{n}', String(card.cost))}
           </div>
         </div>
       </div>

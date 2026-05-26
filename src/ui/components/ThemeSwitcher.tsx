@@ -2,12 +2,15 @@
 import { useTheme } from '../theme/ThemeContext';
 import { THEMES } from '../styles/themes';
 import type { ThemeKey } from '../styles/themes';
+import { t } from '../../i18n';
+import { useLocale } from '../locale/LocaleContext';
 
 interface Props {
   readonly onClose: () => void;
 }
 
 export function ThemeSwitcher({ onClose }: Props) {
+  useLocale(); // 訂閱語言切換，觸發重新渲染
   const { themeKey, setTheme } = useTheme();
   const select = (k: ThemeKey) => {
     setTheme(k);
@@ -40,11 +43,11 @@ export function ThemeSwitcher({ onClose }: Props) {
           boxShadow: '0 24px 60px rgba(0,0,0,0.4)',
         }}
       >
-        <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, marginBottom: 4 }}>切換主題</h2>
-        <p style={{ fontSize: 12, color: '#6a7888', margin: 0, marginBottom: 16 }}>偏好會自動記住</p>
+        <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, marginBottom: 4 }}>{t('theme.title')}</h2>
+        <p style={{ fontSize: 12, color: '#6a7888', margin: 0, marginBottom: 16 }}>{t('theme.subtitle')}</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           {(['cumulus', 'tideboard'] as const).map((k) => {
-            const t = THEMES[k];
+            const theme = THEMES[k];
             const active = themeKey === k;
             return (
               <button
@@ -58,15 +61,15 @@ export function ThemeSwitcher({ onClose }: Props) {
                   border: active ? '2px solid #3aa7c8' : '1px solid rgba(28,42,58,0.1)',
                   background: k === 'cumulus' ? 'linear-gradient(180deg,#d8ecf4,#f4e9dc)' : 'linear-gradient(180deg,#b5997a,#6b5240)',
                   color: k === 'cumulus' ? '#1c2a3a' : '#f4e8d0',
-                  fontFamily: t.fontUI,
+                  fontFamily: theme.fontUI,
                   textAlign: 'left',
                   cursor: 'pointer',
                   minHeight: 120,
                 }}
               >
-                <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>{t.name}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>{theme.name}</div>
                 <div style={{ fontSize: 11, opacity: 0.85 }}>
-                  {k === 'cumulus' ? '現代極簡 · 天空藍 / 沙金' : '古典桌遊 · 木質暖棕 / 黃銅'}
+                  {k === 'cumulus' ? t('theme.cumulus.desc') : t('theme.tideboard.desc')}
                 </div>
                 {active && (
                   <div
@@ -82,7 +85,7 @@ export function ThemeSwitcher({ onClose }: Props) {
                       fontWeight: 700,
                     }}
                   >
-                    使用中
+                    {t('theme.active')}
                   </div>
                 )}
               </button>
@@ -104,7 +107,7 @@ export function ThemeSwitcher({ onClose }: Props) {
               color: '#1c2a3a',
             }}
           >
-            關閉
+            {t('theme.close')}
           </button>
         </div>
       </div>

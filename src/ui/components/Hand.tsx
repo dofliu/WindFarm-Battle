@@ -13,6 +13,8 @@ import { canPlayCard } from '../../core/actions';
 import { Card } from './Card';
 import { HoverPreview } from './HoverPreview';
 import { useTheme } from '../theme/ThemeContext';
+import { useLocale } from '../locale/LocaleContext';
+import { t } from '../../i18n';
 import { viewportToStage } from '../stage/Stage';
 
 export interface DragInfo {
@@ -43,6 +45,7 @@ export function Hand({
   cardSize = 138,
   onDragStateChange,
 }: HandProps) {
+  useLocale(); // 訂閱語言切換，觸發重新渲染
   const { theme } = useTheme();
   const me = state.players[0];
   const [dragInfo, setDragInfo] = useState<DragInfo | null>(null);
@@ -102,7 +105,7 @@ export function Hand({
             borderRadius: 12,
           }}
         >
-          手牌空
+          {t('hand.empty')}
         </div>
       )}
       {me.hand.map((cardId, i) => {
