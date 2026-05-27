@@ -50,7 +50,7 @@
 ### 🤖 如果繼續 coding，可做的事
 
 - [x] **卡牌批次匯出 PDF**（Sprint 4 CardExporter）：`html2canvas` + `jsPDF`，A4 每頁 3×3，進度條，依過濾條件命名檔案，root.unmount 清理，匯出失敗錯誤 UI（commits e8f6942, afeffd2）
-- App icon / splash screen（Capacitor 設定）
+- [x] **App icon / splash screen**：以 Python Pillow 繪製風力發電機主題圖示（深藍背景 + 金色光暈 + 白色風力機），產生 Android 全部 DPI 規格（mdpi/hdpi/xhdpi/xxhdpi/xxxhdpi）的 ic_launcher / ic_launcher_round / ic_launcher_foreground，以及各方向 splash（直向/橫向 全部替換）；新增 `scripts/generate_icons.py`
 - [x] **英文版 i18n**：`en.ts` + `cards.en.ts` + `LocaleContext` + `LocaleSwitcher`，標題畫面已有 ZH/EN 切換按鈕，50 張卡完整英文文案，t() 支援多語言回退
 - [x] **戰鬥畫面全面 i18n**：BattleScreen / SideLabel / BattleCenter / RoundSummaryToast / LibraryModal / GameOverScreen 所有硬編碼中文字串全部接入 t()，語言切換在整個遊戲中生效
 - [x] **TopBar 完整 i18n**：難度選項（簡單/普通/困難↔Easy/Normal/Hard）、按鈕標籤、副標題全部接入 t()，並在 TopBar 加入 LocaleSwitcher，進行中可隨時切換語言；同步更新測試以配合新 key
@@ -134,6 +134,6 @@
 
 ---
 
-**文件版本**：v3.5（全專案 i18n 100% 完成）
-**最後更新**：2026-05-27
-**狀態**：React 重構完成，CardExporter 完成，全專案 i18n 100% 完成（所有元件全部接入 t()），待 Android Studio 實機測試 + 學生試玩
+**文件版本**：v3.6（App icon / splash 完成）
+**最後更新**：2026-05-28
+**狀態**：React 重構完成，CardExporter 完成，全專案 i18n 100% 完成，App icon / splash 完成，待 Android Studio 實機測試 + 學生試玩
