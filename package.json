@@ -16,7 +16,8 @@
     "simulate": "npx vite-node scripts/simulate.ts --",
     "cap:build": "npm run build && npx cap sync",
     "cap:android": "npm run build && npx cap sync android && npx cap open android",
-    "cap:ios": "npm run build && npx cap sync ios && npx cap open ios"
+    "cap:ios": "npm run build && npx cap sync ios && npx cap open ios",
+    "deploy": "npm run build && gh-pages -d dist -b gh-pages"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",
@@ -40,6 +41,7 @@
     "autoprefixer": "^10.4.19",
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.2",
+    "gh-pages": "^6.3.0",
     "jsdom": "^24.1.0",
     "postcss": "^8.4.38",
     "prettier": "^3.3.2",
