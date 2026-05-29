@@ -65,6 +65,12 @@ export const zhTW = {
   'gameover.stat.rounds': '📅 完成回合',
   'gameover.restart': '再戰一回',
   'gameover.title': '返回',
+  'gameover.export.label': '研究遙測 對局記錄',
+  'gameover.export.json': '下載 JSON',
+  'gameover.export.csv': '下載 CSV',
+  'gameover.export.jsonOk': '✓ JSON 已下載',
+  'gameover.export.csvOk': '✓ CSV 已下載',
+  'gameover.export.error': '✗ 匹出失敗，請重試',
   // ── TopBar ───────────────────────────────────────────────
   'topbar.difficulty.easy': '簡單',
   'topbar.difficulty.medium': '普通',

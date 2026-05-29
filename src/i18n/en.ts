@@ -65,6 +65,12 @@ export const en = {
   'gameover.stat.rounds': '📅 Rounds Completed',
   'gameover.restart': 'Play Again',
   'gameover.title': 'Main Menu',
+  'gameover.export.label': 'Research Telemetry · Game Record',
+  'gameover.export.json': 'Download JSON',
+  'gameover.export.csv': 'Download CSV',
+  'gameover.export.jsonOk': '✓ JSON downloaded',
+  'gameover.export.csvOk': '✓ CSV downloaded',
+  'gameover.export.error': '✗ Export failed, please retry',
   // ── TopBar ───────────────────────────────────────────────
   'topbar.difficulty.easy': 'Easy',
   'topbar.difficulty.medium': 'Normal',

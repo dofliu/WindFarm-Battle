@@ -109,6 +109,9 @@ interface GameStore {
   lastAiActions: GameEvent[];
   clearLastAiActions: () => void;
 
+  /** 本局開始時間（遙測用） */
+  gameStartedAt: Date;
+
   // 動作
   newGame: (seed?: number) => void;
   /** 嘗試出牌；fault 卡若未指定 target 會切到「挑目標」模式 */
@@ -259,6 +262,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   lastAiActions: [],
   effects: [],
   windRolling: false,
+  gameStartedAt: new Date(),
 
   pushEffect: (type, target, durationMs = 900) => {
     const id = _nextEffectId();
@@ -276,7 +280,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   newGame: (seed = Date.now() & 0xffffffff) => {
     const { difficulty } = get();
     const fresh = makeInitialStoreState(seed, difficulty);
-    set({ ...fresh, pendingFaultHandIdx: null, pendingReplaceHandIdx: null, hasDiscarded: false, isAiThinking: false, lastRoundScore: null, lastAiActions: [], effects: [], windRolling: false });
+    set({ ...fresh, pendingFaultHandIdx: null, pendingReplaceHandIdx: null, hasDiscarded: false, isAiThinking: false, lastRoundScore: null, lastAiActions: [], effects: [], windRolling: false, gameStartedAt: new Date() });
   },
 
   playCard: (handIdx, options) => {

@@ -1,4 +1,5 @@
 // 遊戲結束畫面（兩主題）
+import { useState } from 'react';
 import { useTheme } from '../theme/ThemeContext';
 import { ThemeBackground } from '../effects/ThemeBackground';
 import { CountUp } from '../effects/CountUp';
@@ -6,6 +7,8 @@ import { Compass } from '../icons';
 import type { GameState } from '../../core/types';
 import { t } from '../../i18n';
 import { useLocale } from '../locale/LocaleContext';
+import { useGameStore } from '../../store/game-store';
+import { extractGameRecord, downloadGameRecordJson, downloadGameRecordCsv } from '../../core/telemetry';
 
 interface Props {
   readonly state: GameState;
@@ -16,6 +19,11 @@ interface Props {
 export function GameOverScreen({ state, onRestart, onTitle }: Props) {
   const { theme, themeKey } = useTheme();
   useLocale(); // 訂閱語言切換，觸發重新渲染
+  const events = useGameStore(s => s.events);
+  const difficulty = useGameStore(s => s.difficulty);
+  const gameStartedAt = useGameStore(s => s.gameStartedAt);
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
+
   const me = state.players[0];
   const opp = state.players[1];
   const winner = me.score > opp.score ? 'me' : me.score < opp.score ? 'ai' : 'draw';
@@ -30,6 +38,28 @@ export function GameOverScreen({ state, onRestart, onTitle }: Props) {
     [t('gameover.stat.faults'), opp.turbines.reduce((s, tu) => s + tu.faults.length, 0)],
     [t('gameover.stat.rounds'), state.round],
   ];
+
+  function handleExportJson() {
+    try {
+      const record = extractGameRecord(events, state, difficulty, gameStartedAt);
+      downloadGameRecordJson(record);
+      setExportMsg(t('gameover.export.jsonOk'));
+    } catch {
+      setExportMsg(t('gameover.export.error'));
+    }
+    setTimeout(() => setExportMsg(null), 3000);
+  }
+
+  function handleExportCsv() {
+    try {
+      const record = extractGameRecord(events, state, difficulty, gameStartedAt);
+      downloadGameRecordCsv(record);
+      setExportMsg(t('gameover.export.csvOk'));
+    } catch {
+      setExportMsg(t('gameover.export.error'));
+    }
+    setTimeout(() => setExportMsg(null), 3000);
+  }
 
   return (
     <div
@@ -185,6 +215,76 @@ export function GameOverScreen({ state, onRestart, onTitle }: Props) {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* 遙測匯出區 */}
+          <div
+            style={{
+              marginTop: 16,
+              paddingTop: 14,
+              borderTop: themeKey === 'tideboard' ? '1px solid rgba(200,152,72,0.3)' : '1px solid rgba(28,42,58,0.08)',
+            }}
+          >
+            <div
+              style={{
+                fontSize: 10,
+                color: themeKey === 'tideboard' ? '#c89848' : '#6a7888',
+                letterSpacing: '0.15em',
+                textTransform: 'uppercase',
+                marginBottom: 10,
+              }}
+            >
+              {t('gameover.export.label')}
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={handleExportJson}
+                style={{
+                  padding: '6px 14px',
+                  background: 'transparent',
+                  color: themeKey === 'tideboard' ? '#c89848' : theme.textSecondary,
+                  border: `1px solid ${themeKey === 'tideboard' ? 'rgba(200,152,72,0.5)' : 'rgba(28,42,58,0.2)'}`,
+                  borderRadius: themeKey === 'tideboard' ? 2 : 8,
+                  fontFamily: theme.fontUI,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: '0.05em',
+                  cursor: 'pointer',
+                }}
+              >
+                {t('gameover.export.json')}
+              </button>
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                style={{
+                  padding: '6px 14px',
+                  background: 'transparent',
+                  color: themeKey === 'tideboard' ? '#c89848' : theme.textSecondary,
+                  border: `1px solid ${themeKey === 'tideboard' ? 'rgba(200,152,72,0.5)' : 'rgba(28,42,58,0.2)'}`,
+                  borderRadius: themeKey === 'tideboard' ? 2 : 8,
+                  fontFamily: theme.fontUI,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: '0.05em',
+                  cursor: 'pointer',
+                }}
+              >
+                {t('gameover.export.csv')}
+              </button>
+            </div>
+            {exportMsg && (
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 11,
+                  color: themeKey === 'tideboard' ? '#a8d8a8' : theme.success,
+                }}
+              >
+                {exportMsg}
+              </div>
+            )}
           </div>
         </div>
 
