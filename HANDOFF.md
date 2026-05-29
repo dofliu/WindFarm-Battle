@@ -56,6 +56,7 @@
 - [x] **戰鬥畫面全面 i18n**：BattleScreen / SideLabel / BattleCenter / RoundSummaryToast / LibraryModal / GameOverScreen 所有硬編碼中文字串全部接入 t()，語言切換在整個遊戲中生效
 - [x] **TopBar 完整 i18n**：難度選項（簡單/普通/困難↔Easy/Normal/Hard）、按鈕標籤、副標題全部接入 t()，並在 TopBar 加入 LocaleSwitcher，進行中可隨時切換語言；同步更新測試以配合新 key
 - [x] **全專案 i18n 100% 完成**：ThemeSwitcher、HoverPreview、Hand、Card、TitleScreen 所有殘餘硬編碼中文字串全部接入 t()；新增 14 個 i18n key（theme.*、card.*、hand.*、title.*）
+- [x] **PWA 支援**：`vite-plugin-pwa` + Web App Manifest + Workbox Service Worker；支援「加入主畫面」（Android Chrome / iOS Safari）；4 個 PWA icon（192/512px × 一般/maskable）；build 產出 `sw.js` + `workbox-*.js` + `manifest.webmanifest`，預快取 13 個靜態資源（435KB）；index.html 加入 Apple PWA meta 標籤
 
 ---
 
@@ -135,6 +136,6 @@
 
 ---
 
-**文件版本**：v3.7（iOS icon / splash 完成）
+**文件版本**：v3.8（PWA 支援完成）
 **最後更新**：2026-05-29
-**狀態**：React 重構完成，CardExporter 完成，全專案 i18n 100% 完成，Android + iOS icon / splash 全部完成，待實機測試 + 學生試玩
+**狀態**：React 重構完成，CardExporter 完成，全專案 i18n 100% 完成，Android + iOS icon / splash 全部完成，PWA 支援完成，待實機測試 + 學生試玩
