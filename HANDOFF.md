@@ -57,6 +57,7 @@
 - [x] **TopBar 完整 i18n**：難度選項（簡單/普通/困難↔Easy/Normal/Hard）、按鈕標籤、副標題全部接入 t()，並在 TopBar 加入 LocaleSwitcher，進行中可隨時切換語言；同步更新測試以配合新 key
 - [x] **全專案 i18n 100% 完成**：ThemeSwitcher、HoverPreview、Hand、Card、TitleScreen 所有殘餘硬編碼中文字串全部接入 t()；新增 14 個 i18n key（theme.*、card.*、hand.*、title.*）
 - [x] **PWA 支援**：`vite-plugin-pwa` + Web App Manifest + Workbox Service Worker；支援「加入主畫面」（Android Chrome / iOS Safari）；4 個 PWA icon（192/512px × 一般/maskable）；build 產出 `sw.js` + `workbox-*.js` + `manifest.webmanifest`，預快取 13 個靜態資源（435KB）；index.html 加入 Apple PWA meta 標籤
+- [x] **遙測批次分析腳本**：`scripts/analyze_telemetry.py`，讀取 `data/telemetry/*.json` 批次分析多場對局；自動計算勝率/分數/回合數統計、逐回合分數趨勢、卡牌類別分布、Top 10 使用卡牌、冷門卡清單；終端機摘要 + 輸出 `reports/telemetry_report_YYYYMMDD.md` Markdown 研究報告；附 10 筆測試資料（`data/telemetry/test_*.json`）
 - [x] **對局遙測系統**：`src/core/telemetry.ts`，從 `events[]` 提取結構化 `GameRecord`（對局 ID、難度、勝敗、逐回合出牌序列、分數、出牌頻率）；`GameOverScreen` 加入「研究遙測」區塊，提供「下載 JSON」和「下載 CSV」兩個按鈕；`game-store` 加入 `gameStartedAt` 記錄開局時間；兩語匹出提示文字（zh-TW / en）
 - [x] **GitHub Pages 自動部署**：`.github/workflows/deploy.yml` GitHub Actions 工作流程（push main 自動觸發）；`npm run deploy` 手動部署備用；`public/.nojekyll` 確保 Vite `_assets` 目錄可存取。❗ **需手動到 GitHub 設定頁面啟用 Pages：** Settings → Pages → Source 選 **GitHub Actions**，完成後網址為 `https://dofliu.github.io/WindFarm-Battle/`
 
@@ -138,6 +139,6 @@
 
 ---
 
-**文件版本**：v4.0（對局遙測系統完成）
-**最後更新**：2026-05-30
-**狀態**：React 重構完成，CardExporter 完成，全專案 i18n 100% 完成，Android + iOS icon / splash 全部完成，PWA 支援完成，GitHub Pages CI/CD 完成，對局遙測系統完成，待手動啟用 Pages + 實機測試 + 學生試玩
+**文件版本**：v4.1（遙測批次分析腳本完成）
+**最後更新**：2026-05-31
+**狀態**：React 重構完成，CardExporter 完成，全專案 i18n 100% 完成，Android + iOS icon / splash 全部完成，PWA 支援完成，GitHub Pages CI/CD 完成，對局遙測系統完成，遙測批次分析腳本完成，待手動啟用 Pages + 實機測試 + 學生試玩

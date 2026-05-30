@@ -1,0 +1,163 @@
+{
+  "version": "1.0",
+  "gameId": "wfb-1780140160-0046",
+  "startedAt": "2026-05-30T10:00:00.000Z",
+  "finishedAt": "2026-05-30T15:30:00.000Z",
+  "difficulty": "normal",
+  "winner": "ai",
+  "p0FinalScore": 201,
+  "p1FinalScore": 221,
+  "totalRounds": 8,
+  "rounds": [
+    {
+      "round": 1,
+      "windLabel": "中風",
+      "p0Cards": [
+        "M03",
+        "T01"
+      ],
+      "p1Cards": [
+        "M03"
+      ],
+      "p0Total": 19,
+      "p1Total": 30,
+      "p0Mwh": 19,
+      "p1Mwh": 30
+    },
+    {
+      "round": 2,
+      "windLabel": "強風",
+      "p0Cards": [
+        "M04",
+        "W01",
+        "T02"
+      ],
+      "p1Cards": [
+        "M04",
+        "T02"
+      ],
+      "p0Total": 55,
+      "p1Total": 59,
+      "p0Mwh": 36,
+      "p1Mwh": 29
+    },
+    {
+      "round": 3,
+      "windLabel": "強風",
+      "p0Cards": [
+        "M05",
+        "T02"
+      ],
+      "p1Cards": [
+        "M02",
+        "C01"
+      ],
+      "p0Total": 85,
+      "p1Total": 69,
+      "p0Mwh": 30,
+      "p1Mwh": 10
+    },
+    {
+      "round": 4,
+      "windLabel": "中風",
+      "p0Cards": [
+        "M03",
+        "M01"
+      ],
+      "p1Cards": [
+        "T03",
+        "M02"
+      ],
+      "p0Total": 96,
+      "p1Total": 92,
+      "p0Mwh": 11,
+      "p1Mwh": 23
+    },
+    {
+      "round": 5,
+      "windLabel": "強風",
+      "p0Cards": [
+        "M03"
+      ],
+      "p1Cards": [
+        "F01",
+        "M04"
+      ],
+      "p0Total": 121,
+      "p1Total": 125,
+      "p0Mwh": 25,
+      "p1Mwh": 33
+    },
+    {
+      "round": 6,
+      "windLabel": "低風",
+      "p0Cards": [
+        "F01"
+      ],
+      "p1Cards": [
+        "M01",
+        "M05"
+      ],
+      "p0Total": 150,
+      "p1Total": 158,
+      "p0Mwh": 29,
+      "p1Mwh": 33
+    },
+    {
+      "round": 7,
+      "windLabel": "強風",
+      "p0Cards": [
+        "M02",
+        "M04"
+      ],
+      "p1Cards": [
+        "F02"
+      ],
+      "p0Total": 164,
+      "p1Total": 196,
+      "p0Mwh": 14,
+      "p1Mwh": 38
+    },
+    {
+      "round": 8,
+      "windLabel": "強風",
+      "p0Cards": [
+        "C01"
+      ],
+      "p1Cards": [
+        "T02",
+        "M02"
+      ],
+      "p0Total": 201,
+      "p1Total": 221,
+      "p0Mwh": 37,
+      "p1Mwh": 25
+    }
+  ],
+  "p0TotalCardsPlayed": 14,
+  "p1TotalCardsPlayed": 14,
+  "p0CardFrequency": {
+    "M03": 3,
+    "T01": 1,
+    "M04": 2,
+    "W01": 1,
+    "T02": 2,
+    "M05": 1,
+    "M01": 1,
+    "F01": 1,
+    "M02": 1,
+    "C01": 1
+  },
+  "p1CardFrequency": {
+    "M03": 1,
+    "M04": 2,
+    "T02": 2,
+    "M02": 3,
+    "C01": 1,
+    "T03": 1,
+    "F01": 1,
+    "M01": 1,
+    "M05": 1,
+    "F02": 1
+  }
+}
