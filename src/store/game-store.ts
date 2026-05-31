@@ -226,14 +226,17 @@ function makeInitialStoreState(seed: number, difficulty: Difficulty) {
  * 從 events 推導出該觸發哪些一次性視覺特效（fault / repair）。
  * - fault-applied/cascaded：在目標機組上播放故障閃光
  * - fault-repaired：在被修復的機組上播放修復星光
- * player 欄位 = 「動作執行者」；故障目標是對手陣地。
+ *
+ * 注意：rules-engine 中 fault-applied.player = oppId（受害者的 side = 1 - attacker），
+ * 因此這裡直接用 e.player 作為 targetSide，不需再做 1- 翻轉。
+ * 若再翻轉一次，特效會出現在攻擊者自己的卡牌上（bug）。
  */
 function _deriveEffects(events: GameEvent[]): Array<{ type: 'fault' | 'repair'; side: 0 | 1; slot: number; cardId?: string }> {
   const out: Array<{ type: 'fault' | 'repair'; side: 0 | 1; slot: number; cardId?: string }> = [];
   for (const e of events) {
     if (e.kind === 'fault-applied' || e.kind === 'fault-cascaded') {
-      const targetSide = (1 - e.player) as 0 | 1; // 故障施加給對手
-      out.push({ type: 'fault', side: targetSide, slot: e.targetIdx, cardId: e.cardId });
+      // fault-applied.player = oppId（受害者），直接用作 targetSide
+      out.push({ type: 'fault', side: e.player as 0 | 1, slot: e.targetIdx, cardId: e.cardId });
     } else if (e.kind === 'fault-repaired') {
       // 修復對象 = 該玩家自己的機組
       out.push({ type: 'repair', side: e.player, slot: e.targetIdx, cardId: e.cardId });

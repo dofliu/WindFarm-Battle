@@ -94,6 +94,14 @@ export const en = {
   'hand.empty': 'Empty Hand',
   // ── Card ─────────────────────────────────────────────────
   'card.duration': '{n} rnd',
+  // ── Turbine Tooltip ─────────────────────────────────────
+  'turbine.effAvail': 'Eff. Avail.',
+  'turbine.mw': 'MW',
+  'turbine.faultLabel': 'Faults',
+  'turbine.noFaults': 'No Faults',
+  'turbine.roundsLeft': '{n} rnd left',
+  'turbine.drop': '-{n}%',
+  'turbine.shutdown': 'Emergency Shutdown',
   // ── TitleScreen ──────────────────────────────────────────
   'title.tagline': 'Wind O&M Strategy Card Game · 12 Rounds',
   'title.startTideboard': 'Set Sail',

@@ -4,11 +4,175 @@
 //   - Tideboard：六角黃銅徽章 + 名牌
 // 故障 / 修復 / 目標鎖定的視覺也在這裡。
 // ============================================================
+import { useState } from 'react';
 import { CARDS } from '../../core/cards';
-import { cardName } from '../../i18n';
+import { cardName, t } from '../../i18n';
+import { useLocale } from '../locale/LocaleContext';
 import type { DeployedTurbine } from '../../core/types';
 import { useTheme } from '../theme/ThemeContext';
 import { pickIcon, StripedPlaceholder, PowerBolt, TurbineOnshore, Crosshair } from '../icons';
+
+// ── TurbineHoverTooltip ──────────────────────────────────────────────────────────────────────────────
+interface TooltipProps {
+  readonly turbine: DeployedTurbine;
+  readonly themeKey: string;
+  readonly fontUI: string;
+}
+
+function TurbineHoverTooltip({ turbine, themeKey, fontUI }: TooltipProps) {
+  const card = CARDS[turbine.cardId];
+  if (!card) return null;
+  const baseMW = (card.stats?.mw ?? 0) + turbine.mwBonus;
+  const dropTotal = turbine.faults.reduce((s, f) => s + f.drop, 0);
+  const eff = Math.max(0, turbine.avail - dropTotal);
+  const name = cardName(turbine.cardId) || turbine.cardId;
+  const hasFaults = turbine.faults.length > 0;
+  const shutdown = !!turbine.shutdown;
+  const effColor = eff > 70 ? '#3a8a5e' : eff > 40 ? '#a87a2a' : '#a8453a';
+
+  if (themeKey === 'tideboard') {
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 'calc(100% + 10px)',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 220,
+          padding: 12,
+          zIndex: 200,
+          background: 'linear-gradient(180deg, #f0e0c0, #d8c098)',
+          border: '2px solid #c89848',
+          boxShadow: '0 16px 40px rgba(0,0,0,0.45)',
+          color: '#3d2a1e',
+          fontFamily: 'Georgia, serif',
+          pointerEvents: 'none',
+          animation: 'wf-fade-in 0.15s ease-out both',
+        }}
+      >
+        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, borderBottom: '1px solid rgba(110,74,24,0.4)', paddingBottom: 6 }}>
+          {name}
+        </div>
+        {shutdown && (
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#a8453a', marginBottom: 6, letterSpacing: '0.08em' }}>
+            ⚠ {t('turbine.shutdown')}
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 6 }}>
+          <span style={{ color: '#6e4a18' }}>{t('turbine.effAvail')}</span>
+          <span style={{ fontWeight: 700, color: effColor }}>{eff}%</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 8 }}>
+          <span style={{ color: '#6e4a18' }}>{t('turbine.mw')}</span>
+          <span style={{ fontWeight: 700 }}>{baseMW}</span>
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#6e4a18', marginBottom: 4 }}>
+          {hasFaults ? t('turbine.faultLabel') : t('turbine.noFaults')}
+        </div>
+        {hasFaults && turbine.faults.map((f, i) => {
+          const fc = CARDS[f.cardId];
+          const FIcon = pickIcon(fc?.icon, 'fault');
+          const fName = cardName(f.cardId) || f.cardId;
+          return (
+            <div
+              key={`${f.cardId}-${i}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '4px 6px',
+                marginBottom: 3,
+                background: 'rgba(217,108,90,0.15)',
+                border: '1px solid rgba(217,108,90,0.3)',
+              }}
+            >
+              <FIcon size={10} stroke="#a8453a" />
+              <span style={{ flex: 1, fontSize: 10 }}>{fName}</span>
+              <span style={{ fontSize: 10, color: '#a8453a', fontWeight: 700 }}>
+                {t('turbine.drop').replace('{n}', String(f.drop))}
+              </span>
+              <span style={{ fontSize: 9, color: '#6e4a18' }}>
+                {t('turbine.roundsLeft').replace('{n}', String(f.roundsLeft))}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Cumulus tooltip
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        bottom: 'calc(100% + 10px)',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: 220,
+        padding: 12,
+        zIndex: 200,
+        background: '#fff',
+        borderRadius: 12,
+        boxShadow: '0 16px 40px rgba(28,42,58,0.22)',
+        border: '1px solid rgba(28,42,58,0.08)',
+        color: '#1c2a3a',
+        fontFamily: fontUI,
+        pointerEvents: 'none',
+        animation: 'wf-fade-in 0.15s ease-out both',
+      }}
+    >
+      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, borderBottom: '1px solid rgba(28,42,58,0.08)', paddingBottom: 6 }}>
+        {name}
+      </div>
+      {shutdown && (
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#a8453a', marginBottom: 6 }}>
+          ⚠ {t('turbine.shutdown')}
+        </div>
+      )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
+        <span style={{ color: '#6a7888' }}>{t('turbine.effAvail')}</span>
+        <span style={{ fontWeight: 700, color: effColor }}>{eff}%</span>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 8 }}>
+        <span style={{ color: '#6a7888' }}>{t('turbine.mw')}</span>
+        <span style={{ fontWeight: 700 }}>{baseMW}</span>
+      </div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#6a7888', marginBottom: 4 }}>
+        {hasFaults ? t('turbine.faultLabel') : t('turbine.noFaults')}
+      </div>
+      {hasFaults && turbine.faults.map((f, i) => {
+        const fc = CARDS[f.cardId];
+        const FIcon = pickIcon(fc?.icon, 'fault');
+        const fName = cardName(f.cardId) || f.cardId;
+        return (
+          <div
+            key={`${f.cardId}-${i}`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '4px 8px',
+              marginBottom: 3,
+              borderRadius: 6,
+              background: 'rgba(217,108,90,0.08)',
+              border: '1px solid rgba(217,108,90,0.18)',
+            }}
+          >
+            <FIcon size={10} stroke="#a8453a" />
+            <span style={{ flex: 1, fontSize: 10 }}>{fName}</span>
+            <span style={{ fontSize: 10, color: '#a8453a', fontWeight: 700 }}>
+              {t('turbine.drop').replace('{n}', String(f.drop))}
+            </span>
+            <span style={{ fontSize: 9, color: '#8a98a8' }}>
+              {t('turbine.roundsLeft').replace('{n}', String(f.roundsLeft))}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 interface Props {
   readonly turbine?: DeployedTurbine | null;
@@ -20,6 +184,8 @@ interface Props {
 
 export function Turbine({ turbine, empty, targeted, onClick }: Props) {
   const { theme, themeKey } = useTheme();
+  useLocale(); // 訂閱語言切換，觸發重新渲染
+  const [hovered, setHovered] = useState(false);
 
   if (empty || !turbine) {
     if (themeKey === 'tideboard') {
@@ -71,6 +237,8 @@ export function Turbine({ turbine, empty, targeted, onClick }: Props) {
         type="button"
         onClick={onClick}
         disabled={!onClick}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         style={{
           all: 'unset',
           position: 'relative',
@@ -85,6 +253,9 @@ export function Turbine({ turbine, empty, targeted, onClick }: Props) {
           opacity: shutdown ? 0.55 : 1,
         }}
       >
+        {hovered && (
+          <TurbineHoverTooltip turbine={turbine} themeKey={themeKey} fontUI={theme.fontUI} />
+        )}
         <div
           style={{
             position: 'absolute',
@@ -241,6 +412,8 @@ export function Turbine({ turbine, empty, targeted, onClick }: Props) {
       type="button"
       onClick={onClick}
       disabled={!onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         background: 'linear-gradient(180deg, #ffffff 0%, #c5dde8 100%)',
         border: targeted ? '3px solid #d96c5a' : isLegendary ? '3px solid #d9a85a' : '2.5px solid #2a5a78',
@@ -267,6 +440,9 @@ export function Turbine({ turbine, empty, targeted, onClick }: Props) {
         opacity: shutdown ? 0.55 : 1,
       }}
     >
+      {hovered && (
+        <TurbineHoverTooltip turbine={turbine} themeKey={themeKey} fontUI={theme.fontUI} />
+      )}
       {/* 藝術區 */}
       <div
         style={{

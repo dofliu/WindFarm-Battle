@@ -94,6 +94,14 @@ export const zhTW = {
   'hand.empty': '手牌空',
   // ── Card ─────────────────────────────────────────────────
   'card.duration': '{n}回',
+  // ── Turbine Tooltip ───────────────────────────────────────
+  'turbine.effAvail': '有效可用率',
+  'turbine.mw': 'MW',
+  'turbine.faultLabel': '故障中',
+  'turbine.noFaults': '無故障',
+  'turbine.roundsLeft': '剩 {n} 回',
+  'turbine.drop': '-{n}%',
+  'turbine.shutdown': '緊急停機',
   // ── TitleScreen ──────────────────────────────────────────
   'title.tagline': '風場運維策略卡牌 · 12 回合決勝負',
   'title.startTideboard': '開始航行',
