@@ -61,6 +61,19 @@
 - [x] **對局遙測系統**：`src/core/telemetry.ts`，從 `events[]` 提取結構化 `GameRecord`（對局 ID、難度、勝敗、逐回合出牌序列、分數、出牌頻率）；`GameOverScreen` 加入「研究遙測」區塊，提供「下載 JSON」和「下載 CSV」兩個按鈕；`game-store` 加入 `gameStartedAt` 記錄開局時間；兩語匹出提示文字（zh-TW / en）
 - [x] **GitHub Pages 自動部署**：`.github/workflows/deploy.yml` GitHub Actions 工作流程（push main 自動觸發）；`npm run deploy` 手動部署備用；`public/.nojekyll` 確保 Vite `_assets` 目錄可存取。❗ **需手動到 GitHub 設定頁面啟用 Pages：** Settings → Pages → Source 選 **GitHub Actions**，完成後網址為 `https://dofliu.github.io/WindFarm-Battle/`
 
+### 🎮 遊戲機制改善（2026-06-01 排入，按優先序執行）
+
+- [ ] 🔴 **特效方向 bug 修復**：`BattleScreen.tsx` 的 `renderEffects` 中 side 對應錯誤，故障特效出現在自己卡牌上而非對手卡牌上，需修正 `stateSide` 的對應邏輯
+- [ ] 🔴 **場上卡牌 hover 詳細資訊**：`Turbine.tsx` 元件加入 hover tooltip，顯示卡牌名稱、目前可用率、所有故障（嚴重度 + 剩餘回合）、MW 數值；同步更新 `SideLabel` 上的技師卡也可 hover 查看詳情
+- [ ] 🟡 **技師卡每回合出牌限制（一回合只能出一張）**：在 `PlayerState` 加入 `techPlayedThisRound: boolean`，`canPlayCard` 加入檢查，`endTurn` 時重置；對齊寶可夢 TCG 的支援者限制，防止節奏失控
+- [ ] 🟡 **故障數量上限（同台風機最多 2 個故障）**：`_applyFault` 加入判斷，若目標風機已有 2 個故障則第 3 個故障直接觸發「停機（shutdown）」而非疊加；防止無限疊加的不合理情況
+- [ ] 🟡 **每回合自動補牌到 4 張**：`rules-engine.ts` 的 `endTurn` 邏輯加入「補牌到 4 張」機制，防止手牌耗盡只能結束回合的無聊體驗
+- [ ] 🟠 **新增全場恢復強力卡（FN09 緊急大修）**：清除自家所有機組的所有故障，費用 3，每場限用 1 次；提供落後方翻盤機會；需更新 `cards.json`、`actions.ts`、i18n 文案
+- [ ] 🟠 **天氣卡加入「我方免疫」tag**：修改 W01-W04 的設計，讓打出天氣卡的一方有部分免疫或加成，使天氣卡成為主動策略而非隨機干擾
+- [ ] 🟠 **合約卡改為雙方攻防目標**：重新設計 C01-C04 的觸發邏輯，改為「雙方共享目標，先達成的人拿獎勵」，讓合約成為攻防焦點
+- [ ] 🔵 **AI 行為多樣化**：AI 目前永遠攻擊「對手最高 MW 機組」，需改寫 `ai/evaluator.ts` 加入多種策略（隨機目標選擇、優先攻擊無技師保護的機組、根據難度調整侵略性）
+- [ ] 🔵 **風機升級進化系統**：設計「升級卡」讓一階風機（M01-M04）可以進化為二階風機（M05-M09），類寶可夢進化機制；需新增卡牌類型和對應的 core 邏輯
+
 ---
 
 ## 🧠 重大決策紀錄
@@ -139,6 +152,6 @@
 
 ---
 
-**文件版本**：v4.1（遙測批次分析腳本完成）
-**最後更新**：2026-05-31
-**狀態**：React 重構完成，CardExporter 完成，全專案 i18n 100% 完成，Android + iOS icon / splash 全部完成，PWA 支援完成，GitHub Pages CI/CD 完成，對局遙測系統完成，遙測批次分析腳本完成，待手動啟用 Pages + 實機測試 + 學生試玩
+**文件版本**：v4.2（遊戲機制改善工作清單排入）
+**最後更新**：2026-06-01
+**狀態**：React 重構完成，CardExporter 完成，全專案 i18n 100% 完成，Android + iOS icon / splash 全部完成，PWA 支援完成，GitHub Pages CI/CD 完成，對局遙測系統完成，遙測批次分析腳本完成，遊戲機制改善工作清單已排入（待逐次執行），待手動啟用 Pages + 實機測試 + 學生試玩
