@@ -65,7 +65,7 @@
 
   - [x] 🔴 **特效方向 bug 修復**：`game-store.ts` 的 `_deriveEffects` 函式，`targetSide` 改為直接使用 `e.player as 0 | 1`，不再做 `1 - e.player` 翻轉（commit 包含在 v4.3）
   - [x] 🔴 **場上卡牌 hover 詳細資訊**：`Turbine.tsx` 加入 `TurbineHoverTooltip` 元件（兩主題），顯示卡牌名稱、有效可用率、故障列表（故障名 + 剩餘回合 + drop%）、MW 數值；新增 7 個 i18n key（turbine.*）；支援語言切換（commit 包含在 v4.3）
-- [ ] 🟡 **技師卡每回合出牌限制（一回合只能出一張）**：在 `PlayerState` 加入 `techPlayedThisRound: boolean`，`canPlayCard` 加入檢查，`endTurn` 時重置；對齊寶可夢 TCG 的支援者限制，防止節奏失控
+- [x] 🟡 **技師卡每回合出牌限制（一回合只能出一張）**：`PlayerState` 加入 `techPlayedThisRound: boolean`；`canPlayCard` 加入第二張技師卡鎖定；`_beginTurn` 時重置；新增 5 個測試（215 tests 全通過）（commit 包含在 v4.4）
 - [ ] 🟡 **故障數量上限（同台風機最多 2 個故障）**：`_applyFault` 加入判斷，若目標風機已有 2 個故障則第 3 個故障直接觸發「停機（shutdown）」而非疊加；防止無限疊加的不合理情況
 - [ ] 🟡 **每回合自動補牌到 4 張**：`rules-engine.ts` 的 `endTurn` 邏輯加入「補牌到 4 張」機制，防止手牌耗盡只能結束回合的無聊體驗
 - [ ] 🟠 **新增全場恢復強力卡（FN09 緊急大修）**：清除自家所有機組的所有故障，費用 3，每場限用 1 次；提供落後方翻盤機會；需更新 `cards.json`、`actions.ts`、i18n 文案
@@ -152,6 +152,6 @@
 
 ---
 
-**文件版本**：v4.3（特效方向 bug 修復 + Turbine hover 詳細資訊）
+**文件版本**：v4.4（技師卡每回合出牌限制）
 **最後更新**：2026-06-01
-**狀態**：React 重構完成，CardExporter 完成，全專案 i18n 100% 完成，Android + iOS icon / splash 全部完成，PWA 支援完成，GitHub Pages CI/CD 完成，對局遙測系統完成，遙測批次分析腳本完成，特效方向 bug 修復完成，Turbine hover 詳細資訊完成，待手動啟用 Pages + 實機測試 + 學生試玩
+**狀態**：React 重構完成，CardExporter 完成，全專案 i18n 100% 完成，Android + iOS icon / splash 全部完成，PWA 支援完成，GitHub Pages CI/CD 完成，對局遙測系統完成，遙測批次分析腳本完成，特效方向 bug 修復完成，Turbine hover 詳細資訊完成，技師卡每回合出牌限制完成，待手動啟用 Pages + 實機測試 + 學生試玩

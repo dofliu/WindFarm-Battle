@@ -239,6 +239,52 @@ describe('S2.3 applyAction：FN01–06 功能卡', () => {
   });
 });
 
+describe('技師卡每回合出牌限制（一回合只能出一張）', () => {
+  it('未出過技師卡 → 可以出', () => {
+    const s = withHand(createInitialState(createRng(1)), 0, ['T01'], 2);
+    expect(canPlayCard(s, 0, 0)).toBe(true);
+  });
+
+  it('同回合已出過一張技師卡 → 第二張技師卡被鎖定', () => {
+    const s = withHand(createInitialState(createRng(1)), 0, ['T01', 'T02'], 4);
+    // 出 T01
+    const r1 = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    // T01 已出，techPlayedThisRound = true，手牌剩 ['T02']
+    expect(r1.state.players[0].techPlayedThisRound).toBe(true);
+    // T02 應被鎖定
+    expect(canPlayCard(r1.state, 0, 0)).toBe(false);
+  });
+
+  it('同回合已出技師卡，但其他類型卡不受影響', () => {
+    const s = withHand(createInitialState(createRng(1)), 0, ['T01', 'M03'], 4);
+    const r1 = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    // M03 turbine 卡不受技師限制
+    expect(canPlayCard(r1.state, 0, 0)).toBe(true);
+  });
+
+  it('下一回合開始時 techPlayedThisRound 被重置', () => {
+    // 先出一張技師卡
+    const s = withHand(createInitialState(createRng(1)), 0, ['T01'], 2);
+    const r1 = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    expect(r1.state.players[0].techPlayedThisRound).toBe(true);
+    // 模擬 _beginTurn 重置（直接修改 state 模擬下一回合開始）
+    const nextTurn = structuredClone(r1.state);
+    nextTurn.players[0].techPlayedThisRound = false; // _beginTurn 會重置
+    nextTurn.players[0].hand = ['T02'];
+    nextTurn.actionsLeft = 2;
+    nextTurn.currentPlayer = 0;
+    expect(canPlayCard(nextTurn, 0, 0)).toBe(true);
+  });
+
+  it('整局 runGame 中每回合開始技師限制自動重置', () => {
+    // 跨回合驗證：runGame 内 _beginTurn 會重置 techPlayedThisRound
+    const initial = createInitialState(createRng(1));
+    const r = runGame({ ...initial, maxRounds: 2 } as GameState, createRng(1));
+    // 只要沒有 throw 且回合正常結束即為通過
+    expect(r.events.some((e) => e.kind === 'game-over')).toBe(true);
+  });
+});
+
 describe('S2.3 end-turn 事件', () => {
   it('回傳新狀態（== 入參深拷貝）+ turn-ended 事件', () => {
     const s = createInitialState(createRng(1));

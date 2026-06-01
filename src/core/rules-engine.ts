@@ -102,6 +102,7 @@ export function _beginTurn(s: GameState, player: 0 | 1): void {
   s.currentPlayer = player;
   s.actionsLeft = 2 + (hasActionAura(p) ? 1 : 0) + p.pendingExtraActions;
   p.pendingExtraActions = 0;
+  p.techPlayedThisRound = false; // 每回合開始重置技師卡出牌限制
 }
 
 export function _tickFaults(s: GameState): GameEvent[] {

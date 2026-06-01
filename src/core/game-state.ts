@@ -37,6 +37,7 @@ function createPlayer(name: string, rng: Rng): PlayerState {
     score: 0,
     pendingExtraActions: 0,
     mwhBoostActive: false,
+    techPlayedThisRound: false,
   };
 }
 

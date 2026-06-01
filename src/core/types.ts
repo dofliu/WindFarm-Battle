@@ -99,6 +99,8 @@ export interface PlayerState {
   score: number;
   pendingExtraActions: number;
   mwhBoostActive: boolean;
+  /** 本回合是否已出過技師卡（對齊寶可夢 TCG 支援者限制：一回合只能出一張）。_beginTurn 時重置。 */
+  techPlayedThisRound: boolean;
 }
 
 export interface Wind {

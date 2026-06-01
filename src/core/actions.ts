@@ -134,6 +134,7 @@ export function canPlayCard(state: GameState, player: 0 | 1, handIdx: number): b
   if (effectiveCost(state, player, cardId) > state.actionsLeft) return false;
 
   if (card.type === 'tech' && p.techs.includes(cardId)) return false; // 不可重複派遣
+  if (card.type === 'tech' && p.techPlayedThisRound) return false; // 一回合只能出一張技師卡
   // 故障卡：對手無機組 或 所有機組都在停機中（已無攻擊目標）→ 不可出牌
   if (card.type === 'fault') {
     const oppTurbines = state.players[1 - player].turbines;
@@ -394,6 +395,7 @@ export function _applyActionMutate(
       break;
     case 'tech':
       events.push(..._deployTech(s, action.player, cardId, rng));
+      p.techPlayedThisRound = true; // 標記本回合已出技師卡
       break;
     case 'fault':
       events.push(..._applyFault(s, action.player, cardId, rng, action.target));
