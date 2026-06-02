@@ -209,8 +209,18 @@ export function _applyFault(
   const sev = card.stats?.sev ?? 1;
 
   if (!targetImmune) {
-    target.faults.push({ cardId, roundsLeft: rounds, sev, drop });
-    events.push({ kind: 'fault-applied', player: oppId, targetIdx: tIdx, cardId, drop });
+    // 故障數量上限：同台風機最多 2 個故障。
+    // 若已有 2 個故障，第 3 個故障不疊加，改為直接觸發停機（防止無限疊加的不合理情況）。
+    if (target.faults.length >= 2) {
+      // 第 3 個故障直接觸發停機（不疊加故障）
+      if (!target.shutdown) {
+        target.shutdown = true;
+        events.push({ kind: 'turbine-shutdown', player: oppId, turbineIdx: tIdx, cardId: target.cardId });
+      }
+    } else {
+      target.faults.push({ cardId, roundsLeft: rounds, sev, drop });
+      events.push({ kind: 'fault-applied', player: oppId, targetIdx: tIdx, cardId, drop });
+    }
   }
 
   // S3.5：F09 disable-scada — 施加時清空 state.futureWind（雙方共享預測佇列；攻擊者本來也看不到對手）
@@ -229,17 +239,26 @@ export function _applyFault(
         if (!isFaultImmune(otherTurbine, cardId)) {
           let cascadeDrop = Math.floor(drop / 2);
           if (isFragile(otherTurbine)) cascadeDrop = Math.floor(cascadeDrop * FRAGILE_DROP_MULT);
-          otherTurbine.faults.push({
-            cardId,
-            roundsLeft: rounds,
-            sev,
-            drop: cascadeDrop,
-          });
-          events.push({ kind: 'fault-cascaded', player: oppId, targetIdx: otherIdx, cardId });
-          // 連鎖也觸發停機檢查
-          if (!otherTurbine.shutdown && effectiveAvail(otherTurbine) <= 0) {
-            otherTurbine.shutdown = true;
-            events.push({ kind: 'turbine-shutdown', player: oppId, turbineIdx: otherIdx, cardId: otherTurbine.cardId });
+          // 故障數量上限：連鎖目標也遵守最多 2 個故障規則
+          if (otherTurbine.faults.length >= 2) {
+            // 連鎖第 3 個故障直接觸發停機
+            if (!otherTurbine.shutdown) {
+              otherTurbine.shutdown = true;
+              events.push({ kind: 'turbine-shutdown', player: oppId, turbineIdx: otherIdx, cardId: otherTurbine.cardId });
+            }
+          } else {
+            otherTurbine.faults.push({
+              cardId,
+              roundsLeft: rounds,
+              sev,
+              drop: cascadeDrop,
+            });
+            events.push({ kind: 'fault-cascaded', player: oppId, targetIdx: otherIdx, cardId });
+            // 連鎖也觸發停機檢查
+            if (!otherTurbine.shutdown && effectiveAvail(otherTurbine) <= 0) {
+              otherTurbine.shutdown = true;
+              events.push({ kind: 'turbine-shutdown', player: oppId, turbineIdx: otherIdx, cardId: otherTurbine.cardId });
+            }
           }
         }
       }
