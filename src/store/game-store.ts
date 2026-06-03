@@ -155,6 +155,13 @@ function startRound(s: GameState, rng: Rng): GameEvent[] {
   // 先手玩家：(round - 1) % 2
   s.firstPlayer = ((s.round - 1) % 2) as 0 | 1;
   _beginTurn(s, s.firstPlayer);
+  // 自動補牌：先手玩家手牌不足 refillHandTo 張時補到目標張數
+  const refillTo = UI_RICH_CONFIG.refillHandTo ?? 0;
+  if (refillTo > 0) {
+    while (s.players[s.firstPlayer].hand.length < refillTo) {
+      _drawCard(s, s.firstPlayer, rng, UI_RICH_CONFIG);
+    }
+  }
   return events;
 }
 
@@ -186,6 +193,13 @@ function advanceAfterTurn(s: GameState, finishedPlayer: 0 | 1, rng: Rng): GameEv
   if (finishedPlayer === s.firstPlayer) {
     // 還有對手玩家要動
     _beginTurn(s, nextPlayer);
+    // 自動補牌：手牌不足 refillHandTo 張時補到目標張數
+    const refillTo = UI_RICH_CONFIG.refillHandTo ?? 0;
+    if (refillTo > 0) {
+      while (s.players[nextPlayer].hand.length < refillTo) {
+        _drawCard(s, nextPlayer, rng, UI_RICH_CONFIG);
+      }
+    }
   } else {
     // 兩位都動過了 → endRound
     events.push(...endRound(s, rng));

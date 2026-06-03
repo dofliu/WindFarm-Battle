@@ -30,10 +30,16 @@ export interface RulesConfig {
   readonly initialDraws?: number;
   /** 每回合 startRound 每位玩家抽幾張（v3=1）。預設 1 對齊 v3 */
   readonly drawsPerRound?: number;
+  /**
+   * 每位玩家回合開始時自動補牌到此張數（手牌不足時才補；手牌已達或超過則不動）。
+   * 0 或 undefined = 不啟用自動補牌（對齊 v3 預設行為）。
+   * UI_RICH_CONFIG 設為 4，防止手牌耗盡只能結束回合的無聊體驗。
+   */
+  readonly refillHandTo?: number;
 }
 export const DEFAULT_CONFIG: RulesConfig = { legacyV3: false, initialDraws: 0, drawsPerRound: 1 };
-/** UI MVP 用的較豐富設定：開局 3 張 + 每回合 2 張（手牌上限仍 7） */
-export const UI_RICH_CONFIG: RulesConfig = { legacyV3: false, initialDraws: 3, drawsPerRound: 2 };
+/** UI MVP 用的較豐富設定：開局 3 張 + 每回合 2 張 + 每回合補牌到 4 張（手牌上限仍 7） */
+export const UI_RICH_CONFIG: RulesConfig = { legacyV3: false, initialDraws: 3, drawsPerRound: 2, refillHandTo: 4 };
 
 /** 一個玩家的「行動函式」：在傳入狀態上行動並回傳事件。S2.1 用 no-op；S2.4 接 AI。 */
 export type TakeTurn = (state: GameState, player: 0 | 1, rng: Rng) => GameEvent[];
@@ -560,9 +566,17 @@ export function runGame(
     }
 
     s.firstPlayer = ((r - 1) % 2) as 0 | 1;
+    const refillTo = config.refillHandTo ?? 0;
     for (let turn = 0; turn < 2; turn++) {
       const p = ((s.firstPlayer + turn) % 2) as 0 | 1;
       _beginTurn(s, p);
+      // 自動補牌：手牌張數 < refillHandTo 時補到目標張數（手牌上限 7 由 _drawCard 內部控制）
+      if (refillTo > 0) {
+        const player = s.players[p];
+        while (player.hand.length < refillTo) {
+          _drawCard(s, p, rng, config);
+        }
+      }
       events.push(...takeTurn(s, p, rng));
       // S2.2：每位玩家結束回合後處理克制修復（對齊 v3 endHumanTurn → processAutoRepair）
       events.push(..._repairFaults(s, p, config));

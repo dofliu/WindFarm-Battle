@@ -97,3 +97,65 @@ describe('S2.1 12 回合流程與勝負', () => {
     expect(a.state.players[1].score).toBe(b.state.players[1].score);
   });
 });
+
+describe('每回合自動補牌到 refillHandTo 張', () => {
+  it('DEFAULT_CONFIG（refillHandTo 未設定）→ 不觸發補牌', () => {
+    // DEFAULT_CONFIG 無 refillHandTo，手牌只靠 drawsPerRound=1 增長
+    const initial = createInitialState(createRng(1));
+    // 清空手牌，模擬手牌耗盡
+    const s = structuredClone(initial);
+    s.players[0].hand = [];
+    s.players[1].hand = [];
+    const r = runGame({ ...s, maxRounds: 1 } as typeof s, createRng(1));
+    // DEFAULT_CONFIG drawsPerRound=1，每回合每人抽 1 張；無 refillHandTo
+    // 跑完 1 回合後手牌 = 1 張（drawsPerRound 抽的那張）
+    expect(r.state.players[0].hand.length).toBeLessThanOrEqual(1);
+  });
+
+  it('refillHandTo=4 → 回合開始時手牌補到至少 4 張（noopTurn 不出牌，手牌維持 4）', () => {
+    const config = { legacyV3: false, initialDraws: 0, drawsPerRound: 0, refillHandTo: 4 };
+    const initial = createInitialState(createRng(1));
+    // 清空手牌，模擬手牌耗盡
+    const s = structuredClone(initial);
+    s.players[0].hand = [];
+    s.players[1].hand = [];
+    const r = runGame({ ...s, maxRounds: 1 } as typeof s, createRng(1), undefined, config);
+    // noopTurn 不出牌，補牌後手牌應維持 4 張（_drawCard 不發 card-drawn 事件，驗證手牌長度）
+    expect(r.state.players[0].hand.length).toBe(4);
+    expect(r.state.players[1].hand.length).toBe(4);
+  });
+
+  it('手牌已有 5 張（超過 refillHandTo=4）→ 不補牌（手牌維持 5 張）', () => {
+    const config = { legacyV3: false, initialDraws: 0, drawsPerRound: 0, refillHandTo: 4 };
+    const initial = createInitialState(createRng(1));
+    const s = structuredClone(initial);
+    // 預設手牌 5 張（超過 refillHandTo=4）
+    s.players[0].hand = ['M01', 'M03', 'T01', 'F02', 'FN01'];
+    s.players[1].hand = ['M01', 'M03', 'T01', 'F02', 'FN01'];
+    const r = runGame({ ...s, maxRounds: 1 } as typeof s, createRng(1), undefined, config);
+    // 手牌已達 5 張，不應再補（noopTurn 不出牌，手牌應維持 5 張）
+    expect(r.state.players[0].hand.length).toBe(5);
+    expect(r.state.players[1].hand.length).toBe(5);
+  });
+
+  it('refillHandTo=4 + 手牌 2 張 → 補 2 張到 4 張（noopTurn 不出牌，手牌維持 4）', () => {
+    const config = { legacyV3: false, initialDraws: 0, drawsPerRound: 0, refillHandTo: 4 };
+    const initial = createInitialState(createRng(1));
+    const s = structuredClone(initial);
+    // 預設手牌 2 張
+    s.players[0].hand = ['M01', 'M03'];
+    s.players[1].hand = ['M01', 'M03'];
+    const r = runGame({ ...s, maxRounds: 1 } as typeof s, createRng(1), undefined, config);
+    // noopTurn 不出牌，補牌後手牌應維持 4 張（_drawCard 不發 card-drawn 事件，驗證手牌長度）
+    expect(r.state.players[0].hand.length).toBe(4);
+    expect(r.state.players[1].hand.length).toBe(4);
+  });
+
+  it('runGame 使用 refillHandTo 仍可重現（相同 seed）', () => {
+    const config = { legacyV3: false, initialDraws: 0, drawsPerRound: 1, refillHandTo: 4 };
+    const a = runGame(createInitialState(createRng(77)), createRng(77), undefined, config);
+    const b = runGame(createInitialState(createRng(77)), createRng(77), undefined, config);
+    expect(a.state.players[0].score).toBe(b.state.players[0].score);
+    expect(a.state.players[1].score).toBe(b.state.players[1].score);
+  });
+});
