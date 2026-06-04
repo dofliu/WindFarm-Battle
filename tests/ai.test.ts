@@ -13,7 +13,7 @@ import {
   RESERVE_THRESHOLD,
   AI_AVG_WIND_COEFF,
 } from '../src/core/ai';
-import { evaluateTurbinePlay, evaluateFaultPlay, evaluateFuncPlay } from '../src/core/ai/evaluator';
+import { evaluateTurbinePlay, evaluateFaultPlay, evaluateFuncPlay, evaluateTechPlay, getDifficultyMultipliers } from '../src/core/ai/evaluator';
 import { CARDS } from '../src/core/cards';
 import { runGame } from '../src/core/rules-engine';
 import type { GameState } from '../src/core/types';
@@ -127,6 +127,7 @@ describe('S2.4 evaluateTurbinePlay：M07/M10/M12 特殊能力修正', () => {
 describe('S2.4 evaluateFaultPlay：required +35 / 反制 -25', () => {
   it('F04 required[T02,T08]，對手無此 tech → 加 35（再乘 phase/position 倍率）', () => {
     // round=1 → phase=early ×0.7；設定 P0 為 1 台 M01、P1 為 M07 → P0 落後 → position=losing ×1.4
+    // v4.7 難度係數：hard attackMult=1.2，差距要乘以 attackMult
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }];
     s.players[1].turbines = [{ cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }];
@@ -135,17 +136,18 @@ describe('S2.4 evaluateFaultPlay：required +35 / 反制 -25', () => {
     expect(strategy.phase).toBe('early');
     expect(strategy.position).toBe('losing');
 
-    const withReq = evaluateFaultPlay(CARDS['F04'], s.players[1].turbines[0], s, 0, strategy);
+    const withReq = evaluateFaultPlay(CARDS['F04'], s.players[1].turbines[0], s, 0, strategy, 'hard');
 
     const s2 = structuredClone(s);
     s2.players[1].techs = ['T02'];
-    const blocked = evaluateFaultPlay(CARDS['F04'], s2.players[1].turbines[0], s2, 0, strategy);
-    // 差距 = 35（required gate） × 0.7（early） × 1.4（losing）
-    expect(withReq - blocked).toBeCloseTo(35 * 0.7 * 1.4, 5);
+    const blocked = evaluateFaultPlay(CARDS['F04'], s2.players[1].turbines[0], s2, 0, strategy, 'hard');
+    // 差距 = 35（required gate） × 0.7（early） × 1.4（losing） × 1.2（hard attackMult）
+    expect(withReq - blocked).toBeCloseTo(35 * 0.7 * 1.4 * 1.2, 5);
   });
 
   it('F02 無 required，對手有 T01（counters F02）→ 扣 25（再乘 phase 倍率）', () => {
     // Route B：P0 和 P1 均設為相同單台，使 position=even
+    // v4.7 難度係數：hard attackMult=1.2，差距要乘以 attackMult
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }];
     s.players[1].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }];
@@ -154,12 +156,12 @@ describe('S2.4 evaluateFaultPlay：required +35 / 反制 -25', () => {
     expect(strategy.phase).toBe('early');
     expect(strategy.position).toBe('even');
 
-    const blocked = evaluateFaultPlay(CARDS['F02'], s.players[1].turbines[0], s, 0, strategy);
+    const blocked = evaluateFaultPlay(CARDS['F02'], s.players[1].turbines[0], s, 0, strategy, 'hard');
     const s2 = structuredClone(s);
     s2.players[1].techs = [];
-    const open = evaluateFaultPlay(CARDS['F02'], s2.players[1].turbines[0], s2, 0, strategy);
-    // 差距 = 25 × 0.7（early）；position=even 無倍率
-    expect(open - blocked).toBeCloseTo(25 * 0.7, 5);
+    const open = evaluateFaultPlay(CARDS['F02'], s2.players[1].turbines[0], s2, 0, strategy, 'hard');
+    // 差距 = 25 × 0.7（early） × 1.2（hard attackMult）；position=even 無倍率
+    expect(open - blocked).toBeCloseTo(25 * 0.7 * 1.2, 5);
   });
 });
 
@@ -270,5 +272,83 @@ describe('S2.4 RESERVE_THRESHOLD 與 aiTakeTurn 安全網', () => {
       (player === 0 ? aiTakeTurn('hard') : aiTakeTurn('easy'))(state, player, rng);
     const r = runGame(initial, createRng(99), takeTurn);
     expect(r.state.gameOver).toBe(true);
+  });
+});
+
+describe('v4.7 AI 難度分級化：getDifficultyMultipliers', () => {
+  it('easy：attackMult=0.5, repairMult=0.5, deployMult=0.7, targetHighestMW=false', () => {
+    const m = getDifficultyMultipliers('easy');
+    expect(m.attackMult).toBe(0.5);
+    expect(m.repairMult).toBe(0.5);
+    expect(m.deployMult).toBe(0.7);
+    expect(m.targetHighestMW).toBe(false);
+  });
+
+  it('medium：attackMult=0.85, repairMult=1.0, deployMult=1.0, targetHighestMW=false', () => {
+    const m = getDifficultyMultipliers('medium');
+    expect(m.attackMult).toBe(0.85);
+    expect(m.repairMult).toBe(1.0);
+    expect(m.deployMult).toBe(1.0);
+    expect(m.targetHighestMW).toBe(false);
+  });
+
+  it('hard：attackMult=1.2, repairMult=1.3, deployMult=1.1, targetHighestMW=true', () => {
+    const m = getDifficultyMultipliers('hard');
+    expect(m.attackMult).toBe(1.2);
+    expect(m.repairMult).toBe(1.3);
+    expect(m.deployMult).toBe(1.1);
+    expect(m.targetHighestMW).toBe(true);
+  });
+
+  it('easy 的故障卡評分 < medium < hard（使用 F04 required gate 確保正分）', () => {
+    // F04 有 required gate：對手無對應 tech 時 +35 分，確保分數為正
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] },
+      { cardId: 'M09', avail: 90, mwBonus: 0, faults: [] },
+    ];
+    s.players[1].turbines = [
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] },
+      { cardId: 'M09', avail: 90, mwBonus: 0, faults: [] },
+    ];
+    s.players[1].techs = []; // 對手無 T02/T08，觸發 required gate +35 分
+    s.round = 5; // mid 階段，避免 late 的分數放大干擾
+    const strategy = getStrategy(s, 0);
+    expect(strategy.position).toBe('even');
+    const target = s.players[1].turbines[1]; // M09 高 MW 目標
+    const easyScore = evaluateFaultPlay(CARDS['F04'], target, s, 0, strategy, 'easy');
+    const medScore = evaluateFaultPlay(CARDS['F04'], target, s, 0, strategy, 'medium');
+    const hardScore = evaluateFaultPlay(CARDS['F04'], target, s, 0, strategy, 'hard');
+    // required gate 確保分數為正，且 easy < medium < hard
+    expect(easyScore).toBeGreaterThan(0);
+    expect(easyScore).toBeLessThan(medScore);
+    expect(medScore).toBeLessThan(hardScore);
+  });
+
+  it('easy 的技師卡評分 < medium < hard（相同場面）', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [{ cardId: 'F02', drop: 20, roundsLeft: 3, sev: 2 }] }];
+    s.players[1].turbines = [{ cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }];
+    const strategy = getStrategy(s, 0);
+    const easyScore = evaluateTechPlay(CARDS['T01'], s, 0, strategy, 'easy');
+    const medScore = evaluateTechPlay(CARDS['T01'], s, 0, strategy, 'medium');
+    const hardScore = evaluateTechPlay(CARDS['T01'], s, 0, strategy, 'hard');
+    expect(easyScore).toBeLessThan(medScore);
+    expect(medScore).toBeLessThan(hardScore);
+  });
+
+  it('hard targetHighestMW：攻擊最高 MW 機組比攻擊低 MW 機組得分更高', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }];
+    // 對手有兩台：M01(4MW) 和 M07(12MW)
+    s.players[1].turbines = [
+      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] },
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] },
+    ];
+    const strategy = getStrategy(s, 0);
+    const scoreOnHighMW = evaluateFaultPlay(CARDS['F02'], s.players[1].turbines[1], s, 0, strategy, 'hard');
+    const scoreOnLowMW = evaluateFaultPlay(CARDS['F02'], s.players[1].turbines[0], s, 0, strategy, 'hard');
+    // Hard 攻擊最高 MW 機組應得到更高分（targetHighestMW 加 10 分）
+    expect(scoreOnHighMW).toBeGreaterThan(scoreOnLowMW);
   });
 });

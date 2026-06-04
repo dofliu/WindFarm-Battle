@@ -71,7 +71,7 @@
 - [ ] 🟠 **新增全場恢復強力卡（FN09 緊急大修）**：清除自家所有機組的所有故障，費用 3，每場限用 1 次；提供落後方翻盤機會；需更新 `cards.json`、`actions.ts`、i18n 文案
 - [ ] 🟠 **天氣卡加入「我方免疫」tag**：修改 W01-W04 的設計，讓打出天氣卡的一方有部分免疫或加成，使天氣卡成為主動策略而非隨機干擾
 - [ ] 🟠 **合約卡改為雙方攻防目標**：重新設計 C01-C04 的觸發邏輯，改為「雙方共享目標，先達成的人拿獎勵」，讓合約成為攻防焦點
-- [ ] 🔵 **AI 行為多樣化**：AI 目前永遠攻擊「對手最高 MW 機組」，需改寫 `ai/evaluator.ts` 加入多種策略（隨機目標選擇、優先攻擊無技師保護的機組、根據難度調整侵略性）
+- [x] 🔵 **AI 行為多樣化**：`evaluator.ts` 加入 `getDifficultyMultipliers()`；Easy attackMult=0.5/repairMult=0.5/deployMult=0.7；Medium attackMult=0.85/repairMult=1.0；Hard attackMult=1.2/repairMult=1.3/deployMult=1.1 + targetHighestMW 加成；`generateActions()` 傳入 difficulty；新增 6 個測試（231 tests 全通過）（commit 包含在 v4.7）
 - [ ] 🔵 **風機升級進化系統**：設計「升級卡」讓一階風機（M01-M04）可以進化為二階風機（M05-M09），類寶可夢進化機制；需新增卡牌類型和對應的 core 邏輯
 
 ---
@@ -152,6 +152,6 @@
 
 ---
 
-**文件版本**：v4.6（每回合自動補牌到 4 張）
+**文件版本**：v4.7（AI 難度分級化）
 **最後更新**：2026-06-01
-**狀態**：React 重構完成，CardExporter 完成，全專案 i18n 100% 完成，Android + iOS icon / splash 全部完成，PWA 支援完成，GitHub Pages CI/CD 完成，對局遙測系統完成，遙測批次分析腳本完成，特效方向 bug 修復完成，Turbine hover 詳細資訊完成，技師卡每回合出牌限制完成，故障數量上限完成，每回合自動補牌到 4 張完成，待手動啟用 Pages + 實機測試 + 學生試玩
+**狀態**：React 重構完成，CardExporter 完成，全專案 i18n 100% 完成，Android + iOS icon / splash 全部完成，PWA 支援完成，GitHub Pages CI/CD 完成，對局遙測系統完成，遙測批次分析腳本完成，特效方向 bug 修復完成，Turbine hover 詳細資訊完成，技師卡每回合出牌限制完成，故障數量上限完成，每回合自動補牌到 4 張完成，AI 難度分級化完成，待手動啟用 Pages + 實機測試 + 學生試玩

@@ -28,7 +28,11 @@ import {
 } from './difficulty';
 
 /** 對齊 v3 generateActions：對所有合法手牌產生候選動作。 */
-export function generateActions(state: GameState, player: 0 | 1): { actions: ScoredAction[]; strategy: Strategy } {
+export function generateActions(
+  state: GameState,
+  player: 0 | 1,
+  difficulty: Difficulty = 'hard',
+): { actions: ScoredAction[]; strategy: Strategy } {
   const me = state.players[player];
   const opp = state.players[1 - player];
   const strategy = getStrategy(state, player);
@@ -41,20 +45,20 @@ export function generateActions(state: GameState, player: 0 | 1): { actions: Sco
     if (card.type === 'turbine') {
       actions.push({
         action: { kind: 'play-card', player, handIdx: i },
-        score: evaluateTurbinePlay(card, state, player, strategy),
+        score: evaluateTurbinePlay(card, state, player, strategy, difficulty),
         desc: me.turbines.length >= 3 ? `${cardId}（替換）` : `部署 ${cardId}`,
       });
     } else if (card.type === 'tech') {
       actions.push({
         action: { kind: 'play-card', player, handIdx: i },
-        score: evaluateTechPlay(card, state, player, strategy),
+        score: evaluateTechPlay(card, state, player, strategy, difficulty),
         desc: `派遣 ${cardId}`,
       });
     } else if (card.type === 'fault') {
       for (let t = 0; t < opp.turbines.length; t++) {
         actions.push({
           action: { kind: 'play-card', player, handIdx: i, target: t },
-          score: evaluateFaultPlay(card, opp.turbines[t], state, player, strategy),
+          score: evaluateFaultPlay(card, opp.turbines[t], state, player, strategy, difficulty),
           desc: `${cardId} → 對手機組#${t}`,
         });
       }
@@ -101,7 +105,7 @@ export function aiChoose(
   difficulty: Difficulty,
   rng: Rng,
 ): AIChoice | null {
-  const { actions, strategy } = generateActions(state, player);
+  const { actions, strategy } = generateActions(state, player, difficulty);
   if (actions.length === 0) return null;
   const chosen = pickByDifficulty(actions, difficulty, rng);
   if (!chosen) return null;
@@ -135,4 +139,5 @@ export { pickByDifficulty } from './difficulty';
 export type { ScoredAction, AIChoice } from './difficulty';
 export type { Strategy, Phase, Position, BoardEval } from './strategy';
 export { getStrategy, evaluateBoard } from './strategy';
-export { RESERVE_THRESHOLD, AI_AVG_WIND_COEFF } from './evaluator';
+export { RESERVE_THRESHOLD, AI_AVG_WIND_COEFF, getDifficultyMultipliers } from './evaluator';
+export type { DifficultyMultipliers } from './evaluator';
