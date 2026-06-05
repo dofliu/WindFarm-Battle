@@ -191,6 +191,10 @@ export const cardsEn: Record<string, string> = {
   "cards.FN08.flavor": "Emergency repair crew arrives on site",
   "cards.FN08.ability.0.name": "Emergency Repair",
   "cards.FN08.ability.0.desc": "Immediately clear all faults from your most damaged turbine; if it was offline, restore it with 20% availability",
+  "cards.FN09.name": "Mass Overhaul",
+  "cards.FN09.flavor": "All hands on deck for full-fleet maintenance",
+  "cards.FN09.ability.0.name": "Full-Fleet Repair",
+  "cards.FN09.ability.0.desc": "Clear all faults from all your turbines; offline turbines are also restored with 20% availability. Once per game.",
   // ── Weather ───────────────────────────────────────────────
   "cards.W01.name": "Northeast Monsoon",
   "cards.W01.flavor": "Winter strong-wind season",

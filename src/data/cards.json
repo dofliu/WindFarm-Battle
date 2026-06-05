@@ -2,7 +2,7 @@
   "$schema": "card-schema-v1",
   "version": "v5.0",
   "lastUpdated": "2026-05",
-  "totalCards": 50,
+  "totalCards": 51,
   "categories": {
     "turbine": {
       "count": 15,
@@ -17,7 +17,7 @@
       "color": "#f87171"
     },
     "func": {
-      "count": 8,
+      "count": 9,
       "color": "#ec4899"
     },
     "weather": {
@@ -840,6 +840,20 @@
       "abilities": [
         {
           "tag": "insurance-shield"
+        }
+      ],
+      "iec": "61400-28"
+    },
+    "FN09": {
+      "id": "FN09",
+      "type": "func",
+      "icon": "🔩",
+      "cost": 3,
+      "rarity": 4,
+      "effect": "massRepair",
+      "abilities": [
+        {
+          "tag": "mass-repair-once"
         }
       ],
       "iec": "61400-28"

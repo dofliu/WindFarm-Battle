@@ -101,6 +101,8 @@ export interface PlayerState {
   mwhBoostActive: boolean;
   /** 本回合是否已出過技師卡（對齊寶可夢 TCG 支援者限制：一回合只能出一張）。_beginTurn 時重置。 */
   techPlayedThisRound: boolean;
+  /** 本局已使用過的 once-per-game 卡 ID 清單。包含在此清單的卡不可再出。 */
+  usedOncePerGame: string[];
 }
 
 export interface Wind {

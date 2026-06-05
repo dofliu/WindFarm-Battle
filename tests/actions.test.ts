@@ -333,3 +333,77 @@ describe('S2.3 FN05 D4 修正：runGame 優先消費 futureWind', () => {
     expect(first).not.toMatchObject({ windLabel: '預測風' });
   });
 });
+
+describe('FN09 緊急大修（massRepair）', () => {
+  it('清除自家所有機組的所有故障', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [
+      { cardId: 'M01', avail: 75, mwBonus: 0, faults: [{ cardId: 'F02', drop: 10, roundsLeft: 2, sev: 1 }] },
+      { cardId: 'M03', avail: 70, mwBonus: 0, faults: [{ cardId: 'F04', drop: 20, roundsLeft: 3, sev: 2 }] },
+    ];
+    s.players[0].hand = ['FN09'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    expect(r.state.players[0].turbines[0].faults).toHaveLength(0);
+    expect(r.state.players[0].turbines[1].faults).toHaveLength(0);
+    expect(r.events.filter((e) => e.kind === 'fault-repaired')).toHaveLength(2);
+  });
+
+  it('停機機組同時復機並回復 20% 可用率', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [
+      { cardId: 'M01', avail: 5, mwBonus: 0, faults: [{ cardId: 'F02', drop: 10, roundsLeft: 1, sev: 1 }], shutdown: true },
+      { cardId: 'M03', avail: 90, mwBonus: 0, faults: [] },
+    ];
+    s.players[0].hand = ['FN09'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    const t0 = r.state.players[0].turbines[0];
+    expect(t0.shutdown).toBeFalsy();
+    expect(t0.avail).toBeGreaterThanOrEqual(20);
+    expect(r.events.some((e) => e.kind === 'turbine-restart')).toBe(true);
+  });
+
+  it('每場限用 1 次：出牌後 usedOncePerGame 加入 FN09', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [
+      { cardId: 'M01', avail: 75, mwBonus: 0, faults: [{ cardId: 'F02', drop: 10, roundsLeft: 2, sev: 1 }] },
+    ];
+    s.players[0].hand = ['FN09'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    expect(r.state.players[0].usedOncePerGame).toContain('FN09');
+  });
+
+  it('每場限用 1 次：第二次出牌被 canPlayCard 阻擋', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [
+      { cardId: 'M01', avail: 75, mwBonus: 0, faults: [{ cardId: 'F02', drop: 10, roundsLeft: 2, sev: 1 }] },
+    ];
+    s.players[0].hand = ['FN09', 'FN09'];
+    s.players[0].usedOncePerGame = ['FN09']; // 已使用過
+    s.actionsLeft = 6;
+    s.currentPlayer = 0;
+    expect(canPlayCard(s, 0, 0)).toBe(false);
+    expect(canPlayCard(s, 0, 1)).toBe(false);
+  });
+
+  it('無故障且無停機機組時：不發出 fault-repaired 事件，且內部發出 mass-repair-noop', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [
+      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] },
+    ];
+    s.players[0].hand = ['FN09'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    // 無故障時不應發出 fault-repaired 事件
+    expect(r.events.filter((e) => e.kind === 'fault-repaired')).toHaveLength(0);
+    // 內部發出的第二個 func-played effect 應為 mass-repair-noop
+    const noopEvent = r.events.filter((e) => e.kind === 'func-played').at(-1);
+    expect(noopEvent?.kind === 'func-played' && noopEvent.effect).toBe('mass-repair-noop');
+  });
+});

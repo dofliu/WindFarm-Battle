@@ -38,6 +38,7 @@ function createPlayer(name: string, rng: Rng): PlayerState {
     pendingExtraActions: 0,
     mwhBoostActive: false,
     techPlayedThisRound: false,
+    usedOncePerGame: [],
   };
 }
 

@@ -2,15 +2,15 @@ import { describe, it, expect } from 'vitest';
 import { allCardIds, cardsByType, getCard, CARD_COUNT } from '../src/core/cards';
 
 describe('卡牌資料載入', () => {
-  it('共 50 張卡（含 OS8/OS10/OS12 開局艦隊）', () => {
-    expect(CARD_COUNT).toBe(50);
+  it('共 51 張卡（含 OS8/OS10/OS12 開局艦隊）', () => {
+    expect(CARD_COUNT).toBe(51);
   });
 
-  it('六大類別數量正確（15/9/9/8/5/4，turbine 含 3 張開局艦隊）', () => {
+  it('六大類別數量正確（15/9/9/9/5/4，turbine 含 3 張開局艦隊）', () => {
     expect(cardsByType('turbine')).toHaveLength(15);
     expect(cardsByType('tech')).toHaveLength(9);
     expect(cardsByType('fault')).toHaveLength(9);
-    expect(cardsByType('func')).toHaveLength(8);
+    expect(cardsByType('func')).toHaveLength(9);
     expect(cardsByType('weather')).toHaveLength(5);
     expect(cardsByType('contract')).toHaveLength(4);
   });

@@ -145,6 +145,8 @@ export function canPlayCard(state: GameState, player: 0 | 1, handIdx: number): b
     if (card.effect === 'upgradeMW' && findStrongestNoBonusIdx(p) < 0) return false;
     // S3.6：FN07 searchTurbine 需要牌庫中至少有一張 turbine
     if (card.effect === 'searchTurbine' && !p.deck.some((id) => CARDS[id].type === 'turbine')) return false;
+    // FN09 once-per-game：若卡牌有 mass-repair-once tag 且已在 usedOncePerGame 清單中 → 不可出
+    if (card.abilities.some((a) => a.tag === 'mass-repair-once') && p.usedOncePerGame.includes(cardId)) return false;
   }
   // S3.6：weather 卡無前置條件（隨時可施加全局事件）
   return true;
@@ -332,6 +334,29 @@ function _executeFunc(
       } else {
         events.push({ kind: 'func-played', player, cardId, effect: 'insurance-noop' });
       }
+      break;
+    }
+    case 'massRepair': {
+      // FN09 緊急大修：清除自家所有機組的所有故障，停機機組同時復機（avail 恢復 20%）。每場限用 1 次。
+      let repairedAny = false;
+      for (let i = 0; i < p.turbines.length; i++) {
+        const t = p.turbines[i];
+        if (t.faults.length > 0 || t.shutdown) {
+          for (const fault of t.faults) {
+            events.push({ kind: 'fault-repaired', player, targetIdx: i, cardId: fault.cardId, by: cardId });
+          }
+          t.faults = [];
+          if (t.shutdown) {
+            t.shutdown = false;
+            t.avail = Math.max(t.avail, 20);
+            events.push({ kind: 'turbine-restart', player, turbineIdx: i, cardId: t.cardId });
+          }
+          repairedAny = true;
+        }
+      }
+      // 標記本局已使用
+      p.usedOncePerGame.push(cardId);
+      events.push({ kind: 'func-played', player, cardId, effect: repairedAny ? 'mass-repair' : 'mass-repair-noop' });
       break;
     }
     default:

@@ -68,7 +68,7 @@
 - [x] 🟡 **技師卡每回合出牌限制（一回合只能出一張）**：`PlayerState` 加入 `techPlayedThisRound: boolean`；`canPlayCard` 加入第二張技師卡鎖定；`_beginTurn` 時重置；新增 5 個測試（215 tests 全通過）（commit 包含在 v4.4）
 - [x] 🟡 **故障數量上限（同台風機最多 2 個故障）**：`_applyFault` 主目標與 cascade 目標均加入上限檢查；第 3 個故障直接觸發停機（不疊加）；新增 5 個測試（220 tests 全通過）（commit 包含在 v4.5）
 - [x] 🟡 **每回合自動補牌到 4 張**：`RulesConfig` 加入 `refillHandTo?: number`；`runGame` 每位玩家 `_beginTurn` 後補牌到目標張數；`game-store.ts` 的 `startRound` 和 `advanceAfterTurn` 同步補牌；`UI_RICH_CONFIG.refillHandTo=4`；新增 5 個測試（225 tests 全通過）（commit 包含在 v4.6）
-- [ ] 🟠 **新增全場恢復強力卡（FN09 緊急大修）**：清除自家所有機組的所有故障，費用 3，每場限用 1 次；提供落後方翻盤機會；需更新 `cards.json`、`actions.ts`、i18n 文案
+- [x] 🟠 **新增全場恢復強力卡（FN09 緊急大修）**：FN09 massRepair 卡（費用 3，稀有度 4，🔩 圖示）；清除自家所有機組所有故障 + 停機復機（avail 恢復 20%）；PlayerState 加入 usedOncePerGame 每場限用 1 次；i18n 中英文皆補齊；新增 5 個測試（236 tests 全通過）
 - [ ] 🟠 **天氣卡加入「我方免疫」tag**：修改 W01-W04 的設計，讓打出天氣卡的一方有部分免疫或加成，使天氣卡成為主動策略而非隨機干擾
 - [ ] 🟠 **合約卡改為雙方攻防目標**：重新設計 C01-C04 的觸發邏輯，改為「雙方共享目標，先達成的人拿獎勵」，讓合約成為攻防焦點
 - [x] 🔵 **AI 行為多樣化**：`evaluator.ts` 加入 `getDifficultyMultipliers()`；Easy attackMult=0.5/repairMult=0.5/deployMult=0.7；Medium attackMult=0.85/repairMult=1.0；Hard attackMult=1.2/repairMult=1.3/deployMult=1.1 + targetHighestMW 加成；`generateActions()` 傳入 difficulty；新增 6 個測試（231 tests 全通過）（commit 包含在 v4.7）
@@ -152,6 +152,6 @@
 
 ---
 
-**文件版本**：v4.7（AI 難度分級化）
+**文件版本**：v4.8（FN09 緊急大修卡）
 **最後更新**：2026-06-01
 **狀態**：React 重構完成，CardExporter 完成，全專案 i18n 100% 完成，Android + iOS icon / splash 全部完成，PWA 支援完成，GitHub Pages CI/CD 完成，對局遙測系統完成，遙測批次分析腳本完成，特效方向 bug 修復完成，Turbine hover 詳細資訊完成，技師卡每回合出牌限制完成，故障數量上限完成，每回合自動補牌到 4 張完成，AI 難度分級化完成，待手動啟用 Pages + 實機測試 + 學生試玩
