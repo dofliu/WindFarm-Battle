@@ -148,6 +148,50 @@ export function isMwhDoubleActive(activeWeather: readonly { cardId: string }[]):
   return activeWeather.some((w) => weatherHas(w.cardId, 'mwh-double'));
 }
 
+/** W01 self-boost-wind 加成倍率（打出者額外 MWh 加成） */
+export const WEATHER_SELF_BOOST_MULT = 1.1;
+
+/** 查詢 activeWeather 中是否有某張卡有指定 tag，且是由指定玩家打出 */
+function weatherHasForPlayer(
+  activeWeather: readonly { cardId: string; appliedBy: 0 | 1 }[],
+  player: 0 | 1,
+  tag: string,
+): boolean {
+  return activeWeather.some((w) => w.appliedBy === player && weatherHas(w.cardId, tag));
+}
+
+/** 當前玩家是否有打出的 W02（self-immune-shutdown）→ 打出者機組免疫全場停機 */
+export function isSelfImmuneShutdown(
+  activeWeather: readonly { cardId: string; appliedBy: 0 | 1 }[],
+  player: 0 | 1,
+): boolean {
+  return weatherHasForPlayer(activeWeather, player, 'self-immune-shutdown');
+}
+
+/** 當前玩家是否有打出的 W03/W05（self-immune-wind-penalty）→ 打出者不受風速懲罰 */
+export function isSelfImmuneWindPenalty(
+  activeWeather: readonly { cardId: string; appliedBy: 0 | 1 }[],
+  player: 0 | 1,
+): boolean {
+  return weatherHasForPlayer(activeWeather, player, 'self-immune-wind-penalty');
+}
+
+/** 當前玩家是否有打出的 W01（self-boost-wind）→ 打出者額外 MWh ×1.1 */
+export function isSelfBoostWind(
+  activeWeather: readonly { cardId: string; appliedBy: 0 | 1 }[],
+  player: 0 | 1,
+): boolean {
+  return weatherHasForPlayer(activeWeather, player, 'self-boost-wind');
+}
+
+/** 當前玩家是否有打出的 W05（self-immune-blade-fault）→ 打出者不受 random-blade 故障 */
+export function isSelfImmuneBladeFault(
+  activeWeather: readonly { cardId: string; appliedBy: 0 | 1 }[],
+  player: 0 | 1,
+): boolean {
+  return weatherHasForPlayer(activeWeather, player, 'self-immune-blade-fault');
+}
+
 /**
  * 套用天氣風況到 base Wind：先 boost 再 penalty（兩者共存時抵消）。
  * 不改入參，回新 Wind 物件。typhoon 標記不受影響（W02 shutdown-all 走別的路徑）。

@@ -540,19 +540,30 @@ describe('S3.6 天氣系統：activeWeather 倒數與套用', () => {
     expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(10);
   });
 
-  it('結算時 W03 wind-penalty：高風 0.7 → 0.4（-0.3）', () => {
+  it('結算時 W03 wind-penalty：打出者免疫（高風 0.7 不受 penalty）；對手仍受懲罰', () => {
     const s = structuredClone(createInitialState(createRng(1)));
+    // P0 打出 W03：自己免疫 wind-penalty，高風 0.7 不受懲罰 → 10×0.7×0.95 = 6.65 → 7
     s.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 8, faults: [] }];
     s.activeWeather = [{ cardId: 'W03', duration: 2, appliedBy: 0 }];
-    // 高風 0.7 - penalty 0.3 = 0.4 → 10×0.4×0.95 = 3.8 → 4
-    expect(scoreRound(withWind(s, 0.7)).state.players[0].score).toBe(4);
+    expect(scoreRound(withWind(s, 0.7)).state.players[0].score).toBe(7);
+    // P1 是對手，仍受 wind-penalty：0.7 - 0.3 = 0.4 → 10×0.4×0.95 = 3.8 → 4
+    const s2 = structuredClone(createInitialState(createRng(1)));
+    s2.players[1].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 8, faults: [] }];
+    s2.activeWeather = [{ cardId: 'W03', duration: 2, appliedBy: 0 }]; // P0 打出，P1 是對手
+    expect(scoreRound(withWind(s2, 0.7)).state.players[1].score).toBe(4);
   });
 
-  it('W02 shutdown-all：本回合所有機組計分 = 0', () => {
+  it('W02 shutdown-all：打出者免疫停機（自己機組正常計分）；對手機組計分 = 0', () => {
+    // P0 打出 W02：自己免疫停機，M07 avail=88 正常計分 = 12×1.0×0.88 = 10.56 → 11
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[0].turbines = [{ cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }];
     s.activeWeather = [{ cardId: 'W02', duration: 1, appliedBy: 0 }];
-    expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(0);
+    expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(11);
+    // P1 是對手，仍受 shutdown-all：計分 = 0
+    const s2 = structuredClone(createInitialState(createRng(1)));
+    s2.players[1].turbines = [{ cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }];
+    s2.activeWeather = [{ cardId: 'W02', duration: 1, appliedBy: 0 }]; // P0 打出，P1 是對手
+    expect(scoreRound(withWind(s2, 1.0)).state.players[1].score).toBe(0);
   });
 
   it('W04 mwh-double：本回合 mwh ×2（取代 mwhBoost ×1.5）', () => {
@@ -570,6 +581,27 @@ describe('S3.6 天氣系統：activeWeather 倒數與套用', () => {
     s.activeWeather = [{ cardId: 'W04', duration: 1, appliedBy: 0 }];
     // 取 ×2 而非 ×1.5：9.5 × 2 = 19
     expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(19);
+  });
+
+  it('W01 self-boost-wind：打出者額外 MWh ×1.1；對手不受加成', () => {
+    // P0 打出 W01：自己額外 ×1.1：10×1.0×0.95 = 9.5 ×1.1 = 10.45 → 10
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 8, faults: [] }];
+    s.activeWeather = [{ cardId: 'W01', duration: 3, appliedBy: 0 }];
+    // wind-boost: coeff 1.0 + 0.3 = 1.0 (cap)
+    // self-boost: ×1.1 → 9.5 ×1.1 = 10.45 → 10
+    expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(10);
+    // P1 是對手，不受 self-boost：10×1.0×0.95 = 9.5 → 10（同樣是 10，用低風區分）
+    const s2 = structuredClone(createInitialState(createRng(1)));
+    s2.players[1].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 8, faults: [] }];
+    s2.activeWeather = [{ cardId: 'W01', duration: 3, appliedBy: 0 }]; // P0 打出，P1 是對手
+    // P1 不受 self-boost：低風 0.4 + boost 0.3 = 0.7 → 10×0.7×0.95 = 6.65 → 7
+    expect(scoreRound(withWind(s2, 0.4)).state.players[1].score).toBe(7);
+    // P0 打出者低風 0.4 + boost 0.3 = 0.7，再×1.1 → 6.65×1.1 = 7.315 → 7
+    const s3 = structuredClone(createInitialState(createRng(1)));
+    s3.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 8, faults: [] }];
+    s3.activeWeather = [{ cardId: 'W01', duration: 3, appliedBy: 0 }];
+    expect(scoreRound(withWind(s3, 0.4)).state.players[0].score).toBe(7);
   });
 
   it('runGame 跑完後 W01 duration=3 → 應於第 3 回合結束後到期（從 activeWeather 移除）', async () => {

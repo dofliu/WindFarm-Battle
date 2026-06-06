@@ -15,6 +15,8 @@ import {
   getAuraMwBonus, effectiveCoeff, isFaultImmune, isFragile, FRAGILE_DROP_MULT, hasPeriodicRepair,
   isStormAmplifyFault, STORM_AMPLIFY_MULT, isUnpredictableFault, isDisableScadaFault, UNPREDICTABLE_PROB,
   applyWeatherToWind, isShutdownAllActive, isMwhDoubleActive, WEATHER_MWH_DOUBLE_MULT,
+  isSelfImmuneShutdown, isSelfImmuneWindPenalty, isSelfBoostWind,
+  WEATHER_SELF_BOOST_MULT,
   evaluateContractCondition,
 } from './abilities';
 
@@ -140,12 +142,21 @@ export function _scoreRound(s: GameState): GameEvent[] {
   // S3.5：F05 storm-amplify 觸發條件（用修飾後的 effectiveWind）— 颱風 OR 高風 0.7
   const stormAmplifyActive = effectiveWind.typhoon === true || effectiveWind.coeff === 0.7;
   s.players.forEach((p, pi) => {
+    const player = pi as 0 | 1;
     let mwh = 0;
-    if (!shutdownAll) {
+    // W02 shutdown-all：打出者免疫全場停機（self-immune-shutdown）
+    const immuneShutdown = isSelfImmuneShutdown(s.activeWeather, player);
+    // W03/W05 wind-penalty：打出者不受風速懲罰（self-immune-wind-penalty）
+    const immuneWindPenalty = isSelfImmuneWindPenalty(s.activeWeather, player);
+    // 若打出者免疫風速懲罰，對該玩家用不含 penalty 的風況
+    const playerWind = immuneWindPenalty
+      ? applyWeatherToWind(s.wind, s.activeWeather.filter((w) => !CARDS[w.cardId].abilities.some((a) => a.tag === 'wind-penalty')))
+      : effectiveWind;
+    if (!shutdownAll || immuneShutdown) {
       // S3.1：M07 aura-mw 是 player-level 光環（自家所有機組共享 +value MW，含自身）
       const auraMw = getAuraMwBonus(p);
       for (const t of p.turbines) {
-        // S3.5：對每個 fault 計算 effDrop（storm-amplify 在颱風/高風時 ×2）
+        // S3.5：對每個 fault 計算 effDrop（storm-amplify 在風暴/高風時 ×2）
         const totalDrop = t.faults.reduce((sum, f) => {
           const effDrop = stormAmplifyActive && isStormAmplifyFault(f.cardId)
             ? f.drop * STORM_AMPLIFY_MULT
@@ -154,19 +165,21 @@ export function _scoreRound(s: GameState): GameEvent[] {
         }, 0);
         const avail = Math.max(0, t.avail - totalDrop);
         // S3.1 + S3.2：weather-immune / lowwind-resist / storm-vulnerable / offshore-delay 一次套用
-        // 用 effectiveWind（已加上 W 卡修飾）
-        // 停機機組不計分
-        if (t.shutdown) continue;
-        const { coeff, skip } = effectiveCoeff(t, effectiveWind, s.round);
+        // 用 playerWind（已考慮打出者免疫風速懲罰）
+        // 停機機組不計分（但打出 W02 的玩家免疫停機）
+        if (t.shutdown && !immuneShutdown) continue;
+        const { coeff, skip } = effectiveCoeff(t, playerWind, s.round);
         if (skip) continue;
         mwh += (turbineMW(t.cardId, t.mwBonus) + auraMw) * coeff * (avail / 100);
       }
     }
     // S3.6：FN06 mwhBoost ×1.5 與 W04 mwh-double ×2 互斥取大（兩者同時 active 時 ×2）
+    // W01 self-boost-wind：打出者額外 ×1.1（在 mwh-double/mwhBoost 之外疊加）
     const boostMult = isMwhDoubleActive(s.activeWeather)
       ? WEATHER_MWH_DOUBLE_MULT
       : p.mwhBoostActive ? 1.5 : 1.0;
-    mwh *= boostMult;
+    const selfBoostMult = isSelfBoostWind(s.activeWeather, player) ? WEATHER_SELF_BOOST_MULT : 1.0;
+    mwh *= boostMult * selfBoostMult;
     mwh = Math.round(mwh);
     p.score += mwh;
     events.push({ kind: 'round-scored', player: pi as 0 | 1, mwh, total: p.score });
