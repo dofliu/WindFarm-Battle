@@ -447,21 +447,48 @@ export function _checkContracts(s: GameState): GameEvent[] {
     const card = CARDS[c.cardId];
     const target = card.target;
     if (!target) continue;
-    const meetsThisRound = evaluateContractCondition(c.cardId, c.player, s);
-    if (!meetsThisRound) continue;
+
+    const owner = c.player;
+    const opp = (1 - owner) as 0 | 1;
+
+    // S3.7 雙方攻防：同時檢查打出者和對手是否達成合約目標
+    const ownerMeets = evaluateContractCondition(c.cardId, owner, s);
+    const oppMeets = evaluateContractCondition(c.cardId, opp, s);
+
+    if (!ownerMeets && !oppMeets) continue;
+
     if (target.rounds && target.rounds > 1) {
-      c.progress += 1;
-      events.push({ kind: 'contract-progress', player: c.player, cardId: c.cardId, progress: c.progress });
-      if (c.progress >= target.rounds) {
-        s.players[c.player].score += target.reward;
+      // 連續条件合約（C01 highAvail / C04 killOpponent）
+      if (ownerMeets) {
+        c.progress += 1;
+        events.push({ kind: 'contract-progress', player: owner, cardId: c.cardId, progress: c.progress });
+        if (c.progress >= target.rounds) {
+          // 打出者達成
+          s.players[owner].score += target.reward;
+          c.fulfilled = true;
+          events.push({ kind: 'contract-fulfilled', player: owner, cardId: c.cardId, reward: target.reward });
+        }
+      } else if (oppMeets) {
+        // 對手搶先達成（打出者進度中斷）：對手拿獎勵，合約封閉
+        s.players[opp].score += target.reward;
         c.fulfilled = true;
-        events.push({ kind: 'contract-fulfilled', player: c.player, cardId: c.cardId, reward: target.reward });
+        events.push({ kind: 'contract-fulfilled', player: opp, cardId: c.cardId, reward: target.reward });
+        events.push({ kind: 'contract-stolen', stolenBy: opp, cardId: c.cardId });
       }
     } else {
-      // 一次性條件
-      s.players[c.player].score += target.reward;
-      c.fulfilled = true;
-      events.push({ kind: 'contract-fulfilled', player: c.player, cardId: c.cardId, reward: target.reward });
+      // 一次性条件合約（C02 totalMW / C03 techCount）
+      if (ownerMeets) {
+        // 打出者達成（即使對手同回合也達成，打出者優先）
+        s.players[owner].score += target.reward;
+        c.fulfilled = true;
+        events.push({ kind: 'contract-fulfilled', player: owner, cardId: c.cardId, reward: target.reward });
+      } else {
+        // 對手搶先達成
+        s.players[opp].score += target.reward;
+        c.fulfilled = true;
+        events.push({ kind: 'contract-fulfilled', player: opp, cardId: c.cardId, reward: target.reward });
+        events.push({ kind: 'contract-stolen', stolenBy: opp, cardId: c.cardId });
+      }
     }
   }
   return events;

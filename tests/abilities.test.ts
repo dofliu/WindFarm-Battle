@@ -672,10 +672,12 @@ describe('S3.7 合約系統：施加 + 條件判定 + reward', () => {
     expect(r.state.players[0].score).toBeGreaterThanOrEqual(scoreBefore + 25);
   });
 
-  it('C02 不滿足（總 MW < 18）→ 不發 reward', async () => {
+  it('C02 不滿足（總 MW < 18）→ 不發 reward（雙方都不達標）', async () => {
     const { runGame } = await import('../src/core/rules-engine');
     const s = structuredClone(createInitialState(createRng(42)));
+    // 雙方都只有低 MW 機組，確保雙方都不達標（< 18MW）
     s.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }]; // 2 MW
+    s.players[1].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }]; // 2 MW
     s.activeContracts = [{ cardId: 'C02', player: 0, progress: 0, fulfilled: false }];
     const r = runGame(s, createRng(42));
     expect(r.events.some((e) => e.kind === 'contract-fulfilled')).toBe(false);
@@ -734,6 +736,49 @@ describe('S3.7 合約系統：施加 + 條件判定 + reward', () => {
       (e) => e.kind === 'contract-fulfilled' && e.cardId === 'C03',
     );
     expect(fulfilledEvents).toHaveLength(1); // 只觸發一次
+  });
+
+  it('S3.7 雙方攻防：P1 搶先達成 C02 → 發出 contract-stolen，P1 拿獎勵', async () => {
+    const { _checkContracts } = await import('../src/core/rules-engine');
+    const s = structuredClone(createInitialState(createRng(42)));
+    // P0 打出 C02，但 P0 只有 2MW（不達標）
+    s.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }]; // 2 MW
+    // P1 有 20MW（達標）
+    s.players[1].turbines = [
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 MW
+      { cardId: 'M03', avail: 90, mwBonus: 0, faults: [] }, // 4 MW
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 MW
+    ]; // 共 28 MW > 18
+    s.activeContracts = [{ cardId: 'C02', player: 0, progress: 0, fulfilled: false }];
+    const events = _checkContracts(s);
+    // P1 搶先達成，發出 contract-fulfilled（player=1）和 contract-stolen（stolenBy=1）
+    expect(events.some((e) => e.kind === 'contract-fulfilled' && e.player === 1)).toBe(true);
+    expect(events.some((e) => e.kind === 'contract-stolen' && e.stolenBy === 1)).toBe(true);
+    // P1 拿到 +25
+    expect(s.players[1].score).toBe(25);
+    // P0 沒有得分
+    expect(s.players[0].score).toBe(0);
+  });
+
+  it('S3.7 雙方攻防：P0 打出者同回合達標 → 打出者優先，P0 拿獎勵', async () => {
+    const { _checkContracts } = await import('../src/core/rules-engine');
+    const s = structuredClone(createInitialState(createRng(42)));
+    // 雙方同回合都達標（P0 打出者優先）
+    s.players[0].turbines = [
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 MW
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 MW
+    ]; // 共 24 MW > 18
+    s.players[1].turbines = [
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 MW
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 MW
+    ]; // 共 24 MW > 18
+    s.activeContracts = [{ cardId: 'C02', player: 0, progress: 0, fulfilled: false }];
+    const events = _checkContracts(s);
+    // 打出者 P0 優先拿獎勵
+    expect(events.some((e) => e.kind === 'contract-fulfilled' && e.player === 0)).toBe(true);
+    expect(events.some((e) => e.kind === 'contract-stolen')).toBe(false);
+    expect(s.players[0].score).toBe(25);
+    expect(s.players[1].score).toBe(0);
   });
 });
 

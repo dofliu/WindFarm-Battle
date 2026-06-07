@@ -30,6 +30,8 @@ export type GameEvent =
   | { kind: 'contract-applied'; player: 0 | 1; cardId: string }
   | { kind: 'contract-progress'; player: 0 | 1; cardId: string; progress: number }
   | { kind: 'contract-fulfilled'; player: 0 | 1; cardId: string; reward: number }
+  /** 對手搶先達成合約目標，打出者失去獎勵機會 */
+  | { kind: 'contract-stolen'; stolenBy: 0 | 1; cardId: string }
   | { kind: 'round-scored'; player: 0 | 1; mwh: number; total: number }
   | { kind: 'game-over'; winner: 0 | 1 | -1 };
 
