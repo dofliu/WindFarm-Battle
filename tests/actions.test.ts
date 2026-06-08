@@ -407,3 +407,94 @@ describe('FN09 緊急大修（massRepair）', () => {
     expect(noopEvent?.kind === 'func-played' && noopEvent.effect).toBe('mass-repair-noop');
   });
 });
+
+describe('UP01-UP04 風機升級進化卡', () => {
+  it('UP01：M01 進化為 M03，保留 avail 和 faults', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [
+      { cardId: 'M01', avail: 80, mwBonus: 0, faults: [{ cardId: 'F01', roundsLeft: 1, drop: 10, sev: 1 }] },
+    ];
+    s.players[0].hand = ['UP01'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    // 應發出 turbine-evolved 事件
+    const ev = r.events.find((e) => e.kind === 'turbine-evolved');
+    expect(ev?.kind).toBe('turbine-evolved');
+    if (ev?.kind === 'turbine-evolved') {
+      expect(ev.fromCardId).toBe('M01');
+      expect(ev.toCardId).toBe('M03');
+    }
+    // 機組應已進化為 M03
+    expect(r.state.players[0].turbines[0].cardId).toBe('M03');
+    // 保留 avail（取較小值）
+    expect(r.state.players[0].turbines[0].avail).toBeLessThanOrEqual(80);
+    // 保留 faults
+    expect(r.state.players[0].turbines[0].faults).toHaveLength(1);
+  });
+
+  it('UP02：M04 進化為 M06', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [
+      { cardId: 'M04', avail: 90, mwBonus: 0, faults: [] },
+    ];
+    s.players[0].hand = ['UP02'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    const ev = r.events.find((e) => e.kind === 'turbine-evolved');
+    expect(ev?.kind).toBe('turbine-evolved');
+    if (ev?.kind === 'turbine-evolved') {
+      expect(ev.fromCardId).toBe('M04');
+      expect(ev.toCardId).toBe('M06');
+    }
+  });
+
+  it('UP03：M05 進化為 M09', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [
+      { cardId: 'M05', avail: 95, mwBonus: 0, faults: [] },
+    ];
+    s.players[0].hand = ['UP03'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    const ev = r.events.find((e) => e.kind === 'turbine-evolved');
+    expect(ev?.kind).toBe('turbine-evolved');
+    if (ev?.kind === 'turbine-evolved') {
+      expect(ev.fromCardId).toBe('M05');
+      expect(ev.toCardId).toBe('M09');
+    }
+  });
+
+  it('UP04：對最強未升級機組加 +3MW', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [
+      { cardId: 'M07', avail: 95, mwBonus: 0, faults: [] },
+      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] },
+    ];
+    s.players[0].hand = ['UP04'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    const ev = r.events.find((e) => e.kind === 'turbine-upgraded');
+    expect(ev?.kind).toBe('turbine-upgraded');
+    if (ev?.kind === 'turbine-upgraded') {
+      expect(ev.bonus).toBe(3);
+    }
+    // 最強機組（M07）應獲得 +3MW
+    expect(r.state.players[0].turbines[0].mwBonus).toBe(3);
+  });
+
+  it('UP01：場上無符合機組時不發出 turbine-evolved 事件', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [
+      { cardId: 'M07', avail: 95, mwBonus: 0, faults: [] }, // M07 不符合 tier1
+    ];
+    s.players[0].hand = ['UP01'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    expect(r.events.filter((e) => e.kind === 'turbine-evolved')).toHaveLength(0);
+  });
+});

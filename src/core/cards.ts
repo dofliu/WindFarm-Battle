@@ -25,7 +25,9 @@ export const CARD_COUNT = allCardIds.length;
  *   - M01–M06, M08, M11：低 MW 陸域機組（≤8MW），對離岸固定艦隊無升級意義
  */
 const STARTING_FLEET_IDS = new Set(['OS8', 'OS10', 'OS12']);
-const RETIRED_UPGRADE_IDS = new Set(['M01', 'M02', 'M03', 'M04', 'M05', 'M06', 'M08', 'M11']);
+// M01-M04 已從此清單移出，作為升級卡（UP01-UP03）的基礎機組進入牌組
+// M05、M06、M08、M11 仍保留在排除清單（對離岸固定艦隊無升級意義）
+const RETIRED_UPGRADE_IDS = new Set(['M05', 'M06', 'M08', 'M11']);
 export const deckCardIds: readonly string[] = allCardIds.filter(
   (id) => !STARTING_FLEET_IDS.has(id) && !RETIRED_UPGRADE_IDS.has(id),
 );

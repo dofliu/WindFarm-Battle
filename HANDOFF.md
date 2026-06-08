@@ -70,9 +70,9 @@
 - [x] 🟡 **每回合自動補牌到 4 張**：`RulesConfig` 加入 `refillHandTo?: number`；`runGame` 每位玩家 `_beginTurn` 後補牌到目標張數；`game-store.ts` 的 `startRound` 和 `advanceAfterTurn` 同步補牌；`UI_RICH_CONFIG.refillHandTo=4`；新增 5 個測試（225 tests 全通過）（commit 包含在 v4.6）
 - [x] 🟠 **新增全場恢復強力卡（FN09 緊急大修）**：FN09 massRepair 卡（費用 3，稀有度 4，🔩 圖示）；清除自家所有機組所有故障 + 停機復機（avail 恢復 20%）；PlayerState 加入 usedOncePerGame 每場限用 1 次；i18n 中英文皆補齊；新增 5 個測試（236 tests 全通過）
 - [x] 🟠 **天氣卡加入「我方免疫」tag**：修改 W01-W04 的設計，讓打出天氣卡的一方有部分免疫或加成，使天氣卡成為主動策略而非隨機干擾
-- [ ] 🟠 **合約卡改為雙方攻防目標**：重新設計 C01-C04 的觸發邏輯，改為「雙方共享目標，先達成的人拿獎勵」，讓合約成為攻防焦點
+- [x] 🟠 **合約卡改為雙方攻防目標**：重新設計 C01-C04 的觸發邏輯，改為「雙方共享目標，先達成的人拿獎勵」，讓合約成為攻防焦點；新增 `contract-stolen` 事件；打出者優先原則；新增 2 個測試（239 tests 全通過）（commit v5.0）
 - [x] 🔵 **AI 行為多樣化**：`evaluator.ts` 加入 `getDifficultyMultipliers()`；Easy attackMult=0.5/repairMult=0.5/deployMult=0.7；Medium attackMult=0.85/repairMult=1.0；Hard attackMult=1.2/repairMult=1.3/deployMult=1.1 + targetHighestMW 加成；`generateActions()` 傳入 difficulty；新增 6 個測試（231 tests 全通過）（commit 包含在 v4.7）
-- [ ] 🔵 **風機升級進化系統**：設計「升級卡」讓一階風機（M01-M04）可以進化為二階風機（M05-M09），類寶可夢進化機制；需新增卡牌類型和對應的 core 邏輯
+- [x] 🔵 **風機升級進化系統**：新增 UP01-UP04 升級卡（降域/近岸/離岸/通用），實作 `evolveTurbine` effect，進化時保留 avail/faults/mwBonus；新增 `turbine-evolved` 事件；新增 5 個測試（244 tests 全通過）（commit v5.1）
 
 ---
 
@@ -152,6 +152,6 @@
 
 ---
 
-**文件版本**：v4.8（FN09 緊急大修卡）
-**最後更新**：2026-06-07
-**狀態**：React 重構完成，CardExporter 完成，全專案 i18n 100% 完成，Android + iOS icon / splash 全部完成，PWA 支援完成，GitHub Pages CI/CD 完成，對局遙測系統完成，遙測批次分析腳本完成，特效方向 bug 修復完成，Turbine hover 詳細資訊完成，技師卡每回合出牌限制完成，故障數量上限完成，每回合自動補牌到 4 張完成，AI 難度分級化完成，FN09 緊急大修完成，天氣卡我方免疫完成，待手動啟用 Pages + 實機測試 + 學生試玩
+**文件版本**：v5.1（風機升級進化系統）
+**最後更新**：2026-06-09
+**狀態**：React 重構完成，CardExporter 完成，全專案 i18n 100% 完成，Android + iOS icon / splash 全部完成，PWA 支援完成，GitHub Pages CI/CD 完成，對局遙測系統完成，遙測批次分析腳本完成，特效方向 bug 修復完成，Turbine hover 詳細資訊完成，技師卡每回合出牌限制完成，故障數量上限完成，每回合自動補牌到 4 張完成，AI 難度分級化完成，FN09 緊急大修完成，天氣卡我方免疫完成，合約卡雙方攻防完成，風機升級進化系統完成，待手動啟用 Pages + 實機測試 + 學生試玩

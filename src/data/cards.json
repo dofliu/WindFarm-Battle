@@ -2,7 +2,7 @@
   "$schema": "card-schema-v1",
   "version": "v5.0",
   "lastUpdated": "2026-05",
-  "totalCards": 51,
+  "totalCards": 55,
   "categories": {
     "turbine": {
       "count": 15,
@@ -17,7 +17,7 @@
       "color": "#f87171"
     },
     "func": {
-      "count": 9,
+      "count": 13,
       "color": "#ec4899"
     },
     "weather": {
@@ -857,6 +857,54 @@
         }
       ],
       "iec": "61400-28"
+    },
+    "UP01": {
+      "id": "UP01",
+      "type": "func",
+      "icon": "🔧",
+      "cost": 2,
+      "rarity": 2,
+      "effect": "evolveTurbine",
+      "abilities": [
+        { "tag": "evolve-tier1" }
+      ],
+      "iec": "61400-1"
+    },
+    "UP02": {
+      "id": "UP02",
+      "type": "func",
+      "icon": "🌊",
+      "cost": 2,
+      "rarity": 3,
+      "effect": "evolveTurbine",
+      "abilities": [
+        { "tag": "evolve-tier2" }
+      ],
+      "iec": "61400-3-1"
+    },
+    "UP03": {
+      "id": "UP03",
+      "type": "func",
+      "icon": "⚡",
+      "cost": 3,
+      "rarity": 4,
+      "effect": "evolveTurbine",
+      "abilities": [
+        { "tag": "evolve-tier3" }
+      ],
+      "iec": "61400-3-2"
+    },
+    "UP04": {
+      "id": "UP04",
+      "type": "func",
+      "icon": "🔩",
+      "cost": 2,
+      "rarity": 2,
+      "effect": "evolveTurbine",
+      "abilities": [
+        { "tag": "evolve-universal" }
+      ],
+      "iec": "61400-1"
     },
     "W01": {
       "id": "W01",

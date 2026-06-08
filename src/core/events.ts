@@ -15,6 +15,7 @@ export type GameEvent =
   | { kind: 'turbine-replaced'; player: 0 | 1; oldCardId: string; newCardId: string }
   | { kind: 'turbine-returned'; player: 0 | 1; cardId: string }
   | { kind: 'turbine-upgraded'; player: 0 | 1; cardId: string; bonus: number }
+  | { kind: 'turbine-evolved'; player: 0 | 1; fromCardId: string; toCardId: string; turbineIdx: number }
   | { kind: 'tech-deployed'; player: 0 | 1; cardId: string }
   | { kind: 'fault-applied'; player: 0 | 1; targetIdx: number; cardId: string; drop: number }
   | { kind: 'fault-cascaded'; player: 0 | 1; targetIdx: number; cardId: string }

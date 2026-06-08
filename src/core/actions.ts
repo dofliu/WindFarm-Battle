@@ -147,6 +147,14 @@ export function canPlayCard(state: GameState, player: 0 | 1, handIdx: number): b
     if (card.effect === 'searchTurbine' && !p.deck.some((id) => CARDS[id].type === 'turbine')) return false;
     // FN09 once-per-game：若卡牌有 mass-repair-once tag 且已在 usedOncePerGame 清單中 → 不可出
     if (card.abilities.some((a) => a.tag === 'mass-repair-once') && p.usedOncePerGame.includes(cardId)) return false;
+    // UP01-UP04 evolveTurbine：需要場上有符合條件的機組可升級
+    if (card.effect === 'evolveTurbine') {
+      const tier = card.abilities.find((a) => a.tag.startsWith('evolve-'))?.tag;
+      if (tier === 'evolve-tier1' && !p.turbines.some((t) => ['M01', 'M02'].includes(t.cardId))) return false;
+      if (tier === 'evolve-tier2' && !p.turbines.some((t) => ['M03', 'M04'].includes(t.cardId))) return false;
+      if (tier === 'evolve-tier3' && !p.turbines.some((t) => ['M05', 'M06', 'M07', 'M09'].includes(t.cardId))) return false;
+      if (tier === 'evolve-universal' && p.turbines.length === 0) return false;
+    }
   }
   // S3.6：weather 卡無前置條件（隨時可施加全局事件）
   return true;
@@ -357,6 +365,63 @@ function _executeFunc(
       // 標記本局已使用
       p.usedOncePerGame.push(cardId);
       events.push({ kind: 'func-played', player, cardId, effect: repairedAny ? 'mass-repair' : 'mass-repair-noop' });
+      break;
+    }
+    case 'evolveTurbine': {
+      // UP01-UP04 風機升級進化卡
+      // 升級路徑映射表：基礎機組 → 進化目標
+      const EVOLVE_MAP: Record<string, string> = {
+        // tier1：M01/M02 → M03/M04
+        'M01': 'M03',
+        'M02': 'M04',
+        // tier2：M03/M04 → M05/M06
+        'M03': 'M05',
+        'M04': 'M06',
+        // tier3：M05/M06 → M09/M07
+        'M05': 'M09',
+        'M06': 'M07',
+      };
+      const tier = card.abilities.find((a) => a.tag.startsWith('evolve-'))?.tag;
+
+      if (tier === 'evolve-universal') {
+        // UP04：通用升級，對最強且 mwBonus===0 的機組加 +3MW
+        const idx = findStrongestNoBonusIdx(p);
+        if (idx >= 0) {
+          p.turbines[idx].mwBonus = 3;
+          events.push({ kind: 'turbine-upgraded', player, cardId: p.turbines[idx].cardId, bonus: 3 });
+        }
+      } else {
+        // UP01-UP03：找符合條件的機組，替換為進化後的機組（保留 avail/faults/mwBonus）
+        const eligibleIds: string[] = [];
+        if (tier === 'evolve-tier1') eligibleIds.push('M01', 'M02');
+        else if (tier === 'evolve-tier2') eligibleIds.push('M03', 'M04');
+        else if (tier === 'evolve-tier3') eligibleIds.push('M05', 'M06', 'M07', 'M09');
+
+        // 選最高 MW 的符合機組（目標參數可覆蓋）
+        let evolveIdx = target !== undefined ? target : -1;
+        if (evolveIdx === -1) {
+          let bestMW = -1;
+          for (let i = 0; i < p.turbines.length; i++) {
+            if (!eligibleIds.includes(p.turbines[i].cardId)) continue;
+            const mw = (CARDS[p.turbines[i].cardId].stats?.mw ?? 0) + p.turbines[i].mwBonus;
+            if (mw > bestMW) { bestMW = mw; evolveIdx = i; }
+          }
+        }
+
+        if (evolveIdx >= 0 && p.turbines[evolveIdx]) {
+          const t = p.turbines[evolveIdx];
+          const fromId = t.cardId;
+          const toId = EVOLVE_MAP[fromId];
+          if (toId) {
+            const newAvail = CARDS[toId].stats?.avail ?? t.avail;
+            // 保留現有故障和 mwBonus，但更新 cardId 和 avail
+            (p.turbines[evolveIdx] as unknown as Record<string, unknown>)['cardId'] = toId;
+            p.turbines[evolveIdx].avail = Math.min(t.avail, newAvail); // 取較小値（故障已降低可用率）
+            p.turbines[evolveIdx].deployedRound = s.round; // 重置部署回合（offshore-delay 重新計算）
+            events.push({ kind: 'turbine-evolved', player, fromCardId: fromId, toCardId: toId, turbineIdx: evolveIdx });
+          }
+        }
+      }
       break;
     }
     default:
