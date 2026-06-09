@@ -432,13 +432,34 @@ function _executeFunc(
 
 /**
  * S3.6：施加天氣卡 — push 進 state.activeWeather，duration = card.duration（預設 1）。
- * 不消耗 RNG。雙方共享生效。
+ * W05 iceWind 有 random-blade tag：打出當下立即對對手隨機一台機組施加葉片故障（F04 stats）。
+ * 打出者因 self-immune-blade-fault tag 免疫（不受 random-blade 影響）。
  */
-function _applyWeather(s: GameState, player: 0 | 1, cardId: string): GameEvent[] {
+function _applyWeather(s: GameState, player: 0 | 1, cardId: string, rng?: Rng): GameEvent[] {
   const card = CARDS[cardId];
   const duration = card.duration ?? 1;
   s.activeWeather.push({ cardId, duration, appliedBy: player });
-  return [{ kind: 'weather-applied', player, cardId, duration }];
+  const events: GameEvent[] = [{ kind: 'weather-applied', player, cardId, duration }];
+
+  // random-blade：打出當下對對手隨機一台非停機機組施加葉片故障（F04 stats）
+  // 打出者本人不受影響（self-immune-blade-fault）
+  const hasRandomBlade = card.abilities?.some((a) => a.tag === 'random-blade') ?? false;
+  if (hasRandomBlade && rng) {
+    const oppId = (1 - player) as 0 | 1;
+    const opp = s.players[oppId];
+    const eligible = opp.turbines
+      .map((t, i) => ({ t, i }))
+      .filter(({ t }) => !t.shutdown && t.faults.length < 2);
+    if (eligible.length > 0) {
+      const picked = eligible[rng.int(0, eligible.length - 1)];
+      const { t: target, i: tIdx } = picked;
+      // F04 stats：sev=3, drop=20, rounds=2
+      target.faults.push({ cardId: 'F04', roundsLeft: 2, sev: 3, drop: 20 });
+      events.push({ kind: 'fault-applied', player: oppId, targetIdx: tIdx, cardId: 'F04', drop: 20 });
+    }
+  }
+
+  return events;
 }
 
 /**
@@ -494,7 +515,7 @@ export function _applyActionMutate(
       events.push(..._executeFunc(s, action.player, cardId, action.target, rng, config));
       break;
     case 'weather':
-      events.push(..._applyWeather(s, action.player, cardId));
+      events.push(..._applyWeather(s, action.player, cardId, rng));
       break;
     case 'contract':
       events.push(..._applyContract(s, action.player, cardId));

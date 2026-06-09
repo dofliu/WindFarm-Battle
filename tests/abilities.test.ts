@@ -840,3 +840,80 @@ describe('S3.2 部署時自動填 deployedRound', () => {
     expect(deployed?.deployedRound).toBe(5);
   });
 });
+
+describe('W05 random-blade 故障邏輯', () => {
+  it('打出 W05 時，對手非停機機組被施加 F04 葉片故障', async () => {
+    const { applyAction } = await import('../src/core/actions');
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].hand = ['W05'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    // fixedRng(0) → int(0, N-1) 選第 0 台
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([0]));
+    const faultEvents = r.events.filter((e) => e.kind === 'fault-applied');
+    expect(faultEvents.length).toBe(1);
+    expect((faultEvents[0] as { cardId: string }).cardId).toBe('F04');
+    expect((faultEvents[0] as { drop: number }).drop).toBe(20);
+  });
+
+  it('打出 W05 時，P1 機組確實有 F04 故障記錄（roundsLeft=2）', async () => {
+    const { applyAction } = await import('../src/core/actions');
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].hand = ['W05'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([0]));
+    const oppTurbines = r.state.players[1].turbines;
+    const bladeFault = oppTurbines.flatMap((t) => t.faults).find((f) => f.cardId === 'F04');
+    expect(bladeFault).toBeDefined();
+    expect(bladeFault?.roundsLeft).toBe(2);
+    expect(bladeFault?.sev).toBe(3);
+  });
+
+  it('打出 W05 時，P0 自家機組不受 random-blade 影響（self-immune-blade-fault）', async () => {
+    const { applyAction } = await import('../src/core/actions');
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].hand = ['W05'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([0]));
+    const selfTurbines = r.state.players[0].turbines;
+    const hasBladeFault = selfTurbines.some((t) => t.faults.some((f) => f.cardId === 'F04'));
+    expect(hasBladeFault).toBe(false);
+  });
+
+  it('對手機組已有 2 個故障時，W05 random-blade 不再施加（故障上限）', async () => {
+    const { applyAction } = await import('../src/core/actions');
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].hand = ['W05'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    s.players[1].turbines.forEach((t) => {
+      t.faults = [
+        { cardId: 'F01', roundsLeft: 2, sev: 1, drop: 10 },
+        { cardId: 'F02', roundsLeft: 2, sev: 2, drop: 15 },
+      ];
+    });
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([0]));
+    const bladeFaultEvents = r.events.filter(
+      (e) => e.kind === 'fault-applied' && (e as { cardId: string }).cardId === 'F04',
+    );
+    expect(bladeFaultEvents.length).toBe(0);
+  });
+
+  it('對手機組全部停機時，W05 random-blade 不施加', async () => {
+    const { applyAction } = await import('../src/core/actions');
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].hand = ['W05'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    s.players[1].turbines.forEach((t) => {
+      t.shutdown = true;
+    });
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([0]));
+    const bladeFaultEvents = r.events.filter(
+      (e) => e.kind === 'fault-applied' && (e as { cardId: string }).cardId === 'F04',
+    );
+    expect(bladeFaultEvents.length).toBe(0);
+  });
+});
