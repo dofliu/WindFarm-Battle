@@ -102,6 +102,11 @@ export const en = {
   'turbine.roundsLeft': '{n} rnd left',
   'turbine.drop': '-{n}%',
   'turbine.shutdown': 'Emergency Shutdown',
+  // ── Weather Immunity UI ────────────────────────────────────
+  'weather.selfImmuneShutdown': '🛡 Self: Immune to Shutdown',
+  'weather.selfImmuneWindPenalty': '🛡 Self: Immune to Wind Penalty',
+  'weather.selfBoostWind': '⚡ Self: Wind Boost ×1.1',
+  'weather.selfImmuneBladeFault': '🛡 Self: Immune to Blade Fault',
   // ── TitleScreen ──────────────────────────────────────────
   'title.tagline': 'Wind O&M Strategy Card Game · 12 Rounds',
   'title.startTideboard': 'Set Sail',

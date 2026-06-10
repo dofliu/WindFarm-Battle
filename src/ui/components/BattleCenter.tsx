@@ -5,6 +5,7 @@ import { Storm, Contract } from '../icons';
 import { CARDS } from '../../core/cards';
 import { cardName, t } from '../../i18n';
 import { useLocale } from '../locale/LocaleContext';
+import { isSelfImmuneShutdown, isSelfImmuneWindPenalty, isSelfBoostWind, isSelfImmuneBladeFault } from '../../core/abilities';
 import type { GameState, Wind, ActiveWeather, ActiveContract } from '../../core/types';
 
 /** 把 wind.roll 轉成兩顆骰子的點數陣列。'6+6' → [6,6]；單顆 → [n, null]；數字字串/數字皆支援 */
@@ -213,6 +214,39 @@ function ActionPips({ actionsLeft }: { readonly actionsLeft: number }) {
   );
 }
 
+function WeatherImmunityBadges({ weather }: { readonly weather: readonly ActiveWeather[] }) {
+  const { themeKey } = useTheme();
+  const badges: string[] = [];
+  if (isSelfImmuneShutdown(weather, 0)) badges.push(t('weather.selfImmuneShutdown'));
+  if (isSelfImmuneWindPenalty(weather, 0)) badges.push(t('weather.selfImmuneWindPenalty'));
+  if (isSelfBoostWind(weather, 0)) badges.push(t('weather.selfBoostWind'));
+  if (isSelfImmuneBladeFault(weather, 0)) badges.push(t('weather.selfImmuneBladeFault'));
+  if (badges.length === 0) return null;
+  const isT = themeKey === 'tideboard';
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      {badges.map((b, i) => (
+        <div
+          key={i}
+          style={{
+            padding: isT ? '3px 8px' : '3px 9px',
+            fontSize: 9,
+            fontWeight: 700,
+            color: isT ? '#a8d878' : '#2a8a5a',
+            background: isT ? 'rgba(168,216,120,0.12)' : 'rgba(42,138,90,0.1)',
+            border: isT ? '1px solid rgba(168,216,120,0.4)' : '1px solid rgba(42,138,90,0.3)',
+            borderRadius: isT ? 0 : 8,
+            fontFamily: isT ? 'Georgia, serif' : 'inherit',
+            letterSpacing: isT ? '0.05em' : 'normal',
+          }}
+        >
+          {b}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function StatusEffects({
   weather,
   contracts,
@@ -223,7 +257,8 @@ function StatusEffects({
   const { themeKey } = useTheme();
   if (weather.length === 0 && contracts.length === 0) return null;
   return (
-    <div style={{ display: 'flex', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', gap: 8 }}>
       {weather.map((w, i) => {
         const card = CARDS[w.cardId];
         const name = card ? cardName(w.cardId) || w.cardId : w.cardId;
@@ -314,6 +349,8 @@ function StatusEffects({
           </div>
         );
       })}
+      </div>
+      <WeatherImmunityBadges weather={weather} />
     </div>
   );
 }

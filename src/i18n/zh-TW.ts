@@ -102,6 +102,11 @@ export const zhTW = {
   'turbine.roundsLeft': '剩 {n} 回',
   'turbine.drop': '-{n}%',
   'turbine.shutdown': '緊急停機',
+  // ── Weather Immunity UI ────────────────────────────────────
+  'weather.selfImmuneShutdown': '🛡 我方免疫停機',
+  'weather.selfImmuneWindPenalty': '🛡 我方免疫風速懲罰',
+  'weather.selfBoostWind': '⚡ 我方風能加成 ×1.1',
+  'weather.selfImmuneBladeFault': '🛡 我方免疫葉片故障',
   // ── TitleScreen ──────────────────────────────────────────
   'title.tagline': '風場運維策略卡牌 · 12 回合決勝負',
   'title.startTideboard': '開始航行',
