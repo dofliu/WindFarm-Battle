@@ -313,35 +313,25 @@ function _executeFunc(
       break;
     }
     case 'insurance': {
-      // FN08 insurance-shield 重實作：緊急搶修卡。
-      // 選自家受損最重的機組（優先停機機組），清除所有故障 + 若停機則復機（avail 恢復 20%）。
+      // FN08 insurance-shield：對指定機組（或最弱機組）加 1 層保護盾。
+      // 保護盾在 _applyFault 中消耗：若 shieldCount > 0，故障不生效，shieldCount--。
       const p2 = s.players[player];
-      // 優先找停機機組；若無則找故障最多的
-      let repairIdx = p2.turbines.findIndex((t) => t.shutdown);
-      if (repairIdx === -1) {
-        repairIdx = p2.turbines.reduce((best, t, i) => {
-          const drop = t.faults.reduce((s, f) => s + f.drop, 0);
-          const bestDrop = best === -1 ? -1 : p2.turbines[best].faults.reduce((s, f) => s + f.drop, 0);
-          return drop > bestDrop ? i : best;
-        }, -1);
+      // 優先選目標（target 參數）；若無則選故障最多的機組（最需要保護）
+      let shieldIdx = target !== undefined && target >= 0 && target < p2.turbines.length
+        ? target
+        : p2.turbines.reduce((best, t, i) => {
+            const drop = t.faults.reduce((acc, f) => acc + f.drop, 0);
+            const bestDrop = best === -1 ? -1 : p2.turbines[best].faults.reduce((acc, f) => acc + f.drop, 0);
+            return drop > bestDrop ? i : best;
+          }, -1);
+      // 若無機組，shieldIdx 可能為 -1（空艦隊）
+      if (shieldIdx === -1 && p2.turbines.length > 0) shieldIdx = 0;
+      if (shieldIdx !== -1 && p2.turbines[shieldIdx]) {
+        const t = p2.turbines[shieldIdx];
+        t.shieldCount = (t.shieldCount ?? 0) + 1;
+        events.push({ kind: 'turbine-shielded', player, turbineIdx: shieldIdx, cardId, shieldCount: t.shieldCount });
       }
-      if (repairIdx !== -1) {
-        const t = p2.turbines[repairIdx];
-        // 清除所有故障
-        for (const fault of t.faults) {
-          events.push({ kind: 'fault-repaired', player, targetIdx: repairIdx, cardId: fault.cardId });
-        }
-        t.faults = [];
-        // 停機復機：avail 恢復到 20%（緊急狀態仍有損耗）
-        if (t.shutdown) {
-          t.shutdown = false;
-          t.avail = Math.max(t.avail, 20);
-          events.push({ kind: 'turbine-restart', player, turbineIdx: repairIdx, cardId: t.cardId });
-        }
-        events.push({ kind: 'func-played', player, cardId, effect: 'emergency-repair' });
-      } else {
-        events.push({ kind: 'func-played', player, cardId, effect: 'insurance-noop' });
-      }
+      // func-played 已在 switch 前統一 push，此處不重複
       break;
     }
     case 'massRepair': {

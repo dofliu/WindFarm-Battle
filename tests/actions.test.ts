@@ -498,3 +498,100 @@ describe('UP01-UP04 風機升級進化卡', () => {
     expect(r.events.filter((e) => e.kind === 'turbine-evolved')).toHaveLength(0);
   });
 });
+
+describe('FN08 insurance-shield', () => {
+  it('打出 FN08 → 目標機組獲得 shieldCount=1，發出 turbine-shielded 事件', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    // P0 有機組，手牌放 FN08
+    s.players[0].turbines = [
+      { cardId: 'OS8', avail: 90, mwBonus: 0, faults: [] },
+    ];
+    s.players[0].hand = ['FN08'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    // 應有 turbine-shielded 事件
+    const ev = r.events.find((e) => e.kind === 'turbine-shielded');
+    expect(ev?.kind).toBe('turbine-shielded');
+    if (ev?.kind === 'turbine-shielded') {
+      expect(ev.shieldCount).toBe(1);
+      expect(ev.player).toBe(0);
+    }
+    // 機組的 shieldCount 應為 1
+    expect(r.state.players[0].turbines[0].shieldCount).toBe(1);
+  });
+
+  it('有保護盾的機組受到故障 → 保護盾吸收，故障不生效，發出 shield-absorbed 事件', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    // P1（對手）有一台機組，且已有 shieldCount=1
+    s.players[1].turbines = [
+      { cardId: 'OS8', avail: 90, mwBonus: 0, faults: [], shieldCount: 1 },
+    ];
+    // P0 出故障卡攻擊 P1
+    s.players[0].hand = ['F01'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(
+      s,
+      { kind: 'play-card', player: 0, handIdx: 0, target: 0 },
+      fixedRng([0.99]), // cascade rng（F01 無 cascade，但確保 rng 穩定）
+    );
+    // 應有 shield-absorbed 事件
+    const ev = r.events.find((e) => e.kind === 'shield-absorbed');
+    expect(ev?.kind).toBe('shield-absorbed');
+    if (ev?.kind === 'shield-absorbed') {
+      expect(ev.player).toBe(1);
+      expect(ev.turbineIdx).toBe(0);
+      expect(ev.shieldLeft).toBe(0);
+    }
+    // 不應有 fault-applied 事件
+    expect(r.events.filter((e) => e.kind === 'fault-applied')).toHaveLength(0);
+    // 機組故障清單應為空
+    expect(r.state.players[1].turbines[0].faults).toHaveLength(0);
+    // shieldCount 應消耗為 0
+    expect(r.state.players[1].turbines[0].shieldCount).toBe(0);
+  });
+
+  it('保護盾耗盡後，下一個故障正常生效', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    // P1 機組已有 shieldCount=0（已耗盡）
+    s.players[1].turbines = [
+      { cardId: 'OS8', avail: 90, mwBonus: 0, faults: [], shieldCount: 0 },
+    ];
+    s.players[0].hand = ['F01'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(
+      s,
+      { kind: 'play-card', player: 0, handIdx: 0, target: 0 },
+      fixedRng([0.99]),
+    );
+    // 應有 fault-applied 事件（保護盾已耗盡，故障正常生效）
+    expect(r.events.filter((e) => e.kind === 'fault-applied')).toHaveLength(1);
+    // 不應有 shield-absorbed 事件
+    expect(r.events.filter((e) => e.kind === 'shield-absorbed')).toHaveLength(0);
+    // 機組應有 1 個故障
+    expect(r.state.players[1].turbines[0].faults).toHaveLength(1);
+  });
+
+  it('FN08 打出後 target 參數可指定特定機組', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [
+      { cardId: 'OS8',  avail: 90, mwBonus: 0, faults: [] },
+      { cardId: 'OS10', avail: 88, mwBonus: 0, faults: [] },
+    ];
+    s.players[0].hand = ['FN08'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    // 指定 target=1（第二台機組）
+    const r = applyAction(
+      s,
+      { kind: 'play-card', player: 0, handIdx: 0, target: 1 },
+      fixedRng([]),
+    );
+    // 第二台機組應有保護盾
+    expect(r.state.players[0].turbines[1].shieldCount).toBe(1);
+    // 第一台機組不應有保護盾
+    expect(r.state.players[0].turbines[0].shieldCount ?? 0).toBe(0);
+  });
+});

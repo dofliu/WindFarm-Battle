@@ -83,6 +83,12 @@ export interface DeployedTurbine {
   /** S3.2：部署於哪一回合（offshore-delay 用，部署當回合不結算）。createInitialState 的開局 M01 為 0。 */
   deployedRound?: number;
   /**
+   * FN08 insurance-shield：保護層數。
+   * 每層可抵消一次故障傷害（故障不生效）。
+   * 打出 FN08 時對指定機組加 1 層；_applyFault 時若 shieldCount > 0 則消耗一層並短路。
+   */
+  shieldCount?: number;
+  /**
    * 緊急停機：當累積故障使有效可用率 ≤ 0 時觸發。
    * 停機中機組不產 MWh、對手不能再加故障。
    * 修復需要花費 2 動作（透過 play-card 打出修復功能卡或技師）。

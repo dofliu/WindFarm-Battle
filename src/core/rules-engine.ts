@@ -228,6 +228,16 @@ export function _applyFault(
   const sev = card.stats?.sev ?? 1;
 
   if (!targetImmune) {
+    // FN08 insurance-shield：若機組有保護盾，消耗一層並短路故障
+    if ((target.shieldCount ?? 0) > 0) {
+      target.shieldCount = (target.shieldCount ?? 0) - 1;
+      events.push({ kind: 'shield-absorbed', player: oppId, turbineIdx: tIdx, faultCardId: cardId, shieldLeft: target.shieldCount });
+      // 保護盾吸收後仍要撲擲 cascade rng（保護 RNG 順序固定）
+      if (card.cascade && card.cascade > 0 && opponent.turbines.length > 1) {
+        rng.next(); // 消耗 cascade rng slot，但不施加故障
+      }
+      return events;
+    }
     // 故障數量上限：同台風機最多 2 個故障。
     // 若已有 2 個故障，第 3 個故障不疊加，改為直接觸發停機（防止無限疊加的不合理情況）。
     if (target.faults.length >= 2) {

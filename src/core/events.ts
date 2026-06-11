@@ -19,6 +19,10 @@ export type GameEvent =
   | { kind: 'tech-deployed'; player: 0 | 1; cardId: string }
   | { kind: 'fault-applied'; player: 0 | 1; targetIdx: number; cardId: string; drop: number }
   | { kind: 'fault-cascaded'; player: 0 | 1; targetIdx: number; cardId: string }
+  /** FN08 insurance-shield：打出保險卡，機組獲得保護層 */
+  | { kind: 'turbine-shielded'; player: 0 | 1; turbineIdx: number; cardId: string; shieldCount: number }
+  /** FN08 insurance-shield：保護層吸收了一次故障，故障短路 */
+  | { kind: 'shield-absorbed'; player: 0 | 1; turbineIdx: number; faultCardId: string; shieldLeft: number }
   | { kind: 'fault-repaired'; player: 0 | 1; targetIdx: number; cardId: string; by?: string; quality?: 'full' | 'partial'; availLost?: number }
   | { kind: 'func-played'; player: 0 | 1; cardId: string; effect: string }
   | { kind: 'predict-wind'; player: 0 | 1; labels: string[] }

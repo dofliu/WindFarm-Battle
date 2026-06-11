@@ -75,6 +75,7 @@
 - [x] 🔵 **風機升級進化系統**：新增 UP01-UP04 升級卡（降域/近岸/離岸/通用），實作 `evolveTurbine` effect，進化時保留 avail/faults/mwBonus；新增 `turbine-evolved` 事件；新增 5 個測試（244 tests 全通過）（commit v5.1）
 - [x] 🔵 **W05 冰風 random-blade 故障邏輯**：`_applyWeather` 加入 random-blade 邏輯，對對手隨機一台非停機機組施加 F04 葉片故障（drop=20, rounds=2, sev=3）；打出者因 `self-immune-blade-fault` tag 免疫；故障上限保護；新增 5 個測試（249 tests 全通過）（commit v5.2）
 - [x] 🟢 **天氣免疫狀態 UI 視覺化**：`BattleCenter.tsx` 新增 `WeatherImmunityBadges` 元件，在天氣卡列表下方顯示玩家的免疫狀態（🛡 我方免疫停機 / 風速懲罰 / 葉片故障，⚡ 風能加成）；新增 8 個 i18n key（weather.*）；支援 Cumulus/Tideboard 雙主題（249 tests 全通過）（commit v5.3）
+- [x] 🟢 **FN08 insurance-shield 完整邏輯**：`DeployedTurbine` 加入 `shieldCount?: number`；`_executeFunc` insurance case 改為對指定機組加 1 層保護盾；`_applyFault` 加入保護盾檢查（shieldCount > 0 則消耗一層並短路故障）；新增 `turbine-shielded` 和 `shield-absorbed` 事件；新增 2 個 i18n key（turbine.shielded / turbine.shieldAbsorbed）；更新卡牌文案（zh-TW + en）；新增 4 個測試（253 tests 全通過）（commit v5.4）
 
 ---
 
@@ -154,6 +155,6 @@
 
 ---
 
-**文件版本**：v5.3（天氣免疫狀態 UI 視覺化）
-**最後更新**：2026-06-11
-**狀態**：React 重構完成，CardExporter 完成，全專案 i18n 100% 完成，Android + iOS icon / splash 全部完成，PWA 支援完成，GitHub Pages CI/CD 完成，對局遙測系統完成，遙測批次分析腳本完成，特效方向 bug 修復完成，Turbine hover 詳細資訊完成，技師卡每回合出牌限制完成，故障數量上限完成，每回合自動補牌到 4 張完成，AI 難度分級化完成，FN09 緊急大修完成，天氣卡我方免疫完成，合約卡雙方攻防完成，風機升級進化系統完成，W05 random-blade 故障邏輯完成，待手動啟用 Pages + 實機測試 + 學生試玩
+**文件版本**：v5.4（FN08 insurance-shield 完整邏輯）
+**最後更新**：2026-06-12
+**狀態**：React 重構完成，CardExporter 完成，全專案 i18n 100% 完成，Android + iOS icon / splash 全部完成，PWA 支援完成，GitHub Pages CI/CD 完成，對局遙測系統完成，遙測批次分析腳本完成，特效方向 bug 修復完成，Turbine hover 詳細資訊完成，技師卡每回合出牌限制完成，故障數量上限完成，每回合自動補牌到 4 張完成，AI 難度分級化完成，FN09 緊急大修完成，天氣卡我方免疫完成，合約卡雙方攻防完成，風機升級進化系統完成，W05 random-blade 故障邏輯完成，FN08 insurance-shield 完成，待手動啟用 Pages + 實機測試 + 學生試玩

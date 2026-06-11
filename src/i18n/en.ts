@@ -107,6 +107,9 @@ export const en = {
   'weather.selfImmuneWindPenalty': '🛡 Self: Immune to Wind Penalty',
   'weather.selfBoostWind': '⚡ Self: Wind Boost ×1.1',
   'weather.selfImmuneBladeFault': '🛡 Self: Immune to Blade Fault',
+  // ── Insurance Shield UI ─────────────────────────────────────────
+  'turbine.shielded': '🛡 Shield {n} Layer(s)',
+  'turbine.shieldAbsorbed': '🛡 Shield absorbed a fault!',
   // ── TitleScreen ──────────────────────────────────────────
   'title.tagline': 'Wind O&M Strategy Card Game · 12 Rounds',
   'title.startTideboard': 'Set Sail',
