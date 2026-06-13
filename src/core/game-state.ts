@@ -39,6 +39,7 @@ function createPlayer(name: string, rng: Rng): PlayerState {
     mwhBoostActive: false,
     techPlayedThisRound: false,
     usedOncePerGame: [],
+    funcBonusThisRound: 0,
   };
 }
 

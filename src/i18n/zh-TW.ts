@@ -112,6 +112,8 @@ export const zhTW = {
   'turbine.shieldAbsorbed': '🛡 保護盾吸收故障！',
   // ── T05 Fault Warning UI ───────────────────────────────────────────────────────
   'tech.faultWarning': '⚠️ SCADA 預警：對手手牌含 {card}',
+  'tech.peekHand': '👁️ 空中偵察：對手手牌含 {cards}',
+  'tech.funcBonus': '⚡ 創新團隊：出功能卡 +1 動作（共 +{total}）',
   // ── TitleScreen ──────────────────────────────────────────
   'title.tagline': '風場運維策略卡牌 · 12 回合決勝負',
   'title.startTideboard': '開始航行',

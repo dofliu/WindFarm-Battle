@@ -112,6 +112,8 @@ export const en = {
   'turbine.shieldAbsorbed': '🛡 Shield absorbed a fault!',
   // ── T05 Fault Warning UI ───────────────────────────────────────────────────────
   'tech.faultWarning': '⚠️ SCADA Warning: Opponent holds {card}',
+  'tech.peekHand': '👁️ Aerial Recon: Opponent holds {cards}',
+  'tech.funcBonus': '⚡ Innovation Team: Played a func card +1 action (total +{total})',
   // ── TitleScreen ──────────────────────────────────────────
   'title.tagline': 'Wind O&M Strategy Card Game · 12 Rounds',
   'title.startTideboard': 'Set Sail',

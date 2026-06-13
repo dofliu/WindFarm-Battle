@@ -109,6 +109,8 @@ export interface PlayerState {
   techPlayedThisRound: boolean;
   /** 本局已使用過的 once-per-game 卡 ID 清單。包含在此清單的卡不可再出。 */
   usedOncePerGame: string[];
+  /** T09 func-bonus：本回合已累加的額外動作數（上限 2）。_beginTurn 時重置為 0。 */
+  funcBonusThisRound: number;
 }
 
 export interface Wind {

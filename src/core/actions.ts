@@ -230,6 +230,16 @@ function _deployTech(s: GameState, player: 0 | 1, cardId: string, rng?: Rng): Ga
     s.futureWind.push(...future);
     events.push({ kind: 'predict-wind', player, labels: future.map((w) => w.label) });
   }
+
+  // T08 peek-hand：部署時查看對手手牌中前 2 張（不消耗手牌，僅揭示）
+  if (CARDS[cardId].abilities.some((a) => a.tag === 'peek-hand')) {
+    const opp = s.players[(1 - player) as 0 | 1];
+    const peeked = opp.hand.slice(0, 2);
+    if (peeked.length > 0) {
+      events.push({ kind: 'peek-hand', player, cardIds: peeked });
+    }
+  }
+
   return events;
 }
 
@@ -512,6 +522,15 @@ export function _applyActionMutate(
       break;
     default:
       break;
+  }
+
+  // T09 func-bonus：出 func 卡後，若該玩家場上有 T09（func-bonus tag），本回合 +1 動作（最多累加 +2）
+  if (card.type === 'func' && p.techs.some((id) => CARDS[id].abilities.some((a) => a.tag === 'func-bonus'))) {
+    if (p.funcBonusThisRound < 2) {
+      p.funcBonusThisRound += 1;
+      s.actionsLeft += 1;
+      events.push({ kind: 'func-bonus', player: action.player, actionsGained: 1, totalBonus: p.funcBonusThisRound });
+    }
   }
 
   // S3.1：M07 card-draw-trigger — 出 tech/func 卡後，若該玩家場上有此 tag → 抽 1 張。

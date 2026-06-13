@@ -28,6 +28,10 @@ export type GameEvent =
   | { kind: 'predict-wind'; player: 0 | 1; labels: string[] }
   /** T05 fault-warning：對手 T05 在本回合開始時預警 1 種故障（warnedPlayer 是被預警的玩家） */
   | { kind: 'fault-warning'; warnedPlayer: 0 | 1; faultCardId: string }
+  /** T08 peek-hand：部署時查看對手手牌（cardIds 是被查看的卡牌 id） */
+  | { kind: 'peek-hand'; player: 0 | 1; cardIds: string[] }
+  /** T09 func-bonus：每次出 func 卡觸發，本回合 +1 動作（最多累加 +2） */
+  | { kind: 'func-bonus'; player: 0 | 1; actionsGained: number; totalBonus: number }
   | { kind: 'extra-action-banked'; player: 0 | 1; pending: number }
   | { kind: 'mwh-boost'; player: 0 | 1 }
   | { kind: 'turn-ended'; player: 0 | 1 }

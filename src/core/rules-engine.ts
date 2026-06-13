@@ -113,6 +113,7 @@ export function _beginTurn(s: GameState, player: 0 | 1): GameEvent[] {
   s.actionsLeft = 2 + (hasActionAura(p) ? 1 : 0) + p.pendingExtraActions;
   p.pendingExtraActions = 0;
   p.techPlayedThisRound = false; // 每回合開始重置技師卡出牌限制
+  p.funcBonusThisRound = 0;    // T09 func-bonus：每回合開始重置累加計數
 
   // T05 fault-warning：若對手場上有 T05（且 SCADA 未被 F09 停用），
   // 從當前玩家手牌中隨機選 1 張 fault 卡預警（不消耗手牌，僅揭示）。

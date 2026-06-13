@@ -595,3 +595,130 @@ describe('FN08 insurance-shield', () => {
     expect(r.state.players[0].turbines[0].shieldCount ?? 0).toBe(0);
   });
 });
+
+describe('T08 無人機操作員 peek-hand（出場時查看對手 2 張手牌）', () => {
+  it('部署 T08 → 發出 peek-hand 事件，cardIds 為對手前 2 張手牌', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].hand = ['T08'];
+    s.players[1].hand = ['F01', 'F02', 'M01'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    const peekEvents = r.events.filter((e) => e.kind === 'peek-hand');
+    expect(peekEvents).toHaveLength(1);
+    const ev = peekEvents[0] as { kind: 'peek-hand'; player: 0 | 1; cardIds: string[] };
+    expect(ev.player).toBe(0);
+    expect(ev.cardIds).toEqual(['F01', 'F02']); // 前 2 張
+  });
+
+  it('對手手牌只有 1 張 → peek-hand 事件 cardIds 長度為 1', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].hand = ['T08'];
+    s.players[1].hand = ['F01'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    const peekEvents = r.events.filter((e) => e.kind === 'peek-hand');
+    expect(peekEvents).toHaveLength(1);
+    const ev = peekEvents[0] as { kind: 'peek-hand'; player: 0 | 1; cardIds: string[] };
+    expect(ev.cardIds).toHaveLength(1);
+  });
+
+  it('對手手牌為空 → 不發 peek-hand 事件', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].hand = ['T08'];
+    s.players[1].hand = [];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    expect(r.events.filter((e) => e.kind === 'peek-hand')).toHaveLength(0);
+  });
+
+  it('peek-hand 不消耗對手手牌（對手手牌張數不變）', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].hand = ['T08'];
+    s.players[1].hand = ['F01', 'F02', 'M01'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    expect(r.state.players[1].hand).toHaveLength(3);
+  });
+});
+
+describe('T09 研發總監 func-bonus（出功能卡 +1 動作，最多 +2）', () => {
+  // 使用 FN04 extraAction（cost=0）避免 FN01 returnTurbine 副作用（會把機組收回手牌）
+  // T09 有 func-discount，FN04 cost=0 後仍為 0（下限 0）
+  it('場上有 T09，出 1 張 func 卡 → actionsLeft +1，發出 func-bonus 事件', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].techs = ['T09'];
+    s.players[0].hand = ['FN04'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    const bonusEvents = r.events.filter((e) => e.kind === 'func-bonus');
+    expect(bonusEvents).toHaveLength(1);
+    const ev = bonusEvents[0] as { kind: 'func-bonus'; player: 0 | 1; actionsGained: number; totalBonus: number };
+    expect(ev.actionsGained).toBe(1);
+    expect(ev.totalBonus).toBe(1);
+    // FN04 cost=0（T09 func-discount 下限 0），出牌後 actionsLeft = 3 - 0 + 1 = 4
+    expect(r.state.actionsLeft).toBe(4);
+  });
+
+  it('場上有 T09，出 2 張 func 卡 → 第 2 次仍 +1（累計 +2）', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].techs = ['T09'];
+    s.players[0].hand = ['FN04', 'FN04'];
+    s.actionsLeft = 5;
+    s.currentPlayer = 0;
+    // 出第 1 張 FN04
+    const r1 = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    expect(r1.events.filter((e) => e.kind === 'func-bonus')).toHaveLength(1);
+    expect(r1.state.players[0].funcBonusThisRound).toBe(1);
+    // 出第 2 張 FN04
+    const r2 = applyAction(r1.state, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    expect(r2.events.filter((e) => e.kind === 'func-bonus')).toHaveLength(1);
+    expect(r2.state.players[0].funcBonusThisRound).toBe(2);
+  });
+
+  it('場上有 T09，出 3 張 func 卡 → 第 3 次不再 +1（上限 2）', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].techs = ['T09'];
+    s.players[0].hand = ['FN04', 'FN04', 'FN04'];
+    s.actionsLeft = 8;
+    s.currentPlayer = 0;
+    const r1 = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    const r2 = applyAction(r1.state, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    const r3 = applyAction(r2.state, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    // 第 3 次不應有 func-bonus 事件
+    expect(r3.events.filter((e) => e.kind === 'func-bonus')).toHaveLength(0);
+    // funcBonusThisRound 仍為 2（上限）
+    expect(r3.state.players[0].funcBonusThisRound).toBe(2);
+  });
+
+  it('場上無 T09，出 func 卡 → 不發 func-bonus 事件', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].techs = ['T01']; // T01 不是研發總監
+    s.players[0].turbines = [{ cardId: 'OS8', avail: 90, mwBonus: 0, faults: [] }];
+    s.players[0].hand = ['FN01'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    expect(r.events.filter((e) => e.kind === 'func-bonus')).toHaveLength(0);
+  });
+
+  it('T09 func-bonus 在 _beginTurn 時重置（新回合重新累計）', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].techs = ['T09'];
+    s.players[0].turbines = [{ cardId: 'OS8', avail: 90, mwBonus: 0, faults: [] }];
+    s.players[0].hand = ['FN01'];
+    s.actionsLeft = 3;
+    s.currentPlayer = 0;
+    // 出 1 張 func 卡，funcBonusThisRound = 1
+    const r1 = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    expect(r1.state.players[0].funcBonusThisRound).toBe(1);
+    // 模擬 _beginTurn 重置
+    const s2 = structuredClone(r1.state);
+    s2.players[0].funcBonusThisRound = 0; // _beginTurn 會重置
+    expect(s2.players[0].funcBonusThisRound).toBe(0);
+  });
+});
