@@ -2,7 +2,7 @@
 
 > **這是給 Claude Code 看的第一份文件。** 整個專案的現狀、決策、與下一步行動都在這裡。
 >
-> **最後更新：2026-05-23（progress 97%）**
+> **最後更新：2026-06-14（progress 98%）**
 
 ---
 
@@ -76,6 +76,7 @@
 - [x] 🔵 **W05 冰風 random-blade 故障邏輯**：`_applyWeather` 加入 random-blade 邏輯，對對手隨機一台非停機機組施加 F04 葉片故障（drop=20, rounds=2, sev=3）；打出者因 `self-immune-blade-fault` tag 免疫；故障上限保護；新增 5 個測試（249 tests 全通過）（commit v5.2）
 - [x] 🟢 **天氣免疫狀態 UI 視覺化**：`BattleCenter.tsx` 新增 `WeatherImmunityBadges` 元件，在天氣卡列表下方顯示玩家的免疫狀態（🛡 我方免疫停機 / 風速懲罰 / 葉片故障，⚡ 風能加成）；新增 8 個 i18n key（weather.*）；支援 Cumulus/Tideboard 雙主題（249 tests 全通過）（commit v5.3）
 - [x] 🟢 **FN08 insurance-shield 完整邏輯**：`DeployedTurbine` 加入 `shieldCount?: number`；`_executeFunc` insurance case 改為對指定機組加 1 層保護盾；`_applyFault` 加入保護盾檢查（shieldCount > 0 則消耗一層並短路故障）；新增 `turbine-shielded` 和 `shield-absorbed` 事件；新增 2 個 i18n key（turbine.shielded / turbine.shieldAbsorbed）；更新卡牌文案（zh-TW + en）；新增 4 個測試（253 tests 全通過）（commit v5.4）
+- [x] 🟢 **T05 SCADA 工程師 fault-warning 能力**：`_beginTurn` 加入 fault-warning 邏輯（對手場上有 T05 時，對當前玩家手牌中第一張 fault 卡發出預警事件）；`beginTurn()` 純函式版改回 `ApplyResult`；`game-store.ts` 全部 `_beginTurn` 呼叫點更新為收集事件；新增 `hasFaultWarning()` 輔助函式；新增 `fault-warning` 事件型別；新增 2 個 i18n key（tech.faultWarning zh-TW + en）；新增 5 個測試（258 tests 全通過）（commit v5.5）
 
 ---
 

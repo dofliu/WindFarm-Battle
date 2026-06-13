@@ -154,7 +154,7 @@ function startRound(s: GameState, rng: Rng): GameEvent[] {
 
   // 先手玩家：(round - 1) % 2
   s.firstPlayer = ((s.round - 1) % 2) as 0 | 1;
-  _beginTurn(s, s.firstPlayer);
+  events.push(..._beginTurn(s, s.firstPlayer));
   // 自動補牌：先手玩家手牌不足 refillHandTo 張時補到目標張數
   const refillTo = UI_RICH_CONFIG.refillHandTo ?? 0;
   if (refillTo > 0) {
@@ -192,7 +192,7 @@ function advanceAfterTurn(s: GameState, finishedPlayer: 0 | 1, rng: Rng): GameEv
   // 已經輪過兩位玩家？比較 firstPlayer
   if (finishedPlayer === s.firstPlayer) {
     // 還有對手玩家要動
-    _beginTurn(s, nextPlayer);
+    events.push(..._beginTurn(s, nextPlayer));
     // 自動補牌：手牌不足 refillHandTo 張時補到目標張數
     const refillTo = UI_RICH_CONFIG.refillHandTo ?? 0;
     if (refillTo > 0) {
@@ -394,7 +394,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (HUMAN === s.firstPlayer) {
       // ── 玩家先手 → AI 接著動 ──
       // Phase 1（同步）：先切換到 AI、顯示「思考中」旗標
-      _beginTurn(s, AI);
+      ev1.push(..._beginTurn(s, AI));
       set({
         state: s,
         events: [...events, ...ev1].slice(-EVENT_LOG_LIMIT),
@@ -422,7 +422,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           ev3.push(...runAiTurn(s3, diff, rng));
           ev3.push(..._repairFaults(s3, AI, UI_RICH_CONFIG));
           ev3.push(..._periodicRepair(s3, AI));
-          _beginTurn(s3, HUMAN);
+          ev3.push(..._beginTurn(s3, HUMAN));
         }
 
         // 提取 AI 動作事件（只保留有意義的行動，排除 repair / round-scoring / weather-tick 等）
@@ -458,7 +458,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ev1.push(...runAiTurn(s, diff, rng));
         ev1.push(..._repairFaults(s, AI, UI_RICH_CONFIG));
         ev1.push(..._periodicRepair(s, AI));
-        _beginTurn(s, HUMAN);
+        ev1.push(..._beginTurn(s, HUMAN));
       }
 
       set({

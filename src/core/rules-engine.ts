@@ -18,6 +18,7 @@ import {
   isSelfImmuneShutdown, isSelfImmuneWindPenalty, isSelfBoostWind,
   WEATHER_SELF_BOOST_MULT,
   evaluateContractCondition,
+  hasFaultWarning,
 } from './abilities';
 
 /** 計算機組有效可用率（base - 所有故障 drop 加總，最低 0）。 */
@@ -105,12 +106,30 @@ export function _drawCard(s: GameState, player: 0 | 1, rng: Rng, _config: RulesC
 }
 
 /** @internal 給 actions.ts 共用；外部請改用 beginTurn() 純函式版。 */
-export function _beginTurn(s: GameState, player: 0 | 1): void {
+export function _beginTurn(s: GameState, player: 0 | 1): GameEvent[] {
+  const events: GameEvent[] = [];
   const p = s.players[player];
   s.currentPlayer = player;
   s.actionsLeft = 2 + (hasActionAura(p) ? 1 : 0) + p.pendingExtraActions;
   p.pendingExtraActions = 0;
   p.techPlayedThisRound = false; // 每回合開始重置技師卡出牌限制
+
+  // T05 fault-warning：若對手場上有 T05（且 SCADA 未被 F09 停用），
+  // 從當前玩家手牌中隨機選 1 張 fault 卡預警（不消耗手牌，僅揭示）。
+  // SCADA 停用判斷：futureWind 被 F09 清空後，disable-scada 效果持續到本回合結束；
+  // 此處以「對手 techs 中是否有 T05」為主要條件，F09 的 disable-scada 在施加時清空 futureWind，
+  // 但不持久標記 scadaDisabled，故此處不做額外停用判斷（估計：F09 清空 futureWind 已是懲罰）。
+  const opp = s.players[(1 - player) as 0 | 1];
+  if (hasFaultWarning(opp)) {
+    const faultCardsInHand = p.hand.filter((id) => CARDS[id].type === 'fault');
+    if (faultCardsInHand.length > 0) {
+      // 選第一張 fault（不消耗 RNG，確保 RNG 順序固定；揭示是確定性的）
+      const warnedFaultId = faultCardsInHand[0];
+      events.push({ kind: 'fault-warning', warnedPlayer: player, faultCardId: warnedFaultId });
+    }
+  }
+
+  return events;
 }
 
 export function _tickFaults(s: GameState): GameEvent[] {
@@ -522,10 +541,10 @@ export function drawCard(
   return { state: s, events: [] };
 }
 
-export function beginTurn(state: GameState, player: 0 | 1): GameState {
+export function beginTurn(state: GameState, player: 0 | 1): ApplyResult {
   const s = cloneState(state);
-  _beginTurn(s, player);
-  return s;
+  const events = _beginTurn(s, player);
+  return { state: s, events };
 }
 
 export function tickFaults(state: GameState): ApplyResult {
@@ -619,7 +638,7 @@ export function runGame(
     const refillTo = config.refillHandTo ?? 0;
     for (let turn = 0; turn < 2; turn++) {
       const p = ((s.firstPlayer + turn) % 2) as 0 | 1;
-      _beginTurn(s, p);
+      events.push(..._beginTurn(s, p));
       // 自動補牌：手牌張數 < refillHandTo 時補到目標張數（手牌上限 7 由 _drawCard 內部控制）
       if (refillTo > 0) {
         const player = s.players[p];

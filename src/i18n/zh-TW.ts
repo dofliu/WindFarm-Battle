@@ -110,6 +110,8 @@ export const zhTW = {
   // ── Insurance Shield UI ─────────────────────────────────────────
   'turbine.shielded': '🛡 保護盾 {n} 層',
   'turbine.shieldAbsorbed': '🛡 保護盾吸收故障！',
+  // ── T05 Fault Warning UI ───────────────────────────────────────────────────────
+  'tech.faultWarning': '⚠️ SCADA 預警：對手手牌含 {card}',
   // ── TitleScreen ──────────────────────────────────────────
   'title.tagline': '風場運維策略卡牌 · 12 回合決勝負',
   'title.startTideboard': '開始航行',

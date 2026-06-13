@@ -41,19 +41,19 @@ describe('S2.1 結算公式（對齊 v3）', () => {
 
 describe('S2.1 動作經濟（對齊 v3）', () => {
   it('基礎 2 動作', () => {
-    expect(beginTurn(createInitialState(createRng(1)), 0).actionsLeft).toBe(2);
+    expect(beginTurn(createInitialState(createRng(1)), 0).state.actionsLeft).toBe(2);
   });
   it('T07（aura-action）+1 動作', () => {
     const s2 = structuredClone(createInitialState(createRng(1)));
     s2.players[0].techs = ['T07'];
-    expect(beginTurn(s2, 0).actionsLeft).toBe(3);
+    expect(beginTurn(s2, 0).state.actionsLeft).toBe(3);
   });
   it('FN04 預支動作累加，回合開始清零', () => {
     const s2 = structuredClone(createInitialState(createRng(1)));
     s2.players[0].pendingExtraActions = 2;
     const after = beginTurn(s2, 0);
-    expect(after.actionsLeft).toBe(4); // 2 + 0 + 2
-    expect(after.players[0].pendingExtraActions).toBe(0);
+    expect(after.state.actionsLeft).toBe(4); // 2 + 0 + 2
+    expect(after.state.players[0].pendingExtraActions).toBe(0);
   });
 });
 
@@ -157,5 +157,59 @@ describe('每回合自動補牌到 refillHandTo 張', () => {
     const b = runGame(createInitialState(createRng(77)), createRng(77), undefined, config);
     expect(a.state.players[0].score).toBe(b.state.players[0].score);
     expect(a.state.players[1].score).toBe(b.state.players[1].score);
+  });
+});
+
+describe('T05 fault-warning（SCADA 工程師預警）', () => {
+  it('對手有 T05 且當前玩家手牌有 fault → _beginTurn 發出 fault-warning 事件', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    // 對手（player 1）有 T05
+    s.players[1].techs = ['T05'];
+    // 當前玩家（player 0）手牌有 fault 卡
+    s.players[0].hand = ['F01', 'M01'];
+    const result = beginTurn(s, 0);
+    const warnings = result.events.filter((e) => e.kind === 'fault-warning');
+    expect(warnings).toHaveLength(1);
+    expect((warnings[0] as { kind: 'fault-warning'; warnedPlayer: 0 | 1; faultCardId: string }).warnedPlayer).toBe(0);
+    expect((warnings[0] as { kind: 'fault-warning'; warnedPlayer: 0 | 1; faultCardId: string }).faultCardId).toBe('F01');
+  });
+
+  it('對手無 T05 → _beginTurn 不發 fault-warning 事件', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[1].techs = ['T01']; // T01 不是 SCADA 工程師
+    s.players[0].hand = ['F01', 'M01'];
+    const result = beginTurn(s, 0);
+    expect(result.events.filter((e) => e.kind === 'fault-warning')).toHaveLength(0);
+  });
+
+  it('對手有 T05 但當前玩家手牌無 fault → 不發 fault-warning 事件', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[1].techs = ['T05'];
+    s.players[0].hand = ['M01', 'T01']; // 無 fault 卡
+    const result = beginTurn(s, 0);
+    expect(result.events.filter((e) => e.kind === 'fault-warning')).toHaveLength(0);
+  });
+
+  it('T05 fault-warning 不消耗手牌（手牌張數不變）', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[1].techs = ['T05'];
+    s.players[0].hand = ['F01', 'F02', 'M01'];
+    const result = beginTurn(s, 0);
+    // 手牌應仍有 3 張（僅揭示，不消耗）
+    expect(result.state.players[0].hand).toHaveLength(3);
+    // 且 fault-warning 事件確實發出
+    expect(result.events.filter((e) => e.kind === 'fault-warning')).toHaveLength(1);
+  });
+
+  it('runGame 中 T05 fault-warning 事件出現在事件流中', () => {
+    const config = { legacyV3: false, initialDraws: 0, drawsPerRound: 1 };
+    const s = structuredClone(createInitialState(createRng(1)));
+    // player 1 有 T05，player 0 手牌有 fault
+    s.players[1].techs = ['T05'];
+    s.players[0].hand = ['F01'];
+    s.players[1].hand = [];
+    const result = runGame({ ...s, maxRounds: 1 } as typeof s, createRng(1), undefined, config);
+    // 應有至少 1 個 fault-warning 事件
+    expect(result.events.filter((e) => e.kind === 'fault-warning').length).toBeGreaterThanOrEqual(1);
   });
 });

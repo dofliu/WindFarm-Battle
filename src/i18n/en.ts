@@ -110,6 +110,8 @@ export const en = {
   // ── Insurance Shield UI ─────────────────────────────────────────
   'turbine.shielded': '🛡 Shield {n} Layer(s)',
   'turbine.shieldAbsorbed': '🛡 Shield absorbed a fault!',
+  // ── T05 Fault Warning UI ───────────────────────────────────────────────────────
+  'tech.faultWarning': '⚠️ SCADA Warning: Opponent holds {card}',
   // ── TitleScreen ──────────────────────────────────────────
   'title.tagline': 'Wind O&M Strategy Card Game · 12 Rounds',
   'title.startTideboard': 'Set Sail',

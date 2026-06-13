@@ -306,3 +306,11 @@ export function isFaultImmune(t: DeployedTurbine, faultId: string): boolean {
   }
   return false;
 }
+
+/**
+ * T05 fault-warning：場上有技師具備 fault-warning tag 則回 true。
+ * 用於 _beginTurn 中判斷對手是否有 SCADA 工程師預警能力。
+ */
+export function hasFaultWarning(p: PlayerState): boolean {
+  return p.techs.some((id) => CARDS[id].abilities.some((a) => a.tag === 'fault-warning'));
+}

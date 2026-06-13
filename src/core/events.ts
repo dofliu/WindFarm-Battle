@@ -26,6 +26,8 @@ export type GameEvent =
   | { kind: 'fault-repaired'; player: 0 | 1; targetIdx: number; cardId: string; by?: string; quality?: 'full' | 'partial'; availLost?: number }
   | { kind: 'func-played'; player: 0 | 1; cardId: string; effect: string }
   | { kind: 'predict-wind'; player: 0 | 1; labels: string[] }
+  /** T05 fault-warning：對手 T05 在本回合開始時預警 1 種故障（warnedPlayer 是被預警的玩家） */
+  | { kind: 'fault-warning'; warnedPlayer: 0 | 1; faultCardId: string }
   | { kind: 'extra-action-banked'; player: 0 | 1; pending: number }
   | { kind: 'mwh-boost'; player: 0 | 1 }
   | { kind: 'turn-ended'; player: 0 | 1 }
