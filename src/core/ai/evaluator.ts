@@ -233,6 +233,12 @@ export function evaluateFaultPlay(
     if (turbineMW(target) === maxMW) score += 10;
   }
   score *= attackMult; // 難度攻擊係數
+
+  // T08 peek-hand 感知：場上有 T08（peek-hand tag）時，AI 已知道對手手牌，攻擊評分 +5（更有信心出故障）
+  if (state.players[player].techs.some((id) => CARDS[id].abilities.some((a) => a.tag === 'peek-hand'))) {
+    score += 5;
+  }
+
   return score;
 }
 
@@ -273,6 +279,29 @@ export function evaluateFuncPlay(card: Card, state: GameState, player: 0 | 1, st
       score = 7;
       break;
     }
+    case 'searchTurbine': {
+      // FN07 tutor-turbine：從牌庫搜最高 MW 的風機加入手牌
+      const hasTurbineInDeck = me.deck.some((id) => CARDS[id].type === 'turbine');
+      if (!hasTurbineInDeck) return -1000;
+      score = 12 + strategy.roundsLeft * 0.5;
+      if (strategy.phase === 'late') score *= 0.4;
+      break;
+    }
+    case 'insurance': {
+      // FN08 insurance-shield：對最多故障的機組加保護盾
+      const hasFaultedTurbine = me.turbines.some((t) => t.faults.length > 0);
+      score = hasFaultedTurbine ? 10 : 3;
+      score -= card.cost * 4;
+      break;
+    }
+    case 'massRepair': {
+      // FN09 緊急大修：每場限用 1 次，有多個故障時才高分
+      if (me.usedOncePerGame.includes(card.id)) return -1000;
+      const totalFaults = me.turbines.reduce((s, t) => s + t.faults.length, 0);
+      if (totalFaults === 0) return -5;
+      score = totalFaults * 8 + 10;
+      break;
+    }
     case 'predictWind': {
       score = 4 + strategy.roundsLeft * 0.5;
       break;
@@ -285,8 +314,16 @@ export function evaluateFuncPlay(card: Card, state: GameState, player: 0 | 1, st
       break;
     }
     default:
-      // FN07/FN08 屬 B 區，無原型基準；S2.4 不評估，分數 0 仍可被 hard 選為次優之選
       break;
   }
+
+  // T09 func-bonus 感知：場上有 T09 且本回合尚未累積到上限（funcBonusThisRound < 2）時，出 func 卡額外 +8 分
+  // （這讓 AI 在有 T09 時更積極出 func 卡以觸發 +1 動作）
+  if (me.techs.some((id) => CARDS[id].abilities.some((a) => a.tag === 'func-bonus'))) {
+    if (me.funcBonusThisRound < 2) {
+      score += 8;
+    }
+  }
+
   return score;
 }

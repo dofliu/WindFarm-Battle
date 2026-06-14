@@ -94,6 +94,21 @@ function describe(ev: GameEvent): { text: string; colorKey: string } {
         text: ev.winner === -1 ? '🤝 平手！' : ev.winner === 0 ? '🎉 你贏了！' : '😈 AI 贏了',
         colorKey: 'game-over',
       };
+    // ── v5.x 新事件 ────────────────────────────────────────────
+    case 'turbine-evolved':
+      return { text: `${who(ev.player)} ⬆️ 進化 ${cardName(ev.fromCardId)} → ${cardName(ev.toCardId)}`, colorKey: 'turbine-upgraded' };
+    case 'turbine-shielded':
+      return { text: `${who(ev.player)} 🛡 ${cardName(ev.cardId)} 機組#${ev.turbineIdx} 保護盾×${ev.shieldCount}`, colorKey: 'tech-deployed' };
+    case 'shield-absorbed':
+      return { text: `${who(ev.player)} 🛡 保護盾吸收故障！機組#${ev.turbineIdx}（剩 ${ev.shieldLeft} 層）`, colorKey: 'fault-repaired' };
+    case 'fault-warning':
+      return { text: `⚠️ SCADA 預警：${who(ev.warnedPlayer)} 手牌含 ${cardName(ev.faultCardId)}`, colorKey: 'fault-applied' };
+    case 'peek-hand': {
+      const cardNames = ev.cardIds.map((id: string) => cardName(id)).join('、');
+      return { text: `${who(ev.player)} 👁️ 偵察：對手持有 ${cardNames}`, colorKey: 'predict-wind' };
+    }
+    case 'func-bonus':
+      return { text: `${who(ev.player)} ⚡ 研發加速 +1 動作（共 +${ev.totalBonus}）`, colorKey: 'mwh-boost' };
     default:
       return { text: JSON.stringify(ev), colorKey: 'default' };
   }
