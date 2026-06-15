@@ -2,7 +2,7 @@
 
 > **這是給 Claude Code 看的第一份文件。** 整個專案的現狀、決策、與下一步行動都在這裡。
 >
-> **最後更新：2026-06-15（progress 99%）**
+> **最後更新：2026-06-16（progress 99%）**
 
 ---
 
@@ -78,6 +78,7 @@
 - [x] 🟢 **FN08 insurance-shield 完整邏輯**：`DeployedTurbine` 加入 `shieldCount?: number`；`_executeFunc` insurance case 改為對指定機組加 1 層保護盾；`_applyFault` 加入保護盾檢查（shieldCount > 0 則消耗一層並短路故障）；新增 `turbine-shielded` 和 `shield-absorbed` 事件；新增 2 個 i18n key（turbine.shielded / turbine.shieldAbsorbed）；更新卡牌文案（zh-TW + en）；新增 4 個測試（253 tests 全通過）（commit v5.4）
 - [x] 🟢 **T05 SCADA 工程師 fault-warning 能力**：`_beginTurn` 加入 fault-warning 邏輯（對手場上有 T05 時，對當前玩家手牌中第一張 fault 卡發出預警事件）；`beginTurn()` 純函式版改回 `ApplyResult`；`game-store.ts` 全部 `_beginTurn` 呼叫點更新為收集事件；新增 `hasFaultWarning()` 輔助函式；新增 `fault-warning` 事件型別；新增 2 個 i18n key（tech.faultWarning zh-TW + en）；新增 5 個測試（258 tests 全通過）（commit v5.5）
 - [x] 🟢 **T08 無人機操作員 peek-hand + T09 研發總監 func-bonus**：`_deployTech` 加入 peek-hand 觸發（部署時查看對手前 2 張手牌，不消耗）；`PlayerState` 加入 `funcBonusThisRound`；`_applyActionMutate` 加入 func-bonus 觸發（出 func 卡後若場上有 T09 則 +1 動作，上限 2）；`_beginTurn` 重置 `funcBonusThisRound`；新增 `peek-hand` / `func-bonus` 事件型別；新增 4 個 i18n key（tech.peekHand / tech.funcBonus zh-TW + en）；新增 9 個測試（267 tests 全通過）（commit v5.6）
+- [x] 🟢 **AI 測試補強 + 卡牌平衡性分析腳本**：`tests/ai.test.ts` 新增 7 個測試（T09 func-bonus 感知 ×2、T08 peek-hand 感知 ×1、FN07 searchTurbine ×1、FN08 insurance ×1、FN09 massRepair ×1，共 273 tests 全通過）；新增 `scripts/balance-report.ts` 卡牌平衡性分析腳本（`npm run balance-report`），跑 N 場 hard×hard 對局，統計每張卡的「使用者勝率」，自動標記過強/過弱/冷門卡，輸出 Markdown 報告；`package.json` 加入 `balance-report` 腳本（commit v5.8）
 - [x] 🟢 **EventLog 新事件整合 + AI 策略強化**：`_legacy/EventLog.tsx` 加入 6 個新事件顯示（turbine-evolved / turbine-shielded / shield-absorbed / fault-warning / peek-hand / func-bonus）；`evaluator.ts` 加入 FN07/FN08/FN09 的評分邏輯（原為 default 0）；T09 func-bonus 感知（場上有 T09 且未到上限時，出 func 卡 +8 分）；T08 peek-hand 感知（場上有 T08 時攻擊 +5 分）；267 tests 全通過（commit v5.7）
 
 ---

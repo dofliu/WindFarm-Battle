@@ -352,3 +352,92 @@ describe('v4.7 AI 難度分級化：getDifficultyMultipliers', () => {
     expect(scoreOnHighMW).toBeGreaterThan(scoreOnLowMW);
   });
 });
+
+describe('v5.7 AI 策略感知：T08 peek-hand / T09 func-bonus / FN07-09 評分', () => {
+  // ── T09 func-bonus 感知 ──────────────────────────────────────────
+  it('T09 在場時出 func 卡比無 T09 時得分高 +8', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }];
+    s.players[0].funcBonusThisRound = 0;
+    s.round = 5;
+    const strategy = getStrategy(s, 0);
+    s.players[0].techs = [];
+    const scoreWithoutT09 = evaluateFuncPlay(CARDS['FN04'], s, 0, strategy);
+    s.players[0].techs = ['T09'];
+    const scoreWithT09 = evaluateFuncPlay(CARDS['FN04'], s, 0, strategy);
+    expect(scoreWithT09).toBe(scoreWithoutT09 + 8);
+  });
+
+  it('T09 在場但 funcBonusThisRound=2（已到上限）→ 不再加分', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }];
+    s.players[0].funcBonusThisRound = 2;
+    s.round = 5;
+    const strategy = getStrategy(s, 0);
+    const sNoT09 = structuredClone(s);
+    sNoT09.players[0].techs = [];
+    const baseScore = evaluateFuncPlay(CARDS['FN04'], sNoT09, 0, strategy);
+    s.players[0].techs = ['T09'];
+    const scoreAtCap = evaluateFuncPlay(CARDS['FN04'], s, 0, strategy);
+    expect(scoreAtCap).toBe(baseScore);
+  });
+
+  // ── T08 peek-hand 感知 ──────────────────────────────────────────
+  it('T08 在場時攻擊評分比無 T08 時高 +5', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }];
+    s.players[1].turbines = [{ cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }];
+    s.players[1].techs = [];
+    s.round = 5;
+    const strategy = getStrategy(s, 0);
+    const target = s.players[1].turbines[0];
+    s.players[0].techs = [];
+    const scoreWithoutT08 = evaluateFaultPlay(CARDS['F02'], target, s, 0, strategy, 'hard');
+    s.players[0].techs = ['T08'];
+    const scoreWithT08 = evaluateFaultPlay(CARDS['F02'], target, s, 0, strategy, 'hard');
+    expect(scoreWithT08).toBe(scoreWithoutT08 + 5);
+  });
+
+  // ── FN07 searchTurbine 評分 ──────────────────────────────────────
+  it('FN07 牌庫有風機時得正分；牌庫無風機時 -1000', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }];
+    s.round = 3;
+    s.players[0].deck = ['M07', 'F01'];
+    const scoreWithTurbine = evaluateFuncPlay(CARDS['FN07'], s, 0, getStrategy(s, 0));
+    expect(scoreWithTurbine).toBeGreaterThan(0);
+    s.players[0].deck = ['F01', 'F02'];
+    const scoreNoTurbine = evaluateFuncPlay(CARDS['FN07'], s, 0, getStrategy(s, 0));
+    expect(scoreNoTurbine).toBe(-1000);
+  });
+
+  // ── FN08 insurance 評分 ──────────────────────────────────────────
+  it('FN08 有故障機組時得分高於無故障時', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].techs = [];
+    s.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [{ cardId: 'F02', drop: 20, roundsLeft: 3, sev: 2 }] }];
+    const scoreWithFault = evaluateFuncPlay(CARDS['FN08'], s, 0, getStrategy(s, 0));
+    s.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }];
+    const scoreNoFault = evaluateFuncPlay(CARDS['FN08'], s, 0, getStrategy(s, 0));
+    expect(scoreWithFault).toBeGreaterThan(scoreNoFault);
+  });
+
+  // ── FN09 massRepair 評分 ──────────────────────────────────────────
+  it('FN09 有多個故障時得高分；無故障時 -5；已使用過 -1000', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].techs = [];
+    s.players[0].turbines = [
+      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [{ cardId: 'F02', drop: 20, roundsLeft: 3, sev: 2 }] },
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [{ cardId: 'F04', drop: 25, roundsLeft: 2, sev: 3 }] },
+    ];
+    s.players[0].usedOncePerGame = [];
+    const scoreWithFaults = evaluateFuncPlay(CARDS['FN09'], s, 0, getStrategy(s, 0));
+    expect(scoreWithFaults).toBeGreaterThan(20);
+    s.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }];
+    const scoreNoFault = evaluateFuncPlay(CARDS['FN09'], s, 0, getStrategy(s, 0));
+    expect(scoreNoFault).toBe(-5);
+    s.players[0].usedOncePerGame = ['FN09'];
+    const scoreUsed = evaluateFuncPlay(CARDS['FN09'], s, 0, getStrategy(s, 0));
+    expect(scoreUsed).toBe(-1000);
+  });
+});
