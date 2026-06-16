@@ -137,7 +137,7 @@
       "id": "M07",
       "type": "turbine",
       "icon": "🐋",
-      "cost": 4,
+      "cost": 5,
       "rarity": 5,
       "legendary": true,
       "stats": {
@@ -242,7 +242,7 @@
       "id": "M12",
       "type": "turbine",
       "icon": "🔋",
-      "cost": 2,
+      "cost": 3,
       "rarity": 4,
       "stats": {
         "mw": 5,
@@ -349,7 +349,7 @@
       "id": "T03",
       "type": "tech",
       "icon": "⚙️",
-      "cost": 1,
+      "cost": 2,
       "rarity": 2,
       "specialty": "mechanical",
       "stats": {
@@ -605,7 +605,7 @@
       "id": "F05",
       "type": "fault",
       "icon": "📐",
-      "cost": 2,
+      "cost": 1,
       "rarity": 2,
       "faultCategory": "electrical",
       "stats": {
@@ -764,7 +764,7 @@
       "id": "FN03",
       "type": "func",
       "icon": "🔧",
-      "cost": 2,
+      "cost": 1,
       "rarity": 2,
       "effect": "upgradeMW",
       "abilities": [
@@ -862,7 +862,7 @@
       "id": "UP01",
       "type": "func",
       "icon": "🔧",
-      "cost": 2,
+      "cost": 1,
       "rarity": 2,
       "effect": "evolveTurbine",
       "abilities": [
@@ -898,7 +898,7 @@
       "id": "UP04",
       "type": "func",
       "icon": "🔩",
-      "cost": 2,
+      "cost": 3,
       "rarity": 2,
       "effect": "evolveTurbine",
       "abilities": [

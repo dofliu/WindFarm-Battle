@@ -351,11 +351,11 @@ describe('S3.4 T09 func-discount：在場時功能卡 cost -1（下限 0）', ()
     s.players[0].techs = ['T09'];
     expect(effectiveCost(s, 0, 'FN02')).toBe(0);
   });
-  it('FN03 cost=2 → T09 在場時 effectiveCost = 1', async () => {
+  it('FN03 cost=1 → T09 在場時 effectiveCost = 0', async () => {
     const { effectiveCost } = await import('../src/core/actions');
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[0].techs = ['T09'];
-    expect(effectiveCost(s, 0, 'FN03')).toBe(1);
+    expect(effectiveCost(s, 0, 'FN03')).toBe(0);
   });
   it('沒 T09 時 cost 不變（FN02=1）', async () => {
     const { effectiveCost } = await import('../src/core/actions');

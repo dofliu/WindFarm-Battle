@@ -50,7 +50,7 @@ describe('S2.3 effectiveCost（T07 tech-discount）', () => {
     s.players[0].techs = ['T07'];
     expect(effectiveCost(s, 0, 'F06')).toBe(2);
     expect(effectiveCost(s, 0, 'M03')).toBe(2);
-    expect(effectiveCost(s, 0, 'FN03')).toBe(2);
+    expect(effectiveCost(s, 0, 'FN03')).toBe(1); // FN03 cost 已調整為 1
   });
 });
 
