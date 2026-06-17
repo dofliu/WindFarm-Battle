@@ -302,6 +302,25 @@ export function evaluateFuncPlay(card: Card, state: GameState, player: 0 | 1, st
       score = totalFaults * 8 + 10;
       break;
     }
+    case 'evolveTurbine': {
+      // UP01-UP04 風機升級進化卡
+      const tier = card.abilities.find((a) => a.tag.startsWith('evolve-'))?.tag;
+      // 進化路徑 MW 增益對映：升級後的 MW - 升級前的 MW
+      const EVOLVE_MW_GAIN: Record<string, number> = {
+        'evolve-tier1': 2,  // M01(2)→M03(4) or M02(3)→M04(5)  avg +2
+        'evolve-tier2': 2,  // M03(4)→M05(6) or M04(5)→M06(8)  avg +2.5
+        'evolve-tier3': 3,  // M05(6)→M09(10) or M06(8)→M07(12) avg +4.5
+        'evolve-universal': 3, // +3MW bonus
+      };
+      const mwGain = EVOLVE_MW_GAIN[tier ?? ''] ?? 0;
+      if (mwGain === 0) { score = -1000; break; }
+      // 有符合條件的機組才給分（否則 canPlayCard 已經排除）
+      const expectedGain = mwGain * AI_AVG_WIND_COEFF * strategy.roundsLeft * 1.5;
+      score = expectedGain - card.cost * 4;
+      if (strategy.phase === 'late') score *= 0.4; // 終局升級來不及
+      if (strategy.phase === 'early') score *= 1.2; // 早期升級效益高
+      break;
+    }
     case 'predictWind': {
       score = 4 + strategy.roundsLeft * 0.5;
       break;
