@@ -50,7 +50,7 @@ describe('S2.3 effectiveCost（T07 tech-discount）', () => {
     s.players[0].techs = ['T07'];
     expect(effectiveCost(s, 0, 'F06')).toBe(2);
     expect(effectiveCost(s, 0, 'M03')).toBe(2);
-    expect(effectiveCost(s, 0, 'FN03')).toBe(1); // FN03 cost 已調整為 1
+    expect(effectiveCost(s, 0, 'FN03')).toBe(2); // FN03 cost=2（v5.11 回退）
   });
 });
 
@@ -232,7 +232,7 @@ describe('S2.3 applyAction：FN01–06 功能卡', () => {
   });
 
   it('FN06 mwhBoost：mwhBoostActive=true', () => {
-    const s = withHand(createInitialState(createRng(1)), 0, ['FN06'], 1);
+    const s = withHand(createInitialState(createRng(1)), 0, ['FN06'], 2); // FN06 cost=2（v5.11）
     const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
     expect(r.state.players[0].mwhBoostActive).toBe(true);
     expect(r.events.some((e) => e.kind === 'mwh-boost')).toBe(true);
@@ -474,7 +474,7 @@ describe('UP01-UP04 風機升級進化卡', () => {
       { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] },
     ];
     s.players[0].hand = ['UP04'];
-    s.actionsLeft = 3;
+    s.actionsLeft = 4; // UP04 cost=4（v5.11）
     s.currentPlayer = 0;
     const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
     const ev = r.events.find((e) => e.kind === 'turbine-upgraded');

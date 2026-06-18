@@ -2,7 +2,7 @@
 
 > **這是給 Claude Code 看的第一份文件。** 整個專案的現狀、決策、與下一步行動都在這裡。
 >
-> **最後更新：2026-06-18（progress 99%）**
+> **最後更新：2026-06-19（progress 99%）**
 
 ---
 
@@ -78,6 +78,7 @@
 - [x] 🟢 **FN08 insurance-shield 完整邏輯**：`DeployedTurbine` 加入 `shieldCount?: number`；`_executeFunc` insurance case 改為對指定機組加 1 層保護盾；`_applyFault` 加入保護盾檢查（shieldCount > 0 則消耗一層並短路故障）；新增 `turbine-shielded` 和 `shield-absorbed` 事件；新增 2 個 i18n key（turbine.shielded / turbine.shieldAbsorbed）；更新卡牌文案（zh-TW + en）；新增 4 個測試（253 tests 全通過）（commit v5.4）
 - [x] 🟢 **T05 SCADA 工程師 fault-warning 能力**：`_beginTurn` 加入 fault-warning 邏輯（對手場上有 T05 時，對當前玩家手牌中第一張 fault 卡發出預警事件）；`beginTurn()` 純函式版改回 `ApplyResult`；`game-store.ts` 全部 `_beginTurn` 呼叫點更新為收集事件；新增 `hasFaultWarning()` 輔助函式；新增 `fault-warning` 事件型別；新增 2 個 i18n key（tech.faultWarning zh-TW + en）；新增 5 個測試（258 tests 全通過）（commit v5.5）
 - [x] 🟢 **T08 無人機操作員 peek-hand + T09 研發總監 func-bonus**：`_deployTech` 加入 peek-hand 觸發（部署時查看對手前 2 張手牌，不消耗）；`PlayerState` 加入 `funcBonusThisRound`；`_applyActionMutate` 加入 func-bonus 觸發（出 func 卡後若場上有 T09 則 +1 動作，上限 2）；`_beginTurn` 重置 `funcBonusThisRound`；新增 `peek-hand` / `func-bonus` 事件型別；新增 4 個 i18n key（tech.peekHand / tech.funcBonus zh-TW + en）；新增 9 個測試（267 tests 全通過）（commit v5.6）
+- [x] 🟢 **第三輪平衡驗證 + AI evolveTurbine 測試 + 第三輪費用微調（v5.11）**：重跑 300 場對局驗證 v5.10 效果（W01 58.5%→50.6% ✅、W05 61.9%→40.5% ✅）；新增 evolveTurbine AI 評分單元測試（ai.test.ts +4 tests，277 tests 全通過）；第三輪調整 6 張卡牌：C02 threshold 22→26（使用者勝率 77.5%）、F07 cost 2→3（傳奇故障卡 62.8%）、UP04 cost 3→4（通用進化仍 61.2%）、FN06 cost 1→2（mwhBoost 60.6%）、FN03 cost 1→2（降費後反而 58.2% 過強，回退）、W03 cost 2→1（費用提高後 31.7% 過弱，回退）；同步更新 3 個硬寫舊費用的測試預期值；277 tests 全通過（commit v5.11）
 - [x] 🟢 **卡牌平衡第二輪調整 + AI 升級卡評分（v5.10）**：重跑 200 場對局驗證 v5.9 效果（T03 61.7%→5 3.9% ✅）；第二輪調整 7 張卡牌：C02 threshold 18→22（使用者勝率 75.2%）、W01/W03/W05 cost 1→2（天氣卡設計免疫自身但懲罰對手）、M12 cost 3→2（防止過度削弱）、UP02 cost 2→1、UP03 cost 3→2（升級卡使用率 2% 太低）；最重要：發現 AI evaluator.ts 的 evolveTurbine case 缺少（UP01-03 評分為 0 - cost*4 導致 AI 永遠不出升級卡），新增 evolveTurbine 評分邏輯（MW增益 × 剩餘回合 × 1.5 - cost*4）；273 tests 全通過（commit v5.10）
 - [x] 🟢 **卡牌數值平衡調整（v5.9）**：根據 `npm run balance-report` 100 場對局分析結果，調整 7 張問題卡牌費用：M07 4→5（傳奇卡辺強）、M12 2→3（no-wind-power 免疫強）、T03 1→2（counters 兩張故障太便宜）、UP04 2→3（通用進化更靈活）、F05 2→1（storm-amplify 條件苛刻）、FN03 2→1（永久 +2MW 但需機組）、UP01 2→1（tier1 進化限制多）；同步更新兩個硬寫舊費用的測試預期値；273 tests 全通過（commit v5.9）
 - [x] 🟢 **AI 測試補強 + 卡牌平衡性分析腳本**：`tests/ai.test.ts` 新增 7 個測試（T09 func-bonus 感知 ×2、T08 peek-hand 感知 ×1、FN07 searchTurbine ×1、FN08 insurance ×1、FN09 massRepair ×1，共 273 tests 全通過）；新增 `scripts/balance-report.ts` 卡牌平衡性分析腳本（`npm run balance-report`），跑 N 場 hard×hard 對局，統計每張卡的「使用者勝率」，自動標記過強/過弱/冷門卡，輸出 Markdown 報告；`package.json` 加入 `balance-report` 腳本（commit v5.8）

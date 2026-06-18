@@ -441,3 +441,48 @@ describe('v5.7 AI 策略感知：T08 peek-hand / T09 func-bonus / FN07-09 評分
     expect(scoreUsed).toBe(-1000);
   });
 });
+
+// ── evolveTurbine 評分（UP01-UP04）──────────────────────────────────
+describe('v5.10 evaluateFuncPlay — evolveTurbine', () => {
+  it('UP01 有 tier1 機組時得正分（早期）', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }];
+    s.round = 2; // early phase
+    const score = evaluateFuncPlay(CARDS['UP01'], s, 0, getStrategy(s, 0));
+    expect(score).toBeGreaterThan(0);
+  });
+
+  it('UP03 有 tier3 機組時得正分；終局（round=9）得分低於早期（round=2）', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [{ cardId: 'M05', avail: 95, mwBonus: 0, faults: [] }];
+    s.round = 2;
+    const scoreEarly = evaluateFuncPlay(CARDS['UP03'], s, 0, getStrategy(s, 0));
+
+    const sLate = structuredClone(s);
+    sLate.round = 9;
+    const scoreLate = evaluateFuncPlay(CARDS['UP03'], sLate, 0, getStrategy(sLate, 0));
+
+    expect(scoreEarly).toBeGreaterThan(scoreLate);
+  });
+
+  it('UP04 evolve-universal 有機組時得正分', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [{ cardId: 'M07', avail: 95, mwBonus: 0, faults: [] }];
+    s.round = 3;
+    const score = evaluateFuncPlay(CARDS['UP04'], s, 0, getStrategy(s, 0));
+    expect(score).toBeGreaterThan(0);
+  });
+
+  it('evolveTurbine 早期評分 > 終局評分（早期升級效益高）', () => {
+    const sEarly = structuredClone(createInitialState(createRng(1)));
+    sEarly.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }];
+    sEarly.round = 1;
+    const scoreEarly = evaluateFuncPlay(CARDS['UP01'], sEarly, 0, getStrategy(sEarly, 0));
+
+    const sLate = structuredClone(sEarly);
+    sLate.round = 9;
+    const scoreLate = evaluateFuncPlay(CARDS['UP01'], sLate, 0, getStrategy(sLate, 0));
+
+    expect(scoreEarly).toBeGreaterThan(scoreLate);
+  });
+});
