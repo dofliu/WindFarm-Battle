@@ -913,7 +913,7 @@
       "cost": 2,
       "rarity": 2,
       "effect": "highWind",
-      "duration": 3,
+      "duration": 2,
       "abilities": [
         {
           "tag": "wind-boost"
@@ -949,10 +949,10 @@
       "id": "W03",
       "type": "weather",
       "icon": "☁️",
-      "cost": 1,
+      "cost": 2,
       "rarity": 2,
       "effect": "lowWind",
-      "duration": 2,
+      "duration": 1,
       "abilities": [
         {
           "tag": "wind-penalty"
@@ -982,7 +982,7 @@
       "id": "W05",
       "type": "weather",
       "icon": "🥶",
-      "cost": 2,
+      "cost": 1,
       "rarity": 3,
       "effect": "iceWind",
       "duration": 2,
@@ -1030,7 +1030,7 @@
       "target": {
         "type": "totalMW",
         "threshold": 26,
-        "reward": 25
+        "reward": 20
       },
       "abilities": [
         {

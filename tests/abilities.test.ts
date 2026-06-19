@@ -526,7 +526,7 @@ describe('S3.6 天氣系統：activeWeather 倒數與套用', () => {
     const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
     expect(r.state.activeWeather).toHaveLength(1);
     expect(r.state.activeWeather[0].cardId).toBe('W01');
-    expect(r.state.activeWeather[0].duration).toBe(3);
+    expect(r.state.activeWeather[0].duration).toBe(2);
     expect(r.events.some((e) => e.kind === 'weather-applied')).toBe(true);
   });
 
@@ -667,9 +667,9 @@ describe('S3.7 合約系統：施加 + 條件判定 + reward', () => {
     s.activeContracts = [{ cardId: 'C02', player: 0, progress: 0, fulfilled: false }];
     const scoreBefore = s.players[0].score;
     const r = runGame(s, createRng(42));
-    // C02 一次性，第 1 回合就達成 +25
+    // C02 一次性，第 1 回合就達成 +20
     expect(r.events.some((e) => e.kind === 'contract-fulfilled' && e.cardId === 'C02')).toBe(true);
-    expect(r.state.players[0].score).toBeGreaterThanOrEqual(scoreBefore + 25);
+    expect(r.state.players[0].score).toBeGreaterThanOrEqual(scoreBefore + 20);
   });
 
   it('C02 不滿足（總 MW < 18）→ 不發 reward（雙方都不達標）', async () => {
@@ -754,8 +754,8 @@ describe('S3.7 合約系統：施加 + 條件判定 + reward', () => {
     // P1 搶先達成，發出 contract-fulfilled（player=1）和 contract-stolen（stolenBy=1）
     expect(events.some((e) => e.kind === 'contract-fulfilled' && e.player === 1)).toBe(true);
     expect(events.some((e) => e.kind === 'contract-stolen' && e.stolenBy === 1)).toBe(true);
-    // P1 拿到 +25
-    expect(s.players[1].score).toBe(25);
+    // P1 拿到 +20
+    expect(s.players[1].score).toBe(20);
     // P0 沒有得分
     expect(s.players[0].score).toBe(0);
   });
@@ -777,7 +777,7 @@ describe('S3.7 合約系統：施加 + 條件判定 + reward', () => {
     // 打出者 P0 優先拿獎勵
     expect(events.some((e) => e.kind === 'contract-fulfilled' && e.player === 0)).toBe(true);
     expect(events.some((e) => e.kind === 'contract-stolen')).toBe(false);
-    expect(s.players[0].score).toBe(25);
+    expect(s.players[0].score).toBe(20);
     expect(s.players[1].score).toBe(0);
   });
 });
