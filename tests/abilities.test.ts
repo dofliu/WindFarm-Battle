@@ -656,14 +656,14 @@ describe('S3.7 合約系統：施加 + 條件判定 + reward', () => {
     expect(r.events.some((e) => e.kind === 'contract-applied')).toBe(true);
   });
 
-  it('C02 totalMW ≥ 18：場上 M07(12) + M03(4) + M02(3) = 19 → 達成 +25', async () => {
+  it('C02 totalMW ≥ 30：場上 M07(12) × 3 = 36MW（含 aura 42MW）→ 達成 +20', async () => {
     const { runGame } = await import('../src/core/rules-engine');
     const s = structuredClone(createInitialState(createRng(42)));
     s.players[0].turbines = [
-      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 + aura 1 = 13
-      { cardId: 'M03', avail: 92, mwBonus: 0, faults: [] }, // 4 + 1 = 5
-      { cardId: 'M02', avail: 93, mwBonus: 0, faults: [] }, // 3 + 1 = 4
-    ];
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 + aura 3 = 15
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 + aura 3 = 15
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 + aura 3 = 15
+    ]; // 共 36 MW（含 aura 42 MW）≥ 30
     s.activeContracts = [{ cardId: 'C02', player: 0, progress: 0, fulfilled: false }];
     const scoreBefore = s.players[0].score;
     const r = runGame(s, createRng(42));
@@ -743,12 +743,12 @@ describe('S3.7 合約系統：施加 + 條件判定 + reward', () => {
     const s = structuredClone(createInitialState(createRng(42)));
     // P0 打出 C02，但 P0 只有 2MW（不達標）
     s.players[0].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }]; // 2 MW
-    // P1 有 20MW（達標）
+    // P1 有 36MW（達標 ≥ 30）
     s.players[1].turbines = [
       { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 MW
-      { cardId: 'M03', avail: 90, mwBonus: 0, faults: [] }, // 4 MW
       { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 MW
-    ]; // 共 28 MW > 18
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 MW
+    ]; // 共 36 MW > 30
     s.activeContracts = [{ cardId: 'C02', player: 0, progress: 0, fulfilled: false }];
     const events = _checkContracts(s);
     // P1 搶先達成，發出 contract-fulfilled（player=1）和 contract-stolen（stolenBy=1）
@@ -767,11 +767,13 @@ describe('S3.7 合約系統：施加 + 條件判定 + reward', () => {
     s.players[0].turbines = [
       { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 MW
       { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 MW
-    ]; // 共 24 MW > 18
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 MW
+    ]; // 共 36 MW > 30
     s.players[1].turbines = [
       { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 MW
       { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 MW
-    ]; // 共 24 MW > 18
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 MW
+    ]; // 共 36 MW > 30
     s.activeContracts = [{ cardId: 'C02', player: 0, progress: 0, fulfilled: false }];
     const events = _checkContracts(s);
     // 打出者 P0 優先拿獎勵
@@ -803,7 +805,7 @@ describe('S3.7 evaluateContractCondition：單元測試', () => {
     expect(evaluateContractCondition('C01', 0, s)).toBe(false);
   });
 
-  it('totalMW：Route B 開局艦隊 (30MW) ≥ 18 → true', async () => {
+  it('totalMW：Route B 開局艦隊 (30MW) ≥ 30 → true', async () => {
     const { evaluateContractCondition } = await import('../src/core/abilities');
     const s = createInitialState(createRng(1)); // OS8(8)+OS10(10)+OS12(12)=30MW
     expect(evaluateContractCondition('C02', 0, s)).toBe(true);
