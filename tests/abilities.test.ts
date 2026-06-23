@@ -805,9 +805,20 @@ describe('S3.7 evaluateContractCondition：單元測試', () => {
     expect(evaluateContractCondition('C01', 0, s)).toBe(false);
   });
 
-  it('totalMW：Route B 開局艦隊 (30MW) ≥ 30 → true', async () => {
+  it('totalMW：Route B 開局艦隊 (30MW) < 35（threshold 35）→ false', async () => {
     const { evaluateContractCondition } = await import('../src/core/abilities');
-    const s = createInitialState(createRng(1)); // OS8(8)+OS10(10)+OS12(12)=30MW
+    const s = createInitialState(createRng(1)); // OS8(8)+OS10(10)+OS12(12)=30MW < 35
+    expect(evaluateContractCondition('C02', 0, s)).toBe(false);
+  });
+
+  it('totalMW：場上 M07(12) × 3 = 36MW ≥ 35（threshold 35）→ true', async () => {
+    const { evaluateContractCondition } = await import('../src/core/abilities');
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 MW
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 MW
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12 MW
+    ]; // 共 36 MW ≥ 35
     expect(evaluateContractCondition('C02', 0, s)).toBe(true);
   });
 

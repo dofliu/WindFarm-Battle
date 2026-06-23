@@ -657,7 +657,7 @@
       "id": "F07",
       "type": "fault",
       "icon": "💥",
-      "cost": 3,
+      "cost": 4,
       "rarity": 5,
       "legendary": true,
       "faultCategory": "mechanical",
@@ -874,7 +874,7 @@
       "id": "UP02",
       "type": "func",
       "icon": "🌊",
-      "cost": 1,
+      "cost": 0,
       "rarity": 3,
       "effect": "evolveTurbine",
       "abilities": [
@@ -982,7 +982,7 @@
       "id": "W05",
       "type": "weather",
       "icon": "🥶",
-      "cost": 2,
+      "cost": 1,
       "rarity": 3,
       "effect": "iceWind",
       "duration": 2,
@@ -1029,7 +1029,7 @@
       "rarity": 3,
       "target": {
         "type": "totalMW",
-        "threshold": 30,
+        "threshold": 35,
         "reward": 20
       },
       "abilities": [
