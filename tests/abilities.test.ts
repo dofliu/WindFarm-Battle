@@ -517,11 +517,11 @@ describe('S3.5 F09 disable-scada：施加時清空 futureWind', () => {
 });
 
 describe('S3.6 天氣系統：activeWeather 倒數與套用', () => {
-  it('施加 W01 wind-boost → activeWeather 含一筆，duration=3', async () => {
+  it('施加 W01 wind-boost → activeWeather 含一筆，duration=2', async () => {
     const { applyAction } = await import('../src/core/actions');
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[0].hand = ['W01'];
-    s.actionsLeft = 2;
+    s.actionsLeft = 3;
     s.currentPlayer = 0;
     const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
     expect(r.state.activeWeather).toHaveLength(1);
