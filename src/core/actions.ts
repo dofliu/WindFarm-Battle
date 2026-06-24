@@ -150,8 +150,8 @@ export function canPlayCard(state: GameState, player: 0 | 1, handIdx: number): b
     // UP01-UP04 evolveTurbine：需要場上有符合條件的機組可升級
     if (card.effect === 'evolveTurbine') {
       const tier = card.abilities.find((a) => a.tag.startsWith('evolve-'))?.tag;
-      if (tier === 'evolve-tier1' && !p.turbines.some((t) => ['M01', 'M02'].includes(t.cardId))) return false;
-      if (tier === 'evolve-tier2' && !p.turbines.some((t) => ['M03', 'M04'].includes(t.cardId))) return false;
+      if (tier === 'evolve-tier1' && !p.turbines.some((t) => ['M01', 'M02', 'OS8'].includes(t.cardId))) return false;
+      if (tier === 'evolve-tier2' && !p.turbines.some((t) => ['M03', 'M04', 'OS10'].includes(t.cardId))) return false;
       if (tier === 'evolve-tier3' && !p.turbines.some((t) => ['M05', 'M06', 'M07', 'M09'].includes(t.cardId))) return false;
       if (tier === 'evolve-universal' && p.turbines.length === 0) return false;
     }
@@ -371,12 +371,14 @@ function _executeFunc(
       // UP01-UP04 風機升級進化卡
       // 升級路徑映射表：基礎機組 → 進化目標
       const EVOLVE_MAP: Record<string, string> = {
-        // tier1：M01/M02 → M03/M04
+        // tier1：M01/M02 → M03/M04；OS8 → M09（+2MW，開局艦隊升級路徑）
         'M01': 'M03',
         'M02': 'M04',
-        // tier2：M03/M04 → M05/M06
+        'OS8': 'M09',
+        // tier2：M03/M04 → M05/M06；OS10 → M11（+1MW，開局艦隊升級路徑）
         'M03': 'M05',
         'M04': 'M06',
+        'OS10': 'M11',
         // tier3：M05/M06 → M09/M07
         'M05': 'M09',
         'M06': 'M07',
@@ -393,8 +395,8 @@ function _executeFunc(
       } else {
         // UP01-UP03：找符合條件的機組，替換為進化後的機組（保留 avail/faults/mwBonus）
         const eligibleIds: string[] = [];
-        if (tier === 'evolve-tier1') eligibleIds.push('M01', 'M02');
-        else if (tier === 'evolve-tier2') eligibleIds.push('M03', 'M04');
+        if (tier === 'evolve-tier1') eligibleIds.push('M01', 'M02', 'OS8');
+        else if (tier === 'evolve-tier2') eligibleIds.push('M03', 'M04', 'OS10');
         else if (tier === 'evolve-tier3') eligibleIds.push('M05', 'M06', 'M07', 'M09');
 
         // 選最高 MW 的符合機組（目標參數可覆蓋）

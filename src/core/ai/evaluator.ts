@@ -307,8 +307,8 @@ export function evaluateFuncPlay(card: Card, state: GameState, player: 0 | 1, st
       const tier = card.abilities.find((a) => a.tag.startsWith('evolve-'))?.tag;
       // 進化路徑 MW 增益對映：升級後的 MW - 升級前的 MW
       const EVOLVE_MW_GAIN: Record<string, number> = {
-        'evolve-tier1': 2,  // M01(2)→M03(4) or M02(3)→M04(5)  avg +2
-        'evolve-tier2': 2,  // M03(4)→M05(6) or M04(5)→M06(8)  avg +2.5
+        'evolve-tier1': 2,  // M01(2)→M03(4) or M02(3)→M04(5) or OS8(8)→M09(10)  avg +2
+        'evolve-tier2': 2,  // M03(4)→M05(6) or M04(5)→M06(8) or OS10(10)→M11(11)  avg +2
         'evolve-tier3': 3,  // M05(6)→M09(10) or M06(8)→M07(12) avg +4.5
         'evolve-universal': 3, // +3MW bonus
       };

@@ -521,7 +521,7 @@ describe('S3.6 天氣系統：activeWeather 倒數與套用', () => {
     const { applyAction } = await import('../src/core/actions');
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[0].hand = ['W01'];
-    s.actionsLeft = 3;
+    s.actionsLeft = 4;
     s.currentPlayer = 0;
     const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
     expect(r.state.activeWeather).toHaveLength(1);
@@ -928,5 +928,69 @@ describe('W05 random-blade 故障邏輯', () => {
       (e) => e.kind === 'fault-applied' && (e as { cardId: string }).cardId === 'F04',
     );
     expect(bladeFaultEvents.length).toBe(0);
+  });
+});
+
+describe('UP01/UP02 開局艦隊升級路徑（v5.16）', () => {
+  it('UP01 evolve-tier1：場上有 OS8 時 canPlayCard 應為 true', async () => {
+    const { canPlayCard } = await import('../src/core/actions');
+    const s = structuredClone(createInitialState(createRng(1)));
+    // 開局艦隊預設含 OS8，UP01 cost=1
+    s.players[0].hand = ['UP01'];
+    s.actionsLeft = 2;
+    s.currentPlayer = 0;
+    expect(canPlayCard(s, 0, 0)).toBe(true);
+  });
+
+  it('UP01 evolve-tier1：打出後 OS8 → M09（+2MW）', async () => {
+    const { applyAction } = await import('../src/core/actions');
+    const s = structuredClone(createInitialState(createRng(1)));
+    // 只保留 OS8 一台機組，確保 UP01 選到它
+    s.players[0].turbines = [{ cardId: 'OS8', avail: 90, mwBonus: 0, faults: [] }];
+    s.players[0].hand = ['UP01'];
+    s.actionsLeft = 2;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    const evolvedTurbine = r.state.players[0].turbines[0];
+    expect(evolvedTurbine.cardId).toBe('M09');
+    expect(r.events.some((e) => e.kind === 'turbine-evolved')).toBe(true);
+  });
+
+  it('UP02 evolve-tier2：場上有 OS10 時 canPlayCard 應為 true', async () => {
+    const { canPlayCard } = await import('../src/core/actions');
+    const s = structuredClone(createInitialState(createRng(1)));
+    // 開局艦隊預設含 OS10，UP02 cost=0
+    s.players[0].hand = ['UP02'];
+    s.actionsLeft = 1;
+    s.currentPlayer = 0;
+    expect(canPlayCard(s, 0, 0)).toBe(true);
+  });
+
+  it('UP02 evolve-tier2：打出後 OS10 → M11（+1MW）', async () => {
+    const { applyAction } = await import('../src/core/actions');
+    const s = structuredClone(createInitialState(createRng(1)));
+    // 只保留 OS10 一台機組，確保 UP02 選到它
+    s.players[0].turbines = [{ cardId: 'OS10', avail: 88, mwBonus: 0, faults: [] }];
+    s.players[0].hand = ['UP02'];
+    s.actionsLeft = 1;
+    s.currentPlayer = 0;
+    const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
+    const evolvedTurbine = r.state.players[0].turbines[0];
+    expect(evolvedTurbine.cardId).toBe('M11');
+    expect(r.events.some((e) => e.kind === 'turbine-evolved')).toBe(true);
+  });
+
+  it('UP01 evolve-tier1：場上無 M01/M02/OS8 時 canPlayCard 應為 false', async () => {
+    const { canPlayCard } = await import('../src/core/actions');
+    const s = structuredClone(createInitialState(createRng(1)));
+    // 只有 OS10/OS12，沒有 M01/M02/OS8
+    s.players[0].turbines = [
+      { cardId: 'OS10', avail: 88, mwBonus: 0, faults: [] },
+      { cardId: 'OS12', avail: 86, mwBonus: 0, faults: [] },
+    ];
+    s.players[0].hand = ['UP01'];
+    s.actionsLeft = 2;
+    s.currentPlayer = 0;
+    expect(canPlayCard(s, 0, 0)).toBe(false);
   });
 });

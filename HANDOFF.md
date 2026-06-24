@@ -2,7 +2,7 @@
 
 > **這是給 Claude Code 看的第一份文件。** 整個專案的現狀、決策、與下一步行動都在這裡。
 >
-> **最後更新：2026-06-24（progress 99%）**
+> **最後更新：2026-06-25（progress 99%）**
 
 ---
 
@@ -78,6 +78,7 @@
 - [x] 🟢 **FN08 insurance-shield 完整邏輯**：`DeployedTurbine` 加入 `shieldCount?: number`；`_executeFunc` insurance case 改為對指定機組加 1 層保護盾；`_applyFault` 加入保護盾檢查（shieldCount > 0 則消耗一層並短路故障）；新增 `turbine-shielded` 和 `shield-absorbed` 事件；新增 2 個 i18n key（turbine.shielded / turbine.shieldAbsorbed）；更新卡牌文案（zh-TW + en）；新增 4 個測試（253 tests 全通過）（commit v5.4）
 - [x] 🟢 **T05 SCADA 工程師 fault-warning 能力**：`_beginTurn` 加入 fault-warning 邏輯（對手場上有 T05 時，對當前玩家手牌中第一張 fault 卡發出預警事件）；`beginTurn()` 純函式版改回 `ApplyResult`；`game-store.ts` 全部 `_beginTurn` 呼叫點更新為收集事件；新增 `hasFaultWarning()` 輔助函式；新增 `fault-warning` 事件型別；新增 2 個 i18n key（tech.faultWarning zh-TW + en）；新增 5 個測試（258 tests 全通過）（commit v5.5）
 - [x] 🟢 **T08 無人機操作員 peek-hand + T09 研發總監 func-bonus**：`_deployTech` 加入 peek-hand 觸發（部署時查看對手前 2 張手牌，不消耗）；`PlayerState` 加入 `funcBonusThisRound`；`_applyActionMutate` 加入 func-bonus 觸發（出 func 卡後若場上有 T09 則 +1 動作，上限 2）；`_beginTurn` 重置 `funcBonusThisRound`；新增 `peek-hand` / `func-bonus` 事件型別；新增 4 個 i18n key（tech.peekHand / tech.funcBonus zh-TW + en）；新增 9 個測試（267 tests 全通過）（commit v5.6）
+- [x] 🟢 **UP01/UP02 OS 升級路徑 + 第八輪平衡調整（v5.16）**：執行 balance-report 300 場驗證 v5.15 效果（W02/W05 已正常 ✅，但 W01 付 69.6% 仍過強、W03 17.4% 過弱、FN06 63.5%、M09 61.0%、M12 59.3%、T06 60.9%、T03 59.3%）；根本修正 UP01/UP02 長期過弱問題：擴展 evolve-tier1 支援 OS8→M09（+2MW）、evolve-tier2 支援 OS10→M11（+1MW），讓開局艦隊有升級路徑；同步更新 evaluator.ts 註解；新增 5 個 UP01/UP02 單元測試；第八輪調整 5 張卡牌：W01 cost 3→4（持續過強）、W03 cost 2→1（費用太高導致沒人出）、FN06 cost 2→3（mwhBoost 過強）、M09 cost 2→3（10MW 免疫液壓效果強）、M12 cost 2→3（no-wind-power 免疫效果強）；同步更新 FN06/W01 測試（actionsLeft 2→3、actionsLeft 3→4）；296 tests 全通過，tsc 零錯誤，build 455KB（commit v5.16）
 - [x] 🟢 **第七輪平衡調整（v5.15）**：執行 balance-report 300 場驗證 v5.14 效果（C02 已修正至 40.8% ✅，但天氣卡全面過強：W05 70.2%、W03 60.0%、W01 59.9%、W02 58.1%）；第七輪調整 4 張天氣卡：W01 cost 2→3（高風加成持續 2 回合，費用提高）、W02 cost 1→2（全場停機效果強，1 費太便宜）、W03 cost 1→2（低風懲罰對手但自身免疫，1 費太便宜）、W05 cost 1→2（random-blade + wind-penalty 雙效果太強）；同步更新 W01 測試（actionsLeft 2→3，標題 duration=3→2）；分析 UP01/UP02 持續過弱根本原因（開局艦隊 OS8/OS10/OS12 不在升級列表中，AI 幾乎永遠沒有 M01-M06 可升級），記錄待後續處理；291 tests 全通過，tsc 零錯誤，build 455KB（commit v5.15）
 - [x] 🟢 **CardExporter 測試 + 第六輪平衡調整（v5.14）**：新增 `tests/cardExporter.test.ts`（13 個測試，mock html2canvas + jsPDF，测試空陣列短路、分頁逻輪、進度回呼、檔名、頁碼、DOM 清理等 13 個場景）；執行 balance-report 300 場驗證 v5.13 效果（C02 勝率 69.7% 仍過強）；第六輪調整 4 張卡牌：C02 threshold 30→35（勝率仍 69.7% 過高）、UP02 cost 1→0（勝率 16.7% 過弱，条件苛刻）、W05 cost 2→1（冰風勝率 37.0% 過弱）、F07 cost 3→4（傳奇故障卡 59.6% 略超門櫛）；更新 C02 threshold 相關測試（開局艦隊 30MW < 35 改為 false，新增 36MW ≥ 35 為 true）；291 tests 全通過，tsc 零錯誤，build 455KB（commit v5.14）
 - [x] 🟢 **第五輪平衡調整（v5.13）**：第五輪調整 4 張卡牌：C02 threshold 26→30（使用者仍可輕易達標，提高門檻）、W05 cost 1→2（random-blade 費用回調，1 費過便宜）、W03 cost 2→1（低風免疫費用回退，2 費後使用率過低）、UP03 cost 2→3（離岸升級仍過強）；同步更新 4 個 C02 threshold 相關測試（機組 MW 不足改為 3 台 M07 = 36MW）；277 tests 全通過，tsc 零錯誤，build 455KB（commit v5.13）

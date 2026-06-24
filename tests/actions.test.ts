@@ -232,7 +232,7 @@ describe('S2.3 applyAction：FN01–06 功能卡', () => {
   });
 
   it('FN06 mwhBoost：mwhBoostActive=true', () => {
-    const s = withHand(createInitialState(createRng(1)), 0, ['FN06'], 2); // FN06 cost=2（v5.11）
+    const s = withHand(createInitialState(createRng(1)), 0, ['FN06'], 3); // FN06 cost=3（v5.16）
     const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
     expect(r.state.players[0].mwhBoostActive).toBe(true);
     expect(r.events.some((e) => e.kind === 'mwh-boost')).toBe(true);
