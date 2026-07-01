@@ -9,6 +9,15 @@
 
 ---
 
+## 🎮 線上遊玩
+
+**👉 直接開玩（免安裝）：<https://dofliu.github.io/WindFarm-Battle/>**
+
+純瀏覽器執行、玩家 vs AI、可安裝為 PWA 到手機桌面離線遊玩。
+（合併進 `main` 後由 GitHub Actions 自動部署；首次需在 repo **Settings → Pages → Source** 選 **「GitHub Actions」**。）
+
+---
+
 ## 📖 專案簡介
 
 **WindFarm Battle** 是國立勤益科技大學智慧自動化工程系 DOF Lab 開發的風電教學遊戲。透過卡牌對戰機制，玩家扮演風場運維者，學習：
