@@ -223,6 +223,7 @@ export default function CardGallery({ onClose }: Props) {
                   cardId={id}
                   size={sizeMode}
                   showFlavor={sizeMode !== 'small'}
+                  artImage={CARDS[id]?.image}
                 />
               ))}
             </div>

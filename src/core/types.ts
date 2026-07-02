@@ -58,6 +58,11 @@ export interface Card {
    * 與目標故障 faultCategory 相符時完全修復；不符時為部分修復（50% 效能）。
    */
   readonly specialty?: FaultCategory;
+  /**
+   * 卡牌插畫圖片路徑（相對於 public/），例如 "cards/M01.jpg"。
+   * 有此欄位時 CardTemplate 顯示插畫，否則顯示表情符號佔位符。
+   */
+  readonly image?: string;
 }
 
 // ---------- 以下為遊戲執行期狀態（Sprint 2 補完整動作邏輯） ----------

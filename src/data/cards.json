@@ -48,7 +48,8 @@
         "avail": 95
       },
       "abilities": [],
-      "iec": "61400-1"
+      "iec": "61400-1",
+      "image": "cards/M01.jpg"
     },
     "M02": {
       "id": "M02",
@@ -61,7 +62,8 @@
         "avail": 93
       },
       "abilities": [],
-      "iec": "61400-1"
+      "iec": "61400-1",
+      "image": "cards/M02.jpg"
     },
     "M03": {
       "id": "M03",
@@ -78,7 +80,8 @@
           "tag": "lowwind-resist"
         }
       ],
-      "iec": "61400-6"
+      "iec": "61400-6",
+      "image": "cards/M03.jpg"
     },
     "M04": {
       "id": "M04",
@@ -96,7 +99,8 @@
           "tag": "salt-corrosion"
         }
       ],
-      "iec": "61400-3-1"
+      "iec": "61400-3-1",
+      "image": "cards/M04.jpg"
     },
     "M05": {
       "id": "M05",
@@ -113,7 +117,8 @@
           "tag": "offshore-delay"
         }
       ],
-      "iec": "61400-3-1"
+      "iec": "61400-3-1",
+      "image": "cards/M05.jpg"
     },
     "M06": {
       "id": "M06",
@@ -131,7 +136,8 @@
           "tag": "storm-vulnerable"
         }
       ],
-      "iec": "61400-3-1"
+      "iec": "61400-3-1",
+      "image": "cards/M06.jpg"
     },
     "M07": {
       "id": "M07",
@@ -156,7 +162,8 @@
           "tag": "card-draw-trigger"
         }
       ],
-      "iec": "61400-3-2"
+      "iec": "61400-3-2",
+      "image": "cards/M07.jpg"
     },
     "M08": {
       "id": "M08",
@@ -176,7 +183,8 @@
           "tag": "fragile"
         }
       ],
-      "iec": "61400-1"
+      "iec": "61400-1",
+      "image": "cards/M08.jpg"
     },
     "M09": {
       "id": "M09",
@@ -196,7 +204,8 @@
           "tag": "slow-recovery"
         }
       ],
-      "iec": "61400-6"
+      "iec": "61400-6",
+      "image": "cards/M09.jpg"
     },
     "M10": {
       "id": "M10",
@@ -216,7 +225,8 @@
           "tag": "fault-immune"
         }
       ],
-      "iec": "61400-2"
+      "iec": "61400-2",
+      "image": "cards/M10.jpg"
     },
     "M11": {
       "id": "M11",
@@ -236,7 +246,8 @@
           "tag": "highwind-penalty"
         }
       ],
-      "iec": "61400-1"
+      "iec": "61400-1",
+      "image": "cards/M11.jpg"
     },
     "M12": {
       "id": "M12",
@@ -256,7 +267,8 @@
           "tag": "once-per-game"
         }
       ],
-      "iec": "61400-27"
+      "iec": "61400-27",
+      "image": "cards/M12.jpg"
     },
     "OS8": {
       "id": "OS8",
@@ -270,7 +282,8 @@
         "avail": 90
       },
       "abilities": [],
-      "iec": "61400-3-1"
+      "iec": "61400-3-1",
+      "image": "cards/OS8.jpg"
     },
     "OS10": {
       "id": "OS10",
@@ -284,7 +297,8 @@
         "avail": 88
       },
       "abilities": [],
-      "iec": "61400-3-1"
+      "iec": "61400-3-1",
+      "image": "cards/OS10.jpg"
     },
     "OS12": {
       "id": "OS12",
@@ -299,7 +313,8 @@
         "avail": 86
       },
       "abilities": [],
-      "iec": "61400-3-2"
+      "iec": "61400-3-2",
+      "image": "cards/OS12.jpg"
     },
     "T01": {
       "id": "T01",
@@ -320,7 +335,8 @@
           "tag": "auto-repair-low"
         }
       ],
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "cards/T01.jpg"
     },
     "T02": {
       "id": "T02",
@@ -343,7 +359,8 @@
           "tag": "blade-master"
         }
       ],
-      "iec": "61400-5"
+      "iec": "61400-5",
+      "image": "cards/T02.jpg"
     },
     "T03": {
       "id": "T03",
@@ -367,7 +384,8 @@
           "tag": "gearbox-master"
         }
       ],
-      "iec": "61400-4"
+      "iec": "61400-4",
+      "image": "cards/T03.jpg"
     },
     "T04": {
       "id": "T04",
@@ -388,7 +406,8 @@
           "tag": "electrical"
         }
       ],
-      "iec": "61400-21"
+      "iec": "61400-21",
+      "image": "cards/T04.jpg"
     },
     "T05": {
       "id": "T05",
@@ -410,7 +429,8 @@
           "tag": "fault-warning"
         }
       ],
-      "iec": "61400-25"
+      "iec": "61400-25",
+      "image": "cards/T05.jpg"
     },
     "T06": {
       "id": "T06",
@@ -438,7 +458,8 @@
           "tag": "periodic-repair"
         }
       ],
-      "iec": "61400-25-6"
+      "iec": "61400-25-6",
+      "image": "cards/T06.jpg"
     },
     "T07": {
       "id": "T07",
@@ -460,7 +481,8 @@
           "tag": "tech-discount"
         }
       ],
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "cards/T07.jpg"
     },
     "T08": {
       "id": "T08",
@@ -483,7 +505,8 @@
           "tag": "remote-blade"
         }
       ],
-      "iec": "61400-5"
+      "iec": "61400-5",
+      "image": "cards/T08.jpg"
     },
     "T09": {
       "id": "T09",
@@ -503,7 +526,8 @@
           "tag": "func-discount"
         }
       ],
-      "iec": "61400-1"
+      "iec": "61400-1",
+      "image": "cards/T09.jpg"
     },
     "F01": {
       "id": "F01",
@@ -526,7 +550,8 @@
           "tag": "auto-repair"
         }
       ],
-      "iec": "61400-12"
+      "iec": "61400-12",
+      "image": "cards/F01.jpg"
     },
     "F02": {
       "id": "F02",
@@ -548,7 +573,8 @@
           "tag": "temporary"
         }
       ],
-      "iec": "61400-1"
+      "iec": "61400-1",
+      "image": "cards/F02.jpg"
     },
     "F03": {
       "id": "F03",
@@ -572,7 +598,8 @@
           "tag": "spreading"
         }
       ],
-      "iec": "61400-1"
+      "iec": "61400-1",
+      "image": "cards/F03.jpg"
     },
     "F04": {
       "id": "F04",
@@ -599,7 +626,8 @@
           "tag": "specialist-only"
         }
       ],
-      "iec": "61400-5"
+      "iec": "61400-5",
+      "image": "cards/F04.jpg"
     },
     "F05": {
       "id": "F05",
@@ -622,7 +650,8 @@
           "tag": "storm-amplify"
         }
       ],
-      "iec": "61400-1"
+      "iec": "61400-1",
+      "image": "cards/F05.jpg"
     },
     "F06": {
       "id": "F06",
@@ -651,7 +680,8 @@
           "tag": "specialist-only"
         }
       ],
-      "iec": "61400-4"
+      "iec": "61400-4",
+      "image": "cards/F06.jpg"
     },
     "F07": {
       "id": "F07",
@@ -678,7 +708,8 @@
           "tag": "devastating"
         }
       ],
-      "iec": "61400-4"
+      "iec": "61400-4",
+      "image": "cards/F07.jpg"
     },
     "F08": {
       "id": "F08",
@@ -705,7 +736,8 @@
           "tag": "unpredictable"
         }
       ],
-      "iec": "61400-24"
+      "iec": "61400-24",
+      "image": "cards/F08.jpg"
     },
     "F09": {
       "id": "F09",
@@ -730,7 +762,8 @@
           "tag": "info-leak"
         }
       ],
-      "iec": "61400-25"
+      "iec": "61400-25",
+      "image": "cards/F09.jpg"
     },
     "FN01": {
       "id": "FN01",
@@ -744,7 +777,8 @@
           "tag": "return-turbine"
         }
       ],
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "cards/FN01.jpg"
     },
     "FN02": {
       "id": "FN02",
@@ -758,7 +792,8 @@
           "tag": "draw-2"
         }
       ],
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "cards/FN02.jpg"
     },
     "FN03": {
       "id": "FN03",
@@ -772,7 +807,8 @@
           "tag": "permanent-mw"
         }
       ],
-      "iec": "61400-1"
+      "iec": "61400-1",
+      "image": "cards/FN03.jpg"
     },
     "FN04": {
       "id": "FN04",
@@ -786,7 +822,8 @@
           "tag": "extra-action-future"
         }
       ],
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "cards/FN04.jpg"
     },
     "FN05": {
       "id": "FN05",
@@ -800,7 +837,8 @@
           "tag": "predict-wind-3"
         }
       ],
-      "iec": "61400-15"
+      "iec": "61400-15",
+      "image": "cards/FN05.jpg"
     },
     "FN06": {
       "id": "FN06",
@@ -814,7 +852,8 @@
           "tag": "mwh-boost"
         }
       ],
-      "iec": "61400-26"
+      "iec": "61400-26",
+      "image": "cards/FN06.jpg"
     },
     "FN07": {
       "id": "FN07",
@@ -828,7 +867,8 @@
           "tag": "tutor-turbine"
         }
       ],
-      "iec": "61400-15"
+      "iec": "61400-15",
+      "image": "cards/FN07.jpg"
     },
     "FN08": {
       "id": "FN08",
@@ -842,7 +882,8 @@
           "tag": "insurance-shield"
         }
       ],
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "cards/FN08.jpg"
     },
     "FN09": {
       "id": "FN09",
@@ -856,7 +897,8 @@
           "tag": "mass-repair-once"
         }
       ],
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "cards/FN09.jpg"
     },
     "UP01": {
       "id": "UP01",
@@ -866,9 +908,12 @@
       "rarity": 2,
       "effect": "evolveTurbine",
       "abilities": [
-        { "tag": "evolve-tier1" }
+        {
+          "tag": "evolve-tier1"
+        }
       ],
-      "iec": "61400-1"
+      "iec": "61400-1",
+      "image": "cards/UP01.jpg"
     },
     "UP02": {
       "id": "UP02",
@@ -878,9 +923,12 @@
       "rarity": 3,
       "effect": "evolveTurbine",
       "abilities": [
-        { "tag": "evolve-tier2" }
+        {
+          "tag": "evolve-tier2"
+        }
       ],
-      "iec": "61400-3-1"
+      "iec": "61400-3-1",
+      "image": "cards/UP02.jpg"
     },
     "UP03": {
       "id": "UP03",
@@ -890,9 +938,12 @@
       "rarity": 4,
       "effect": "evolveTurbine",
       "abilities": [
-        { "tag": "evolve-tier3" }
+        {
+          "tag": "evolve-tier3"
+        }
       ],
-      "iec": "61400-3-2"
+      "iec": "61400-3-2",
+      "image": "cards/UP03.jpg"
     },
     "UP04": {
       "id": "UP04",
@@ -902,9 +953,12 @@
       "rarity": 2,
       "effect": "evolveTurbine",
       "abilities": [
-        { "tag": "evolve-universal" }
+        {
+          "tag": "evolve-universal"
+        }
       ],
-      "iec": "61400-1"
+      "iec": "61400-1",
+      "image": "cards/UP04.jpg"
     },
     "W01": {
       "id": "W01",
@@ -922,7 +976,8 @@
           "tag": "self-boost-wind"
         }
       ],
-      "iec": "61400-15"
+      "iec": "61400-15",
+      "image": "cards/W01.jpg"
     },
     "W02": {
       "id": "W02",
@@ -943,7 +998,8 @@
           "tag": "self-immune-shutdown"
         }
       ],
-      "iec": "61400-1"
+      "iec": "61400-1",
+      "image": "cards/W02.jpg"
     },
     "W03": {
       "id": "W03",
@@ -961,7 +1017,8 @@
           "tag": "self-immune-wind-penalty"
         }
       ],
-      "iec": "61400-15"
+      "iec": "61400-15",
+      "image": "cards/W03.jpg"
     },
     "W04": {
       "id": "W04",
@@ -976,7 +1033,8 @@
           "tag": "mwh-double"
         }
       ],
-      "iec": "61400-26"
+      "iec": "61400-26",
+      "image": "cards/W04.jpg"
     },
     "W05": {
       "id": "W05",
@@ -1000,7 +1058,8 @@
           "tag": "self-immune-blade-fault"
         }
       ],
-      "iec": "61400-24"
+      "iec": "61400-24",
+      "image": "cards/W05.jpg"
     },
     "C01": {
       "id": "C01",
@@ -1019,7 +1078,8 @@
           "tag": "contract-stable"
         }
       ],
-      "iec": "61400-26"
+      "iec": "61400-26",
+      "image": "cards/C01.jpg"
     },
     "C02": {
       "id": "C02",
@@ -1037,7 +1097,8 @@
           "tag": "contract-scale"
         }
       ],
-      "iec": "61400-15"
+      "iec": "61400-15",
+      "image": "cards/C02.jpg"
     },
     "C03": {
       "id": "C03",
@@ -1055,7 +1116,8 @@
           "tag": "contract-techs"
         }
       ],
-      "iec": "61400-1"
+      "iec": "61400-1",
+      "image": "cards/C03.jpg"
     },
     "C04": {
       "id": "C04",
@@ -1073,7 +1135,8 @@
           "tag": "contract-suppress"
         }
       ],
-      "iec": "61400-26"
+      "iec": "61400-26",
+      "image": "cards/C04.jpg"
     }
   }
 }

@@ -18,6 +18,7 @@ import { createRoot } from 'react-dom/client';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import CardTemplate from './CardTemplate';
+import { CARDS } from '../core/cards';
 
 // ── 版面常數 ──────────────────────────────────────────────────
 const CARD_W_PX  = 240;   // CardTemplate print size width  (px)
@@ -146,6 +147,7 @@ function renderCardToContainer(container: HTMLElement, cardId: string): Promise<
         cardId={cardId}
         size="print"
         showFlavor={true}
+        artImage={CARDS[cardId]?.image}
       />,
     );
 
