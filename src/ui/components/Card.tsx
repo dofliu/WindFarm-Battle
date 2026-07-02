@@ -157,10 +157,21 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(props, r
             overflow: 'hidden',
           }}
         >
-          <StripedPlaceholder width={size - 24} height={size * 0.6} stripe="rgba(232,200,120,0.15)" />
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <IconComp size={size * 0.32} stroke={isLegendary ? '#f4d68a' : '#e8c878'} strokeWidth={1.3} />
-          </div>
+          {card.image ? (
+            <img
+              src={card.image}
+              alt={name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              loading="lazy"
+            />
+          ) : (
+            <>
+              <StripedPlaceholder width={size - 24} height={size * 0.6} stripe="rgba(232,200,120,0.15)" />
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <IconComp size={size * 0.32} stroke={isLegendary ? '#f4d68a' : '#e8c878'} strokeWidth={1.3} />
+              </div>
+            </>
+          )}
         </div>
         {/* 數值 */}
         <div
@@ -297,10 +308,21 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(props, r
           justifyContent: 'center',
         }}
       >
-        <StripedPlaceholder width={size - 20} height={size * 0.65} stripe={`hsla(${tc.hue}, 30%, 50%, 0.15)`} />
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <IconComp size={size * 0.36} stroke={tc.accent} strokeWidth={1.3} />
-        </div>
+        {card.image ? (
+          <img
+            src={card.image}
+            alt={name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', borderRadius: 10 }}
+            loading="lazy"
+          />
+        ) : (
+          <>
+            <StripedPlaceholder width={size - 20} height={size * 0.65} stripe={`hsla(${tc.hue}, 30%, 50%, 0.15)`} />
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <IconComp size={size * 0.36} stroke={tc.accent} strokeWidth={1.3} />
+            </div>
+          </>
+        )}
       </div>
       {/* 卡名 */}
       <div style={{ fontSize: 12, fontWeight: 700, color: theme.textPrimary, textAlign: 'center', marginTop: 6, fontFamily: theme.fontUI }}>
