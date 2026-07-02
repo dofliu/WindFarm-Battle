@@ -5,9 +5,6 @@ import { simulate } from '../src/core/simulation/runner';
 import { deckCardIds } from '../src/core/cards';
 import type { Difficulty } from '../src/core/types';
 
-// 只檢查真正在抽牌池中的卡（排除 OS8/OS10/OS12 開局艦隊）
-const DECK_SET = new Set(deckCardIds);
-
 // ── 解析 CLI 參數（process.argv = [node, script, ...args]）
 const args = process.argv.slice(2);
 function getArg(name: string, fallback: string): string {

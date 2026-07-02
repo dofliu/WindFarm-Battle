@@ -1,15 +1,19 @@
 // ============================================================
-// Stage — 把整個遊戲鎖定在 1440×900 設計畫布，依視窗大小 scale-to-fit。
-// 採用 letterbox（保持比例、補黑邊），未來行動裝置直向再加 portrait layout。
+// Stage — 把整個遊戲鎖定在設計畫布，依視窗大小 scale-to-fit。
+// 橫向（桌面）用 1440×900；直向（手機直握）改用 880×1560。
+// 採用 letterbox（保持比例、補黑邊）。
 //
 // 額外暴露 wfViewportToStage(x, y)：把瀏覽器視窗座標轉成 stage 座標，
-// 拖曳出牌的 overlay 需要這個來貼齊指標位置。
+// 拖曳出牌的 overlay 需要這個來貼齊指標位置（讀即時 rect+scale，方向切換不受影響）。
 // ============================================================
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useOrientation } from './useOrientation';
 
 export const STAGE_W = 1440;
 export const STAGE_H = 900;
+export const PORTRAIT_W = 880;
+export const PORTRAIT_H = 1560;
 
 interface StageGlobals {
   wfStageScale?: number;
@@ -35,12 +39,15 @@ export function getStageScale(): number {
 }
 
 export function Stage({ children }: { readonly children: ReactNode }) {
+  const orientation = useOrientation();
+  const stageW = orientation === 'portrait' ? PORTRAIT_W : STAGE_W;
+  const stageH = orientation === 'portrait' ? PORTRAIT_H : STAGE_H;
   const [scale, setScale] = useState(1);
   const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const recompute = () => {
-      const s = Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
+      const s = Math.min(window.innerWidth / stageW, window.innerHeight / stageH);
       setScale(s);
       globals.wfStageScale = s;
       if (ref.current) globals.wfStageRect = ref.current.getBoundingClientRect();
@@ -52,7 +59,7 @@ export function Stage({ children }: { readonly children: ReactNode }) {
       window.removeEventListener('resize', recompute);
       window.removeEventListener('scroll', recompute, true);
     };
-  }, []);
+  }, [stageW, stageH]);
 
   // scale 變更後同步更新 rect（含 scroll 等情境）
   useEffect(() => {
@@ -74,8 +81,8 @@ export function Stage({ children }: { readonly children: ReactNode }) {
       <div
         ref={ref}
         style={{
-          width: STAGE_W,
-          height: STAGE_H,
+          width: stageW,
+          height: stageH,
           flexShrink: 0,
           transform: `scale(${scale})`,
           transformOrigin: 'center center',

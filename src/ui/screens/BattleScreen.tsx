@@ -24,6 +24,7 @@ import { Hourglass, Crosshair } from '../icons';
 import { uiPreviewMwh } from '../../store/game-store';
 import { t } from '../../i18n';
 import { useLocale } from '../locale/LocaleContext';
+import { useOrientation } from '../stage/useOrientation';
 
 interface Props {
   readonly onTitle: () => void;
@@ -33,6 +34,7 @@ interface Props {
 export function BattleScreen({ onTitle, onGameOver }: Props) {
   const { theme, themeKey } = useTheme();
   useLocale(); // 訂閱語言切換，觸發重新渲染
+  const isPortrait = useOrientation() === 'portrait';
 
   const state = useGameStore((s) => s.state);
   const pendingFaultHandIdx = useGameStore((s) => s.pendingFaultHandIdx);
@@ -184,138 +186,186 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
           onTheme={() => setShowTheme(true)}
         />
 
-        {/* 對手列 */}
+        {/* 中段三區：直向時垂直置中平均分佈，橫向時沿用上緣對齊 */}
         <div
           style={{
-            padding: '14px 28px 10px',
+            flex: 1,
+            minHeight: 0,
             display: 'flex',
-            alignItems: 'flex-start',
-            gap: 18,
-            background: theme.bgOpponent,
-            borderBottom: themeKey === 'tideboard' ? '1px solid rgba(168,69,58,0.3)' : '1px solid rgba(168,91,74,0.1)',
+            flexDirection: 'column',
+            justifyContent: isPortrait ? 'space-evenly' : 'flex-start',
           }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <SideLabel
-              side="opp"
-              hand={opp.hand.length}
-              deck={opp.deck.length}
-              mw={aiMw}
-              faulted={aiFaulted}
-              aiThinking={isAiThinking}
-              active={state.currentPlayer === 1 && !isAiThinking}
-            />
-            <div style={{ display: 'flex', marginLeft: -2 }}>
-              {Array.from({ length: opp.hand.length }, (_, i) => (
-                <CardBack
-                  key={i}
-                  size={36}
-                  style={{
-                    marginLeft: i === 0 ? 0 : -22,
-                    transform: `rotate(${(i - opp.hand.length / 2 + 0.5) * 4}deg)`,
-                  }}
-                />
-              ))}
-            </div>
-          </div>
+          {/* 對手列 */}
           <div
-            data-zone="play-opp"
             style={{
-              flex: 1,
+              padding: isPortrait ? '10px 12px 8px' : '14px 28px 10px',
               display: 'flex',
-              gap: 16,
-              justifyContent: 'center',
-              padding: '6px 0',
-              borderRadius: 16,
-              background:
-                pendingFaultHandIdx !== null || (dragInfo && CARDS[dragInfo.cardId]?.type === 'fault')
-                  ? 'rgba(217,108,90,0.08)'
-                  : 'transparent',
-              boxShadow:
-                pendingFaultHandIdx !== null || (dragInfo && CARDS[dragInfo.cardId]?.type === 'fault')
-                  ? 'inset 0 0 0 2px rgba(217,108,90,0.4)'
-                  : 'none',
-              transition: 'all 0.2s',
+              flexDirection: isPortrait ? 'column' : 'row',
+              alignItems: isPortrait ? 'stretch' : 'flex-start',
+              gap: isPortrait ? 10 : 18,
+              background: theme.bgOpponent,
+              borderBottom: themeKey === 'tideboard' ? '1px solid rgba(168,69,58,0.3)' : '1px solid rgba(168,91,74,0.1)',
             }}
           >
-            {[0, 1, 2].map((slot) => {
-              const tu = opp.turbines[slot];
-              return (
-                <div key={slot} data-slot={slot}>
-                  <Turbine
-                    turbine={tu}
-                    empty={!tu}
-                    targeted={pendingFaultHandIdx !== null && !!tu && !tu.shutdown}
-                    onClick={pendingFaultHandIdx !== null && tu && !tu.shutdown ? () => selectFaultTarget(slot) : undefined}
-                  />
-                </div>
-              );
-            })}
-          </div>
-          <ScoreBadge side="opp" label="AI" score={opp.score} active={state.currentPlayer === 1} />
-        </div>
-
-        {/* 中央條 */}
-        <BattleCenter state={state} windRolling={windRolling} />
-
-        {/* 玩家列 */}
-        <div
-          style={{
-            padding: '10px 28px 6px',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 18,
-            background: theme.bgPlayer,
-            borderTop: themeKey === 'tideboard' ? '1px solid rgba(232,200,120,0.2)' : '1px solid rgba(58,167,200,0.1)',
-          }}
-        >
-          <ScoreBadge side="me" label={t('side.you')} score={me.score} preview={myPreview} active={isMyTurn} />
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+            {/* 資訊橫條（直向時 SideLabel 左、分數牌右） */}
             <div
-              data-zone="play-mine"
               style={{
                 display: 'flex',
-                gap: 16,
-                padding: '6px 16px',
+                flexDirection: 'row',
+                justifyContent: isPortrait ? 'space-between' : 'flex-start',
+                alignItems: 'flex-start',
+                gap: 12,
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <SideLabel
+                  side="opp"
+                  hand={opp.hand.length}
+                  deck={opp.deck.length}
+                  mw={aiMw}
+                  faulted={aiFaulted}
+                  aiThinking={isAiThinking}
+                  active={state.currentPlayer === 1 && !isAiThinking}
+                />
+                <div style={{ display: 'flex', marginLeft: -2 }}>
+                  {Array.from({ length: opp.hand.length }, (_, i) => (
+                    <CardBack
+                      key={i}
+                      size={36}
+                      style={{
+                        marginLeft: i === 0 ? 0 : -22,
+                        transform: `rotate(${(i - opp.hand.length / 2 + 0.5) * 4}deg)`,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+              {isPortrait && <ScoreBadge side="opp" label="AI" score={opp.score} active={state.currentPlayer === 1} />}
+            </div>
+            <div
+              data-zone="play-opp"
+              style={{
+                flex: isPortrait ? '0 0 auto' : 1,
+                display: 'flex',
+                gap: isPortrait ? 10 : 16,
+                justifyContent: 'center',
+                padding: '6px 0',
                 borderRadius: 16,
                 background:
-                  dragInfo && CARDS[dragInfo.cardId]?.type !== 'fault'
-                    ? themeKey === 'tideboard'
-                      ? 'rgba(232,200,120,0.12)'
-                      : 'rgba(58,167,200,0.08)'
+                  pendingFaultHandIdx !== null || (dragInfo && CARDS[dragInfo.cardId]?.type === 'fault')
+                    ? 'rgba(217,108,90,0.08)'
                     : 'transparent',
                 boxShadow:
-                  dragInfo && CARDS[dragInfo.cardId]?.type !== 'fault'
-                    ? `inset 0 0 0 2px ${themeKey === 'tideboard' ? 'rgba(232,200,120,0.5)' : 'rgba(58,167,200,0.4)'}`
+                  pendingFaultHandIdx !== null || (dragInfo && CARDS[dragInfo.cardId]?.type === 'fault')
+                    ? 'inset 0 0 0 2px rgba(217,108,90,0.4)'
                     : 'none',
                 transition: 'all 0.2s',
               }}
             >
               {[0, 1, 2].map((slot) => {
-                const tu = me.turbines[slot];
+                const tu = opp.turbines[slot];
                 return (
                   <div key={slot} data-slot={slot}>
-                    <Turbine turbine={tu} empty={!tu} />
+                    <Turbine
+                      turbine={tu}
+                      empty={!tu}
+                      targeted={pendingFaultHandIdx !== null && !!tu && !tu.shutdown}
+                      onClick={pendingFaultHandIdx !== null && tu && !tu.shutdown ? () => selectFaultTarget(slot) : undefined}
+                    />
                   </div>
                 );
               })}
             </div>
-            {me.techs.length > 0 && (
-              <div style={{ display: 'flex', gap: 10, marginTop: themeKey === 'tideboard' ? 14 : 0 }}>
-                {me.techs.map((id) => (
-                  <Tech key={id} techId={id} />
-                ))}
+            {!isPortrait && <ScoreBadge side="opp" label="AI" score={opp.score} active={state.currentPlayer === 1} />}
+          </div>
+
+          {/* 中央條 */}
+          <BattleCenter state={state} windRolling={windRolling} />
+
+          {/* 玩家列 */}
+          <div
+            style={{
+              padding: isPortrait ? '8px 12px 6px' : '10px 28px 6px',
+              display: 'flex',
+              flexDirection: isPortrait ? 'column' : 'row',
+              alignItems: isPortrait ? 'stretch' : 'flex-start',
+              gap: isPortrait ? 10 : 18,
+              background: theme.bgPlayer,
+              borderTop: themeKey === 'tideboard' ? '1px solid rgba(232,200,120,0.2)' : '1px solid rgba(58,167,200,0.1)',
+            }}
+          >
+            {/* 資訊橫條（直向時分數牌左、SideLabel 右） */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: isPortrait ? 'space-between' : 'flex-start',
+                alignItems: 'center',
+                gap: 12,
+              }}
+            >
+              <ScoreBadge side="me" label={t('side.you')} score={me.score} preview={myPreview} active={isMyTurn} />
+              {isPortrait && (
+                <SideLabel side="me" hand={me.hand.length} deck={me.deck.length} mw={myMw} faulted={myFaulted} active={isMyTurn} />
+              )}
+            </div>
+            <div
+              style={{
+                flex: isPortrait ? '0 0 auto' : 1,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                alignItems: 'center',
+              }}
+            >
+              <div
+                data-zone="play-mine"
+                style={{
+                  display: 'flex',
+                  gap: isPortrait ? 10 : 16,
+                  padding: '6px 16px',
+                  borderRadius: 16,
+                  background:
+                    dragInfo && CARDS[dragInfo.cardId]?.type !== 'fault'
+                      ? themeKey === 'tideboard'
+                        ? 'rgba(232,200,120,0.12)'
+                        : 'rgba(58,167,200,0.08)'
+                      : 'transparent',
+                  boxShadow:
+                    dragInfo && CARDS[dragInfo.cardId]?.type !== 'fault'
+                      ? `inset 0 0 0 2px ${themeKey === 'tideboard' ? 'rgba(232,200,120,0.5)' : 'rgba(58,167,200,0.4)'}`
+                      : 'none',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {[0, 1, 2].map((slot) => {
+                  const tu = me.turbines[slot];
+                  return (
+                    <div key={slot} data-slot={slot}>
+                      <Turbine turbine={tu} empty={!tu} />
+                    </div>
+                  );
+                })}
               </div>
+              {me.techs.length > 0 && (
+                <div style={{ display: 'flex', gap: 10, marginTop: themeKey === 'tideboard' ? 14 : 0 }}>
+                  {me.techs.map((id) => (
+                    <Tech key={id} techId={id} />
+                  ))}
+                </div>
+              )}
+            </div>
+            {!isPortrait && (
+              <SideLabel side="me" hand={me.hand.length} deck={me.deck.length} mw={myMw} faulted={myFaulted} active={isMyTurn} />
             )}
           </div>
-          <SideLabel side="me" hand={me.hand.length} deck={me.deck.length} mw={myMw} faulted={myFaulted} active={isMyTurn} />
         </div>
 
         {/* 手牌列 */}
         <div
           style={{
-            marginTop: 'auto',
-            padding: '10px 28px 18px',
+            padding: isPortrait ? '8px 10px 14px' : '10px 28px 18px',
             position: 'relative',
             background:
               themeKey === 'tideboard'
