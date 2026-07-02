@@ -40,6 +40,16 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
+          {
+            // 卡牌插畫（jpg）按需載入并快取，避免預快取 275MB 導致 PWA 建置失敗
+            urlPattern: /\/cards\/.*\.jpe?g$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'card-images-cache',
+              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
     }),
