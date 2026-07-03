@@ -297,9 +297,19 @@ export function Turbine({ turbine, empty, targeted, onClick }: Props) {
             justifyContent: 'center',
             background: 'radial-gradient(circle, rgba(58,167,200,0.4) 0%, #3d2a1e 100%)',
             borderRadius: '50%',
+            overflow: 'hidden',
           }}
         >
-          <IconComp size={36} stroke="#e8c878" strokeWidth={1.3} />
+          {card.image ? (
+            <img
+              src={card.image}
+              alt={name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+              loading="lazy"
+            />
+          ) : (
+            <IconComp size={36} stroke="#e8c878" strokeWidth={1.3} />
+          )}
         </div>
         {/* MW 寶石 */}
         <div
@@ -456,10 +466,21 @@ export function Turbine({ turbine, empty, targeted, onClick }: Props) {
           justifyContent: 'center',
         }}
       >
-        <StripedPlaceholder width={144} height={96} stripe="hsla(200, 30%, 50%, 0.15)" />
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <IconComp size={56} stroke="#3aa7c8" strokeWidth={1.2} />
-        </div>
+        {card.image ? (
+          <img
+            src={card.image}
+            alt={name}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+            loading="lazy"
+          />
+        ) : (
+          <>
+            <StripedPlaceholder width={144} height={96} stripe="hsla(200, 30%, 50%, 0.15)" />
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <IconComp size={56} stroke="#3aa7c8" strokeWidth={1.2} />
+            </div>
+          </>
+        )}
         {isLegendary && (
           <div
             style={{
