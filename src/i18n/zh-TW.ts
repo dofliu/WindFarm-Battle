@@ -106,6 +106,17 @@ export const zhTW = {
   'skill.quickRepair': '快修',
   'skill.used': '已出招',
   'skill.pickTarget': '選擇要快修的機組',
+  // ── 風場面板（同題競賽版面）UI ──────────────────────────────
+  'farm.mine': '你的風場',
+  'farm.opp': 'AI 風場',
+  'farm.hand': '手',
+  'farm.deck': '庫',
+  'farm.availability': '可用率',
+  'farm.faults': '故障',
+  'farm.capacity': '裝置量',
+  'farm.emptySlot': '空缺',
+  'farm.noTech': '尚無技師 · 抽牌招募',
+  'farm.techsTitle': '技師與招式',
   // ── Weather Immunity UI ────────────────────────────────────
   'weather.selfImmuneShutdown': '🛡 我方免疫停機',
   'weather.selfImmuneWindPenalty': '🛡 我方免疫風速懲罰',

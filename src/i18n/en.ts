@@ -106,6 +106,17 @@ export const en = {
   'skill.quickRepair': 'Quick Fix',
   'skill.used': 'Used',
   'skill.pickTarget': 'Pick a turbine to quick-fix',
+  // ── Farm panel (co-op competition layout) UI ────────────────
+  'farm.mine': 'Your Farm',
+  'farm.opp': 'AI Farm',
+  'farm.hand': 'Hand',
+  'farm.deck': 'Deck',
+  'farm.availability': 'Avail.',
+  'farm.faults': 'Faults',
+  'farm.capacity': 'Capacity',
+  'farm.emptySlot': 'Empty',
+  'farm.noTech': 'No technicians · draw to recruit',
+  'farm.techsTitle': 'Technicians & Skills',
   // ── Weather Immunity UI ────────────────────────────────────
   'weather.selfImmuneShutdown': '🛡 Self: Immune to Shutdown',
   'weather.selfImmuneWindPenalty': '🛡 Self: Immune to Wind Penalty',
