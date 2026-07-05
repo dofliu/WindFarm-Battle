@@ -102,6 +102,10 @@ export const en = {
   'turbine.roundsLeft': '{n} rnd left',
   'turbine.drop': '-{n}%',
   'turbine.shutdown': 'Emergency Shutdown',
+  // ── Technician Skill (light mode) UI ────────────────────────
+  'skill.quickRepair': 'Quick Fix',
+  'skill.used': 'Used',
+  'skill.pickTarget': 'Pick a turbine to quick-fix',
   // ── Weather Immunity UI ────────────────────────────────────
   'weather.selfImmuneShutdown': '🛡 Self: Immune to Shutdown',
   'weather.selfImmuneWindPenalty': '🛡 Self: Immune to Wind Penalty',

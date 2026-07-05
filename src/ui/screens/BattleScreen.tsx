@@ -40,6 +40,9 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
   const pendingFaultHandIdx = useGameStore((s) => s.pendingFaultHandIdx);
   const playCard = useGameStore((s) => s.playCard);
   const selectFaultTarget = useGameStore((s) => s.selectFaultTarget);
+  const activateSkill = useGameStore((s) => s.activateSkill);
+  const pendingSkillTechId = useGameStore((s) => s.pendingSkillTechId);
+  const selectSkillTarget = useGameStore((s) => s.selectSkillTarget);
   const cancelPending = useGameStore((s) => s.cancelPending);
   const endTurn = useGameStore((s) => s.endTurn);
   const newGame = useGameStore((s) => s.newGame);
@@ -90,6 +93,7 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
   const myFaulted = me.turbines.some((t) => t.faults.length > 0);
   const aiFaulted = opp.turbines.some((t) => t.faults.length > 0);
   const myPreview = uiPreviewMwh(state, 0);
+  const myHasFault = me.turbines.some((tu) => tu.faults.length > 0);
 
   // 拖曳結束：依卡類 + 落點判定動作
   const onDragEnd = useCallback(
@@ -341,18 +345,33 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
               >
                 {[0, 1, 2].map((slot) => {
                   const tu = me.turbines[slot];
+                  const skillTargetable = pendingSkillTechId !== null && !!tu && tu.faults.length > 0;
                   return (
                     <div key={slot} data-slot={slot}>
-                      <Turbine turbine={tu} empty={!tu} />
+                      <Turbine
+                        turbine={tu}
+                        empty={!tu}
+                        targeted={skillTargetable}
+                        onClick={skillTargetable ? () => selectSkillTarget(slot) : undefined}
+                      />
                     </div>
                   );
                 })}
               </div>
               {me.techs.length > 0 && (
-                <div style={{ display: 'flex', gap: 10, marginTop: themeKey === 'tideboard' ? 14 : 0 }}>
-                  {me.techs.map((id) => (
-                    <Tech key={id} techId={id} />
-                  ))}
+                <div style={{ display: 'flex', gap: 10, marginTop: themeKey === 'tideboard' ? 20 : 0 }}>
+                  {me.techs.map((id) => {
+                    const used = me.usedSkillThisRound.includes(id);
+                    return (
+                      <Tech
+                        key={id}
+                        techId={id}
+                        skillUsed={used}
+                        skillReady={isMyTurn && !used && myHasFault}
+                        onUseSkill={() => activateSkill(id)}
+                      />
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -403,6 +422,49 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
             >
               <Crosshair size={14} stroke="#fff" />
               {t('drag.fault')}
+              <button
+                type="button"
+                onClick={cancelPending}
+                style={{
+                  marginLeft: 8,
+                  background: 'rgba(0,0,0,0.2)',
+                  border: 'none',
+                  color: '#fff',
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* 技師出招：挑選要快修的自家機組 */}
+          {pendingSkillTechId !== null && (
+            <div
+              style={{
+                position: 'absolute',
+                top: -4,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                padding: '7px 16px',
+                background: themeKey === 'tideboard' ? 'linear-gradient(180deg, #2a8a5a, #1a5a3a)' : 'rgba(42,138,90,0.95)',
+                border: themeKey === 'tideboard' ? '1.5px solid #a8d878' : 'none',
+                color: '#fff',
+                fontSize: 12,
+                fontWeight: 700,
+                borderRadius: themeKey === 'tideboard' ? 0 : 999,
+                boxShadow: '0 6px 16px rgba(42,138,90,0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                zIndex: 5,
+                fontFamily: theme.fontUI,
+              }}
+            >
+              ⚡ {t('skill.pickTarget')}
               <button
                 type="button"
                 onClick={cancelPending}

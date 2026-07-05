@@ -1,20 +1,27 @@
-// 在場上的技師徽章（兩主題）。
+// 在場上的技師徽章（兩主題）。輕模式：可顯示「快修」出招鈕。
 import { CARDS } from '../../core/cards';
-import { cardName } from '../../i18n';
+import { cardName, t } from '../../i18n';
 import { useTheme } from '../theme/ThemeContext';
 import { pickIcon } from '../icons';
 
 interface Props {
   readonly techId: string;
+  /** 輕模式：此技師本回合可否出招（玩家回合、尚未出招、且有可修故障） */
+  readonly skillReady?: boolean;
+  /** 輕模式：此技師本回合已出過招 */
+  readonly skillUsed?: boolean;
+  /** 輕模式：點「快修」出招鈕 */
+  readonly onUseSkill?: () => void;
 }
 
-export function Tech({ techId }: Props) {
+export function Tech({ techId, skillReady, skillUsed, onUseSkill }: Props) {
   const { themeKey } = useTheme();
   const card = CARDS[techId];
   if (!card) return null;
   const IconComp = pickIcon(card.icon, card.type);
   const name = cardName(techId) || techId;
   const legendary = !!card.legendary;
+  const showSkill = skillReady || skillUsed;
 
   if (themeKey === 'tideboard') {
     return (
@@ -47,6 +54,31 @@ export function Tech({ techId }: Props) {
         >
           {name}
         </div>
+        {showSkill && (
+          <button
+            type="button"
+            onClick={skillReady ? onUseSkill : undefined}
+            disabled={!skillReady}
+            style={{
+              position: 'absolute',
+              bottom: -32,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              padding: '2px 8px',
+              fontSize: 9,
+              fontWeight: 700,
+              border: `1px solid ${skillReady ? '#a8d878' : '#6e4a18'}`,
+              borderRadius: 4,
+              cursor: skillReady ? 'pointer' : 'default',
+              background: skillReady ? 'linear-gradient(180deg, #2a8a5a, #1a5a3a)' : 'rgba(40,25,15,0.6)',
+              color: skillReady ? '#f4d68a' : 'rgba(244,214,138,0.4)',
+              fontFamily: 'Georgia, serif',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {skillUsed ? t('skill.used') : t('skill.quickRepair')}
+          </button>
+        )}
       </div>
     );
   }
@@ -78,6 +110,28 @@ export function Tech({ techId }: Props) {
         <IconComp size={14} stroke="#fff" />
       </div>
       <span style={{ fontSize: 11, fontWeight: 600, color: '#1c2a3a' }}>{name}</span>
+      {showSkill && (
+        <button
+          type="button"
+          onClick={skillReady ? onUseSkill : undefined}
+          disabled={!skillReady}
+          style={{
+            marginLeft: 2,
+            padding: '3px 9px',
+            fontSize: 10,
+            fontWeight: 700,
+            border: 'none',
+            borderRadius: 999,
+            cursor: skillReady ? 'pointer' : 'default',
+            background: skillReady ? 'linear-gradient(180deg, #5db58c, #2a8a5a)' : 'rgba(28,42,58,0.12)',
+            color: skillReady ? '#fff' : 'rgba(28,42,58,0.4)',
+            boxShadow: skillReady ? '0 2px 8px rgba(42,138,90,0.35)' : 'none',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {skillUsed ? t('skill.used') : `⚡ ${t('skill.quickRepair')}`}
+        </button>
+      )}
     </div>
   );
 }
