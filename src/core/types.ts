@@ -116,6 +116,12 @@ export interface PlayerState {
   usedOncePerGame: string[];
   /** T09 func-bonus：本回合已累加的額外動作數（上限 2）。_beginTurn 時重置為 0。 */
   funcBonusThisRound: number;
+  /**
+   * 技師主動出招（輕模式）：本回合已出過招的技師 ID 清單。
+   * 技師招式使用「獨立資源池」——每位在場技師每回合限出一招，且不消耗打牌動作。
+   * _beginTurn 時重置為空陣列。
+   */
+  usedSkillThisRound: string[];
 }
 
 export interface Wind {

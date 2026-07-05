@@ -114,6 +114,7 @@ export function _beginTurn(s: GameState, player: 0 | 1): GameEvent[] {
   p.pendingExtraActions = 0;
   p.techPlayedThisRound = false; // 每回合開始重置技師卡出牌限制
   p.funcBonusThisRound = 0;    // T09 func-bonus：每回合開始重置累加計數
+  p.usedSkillThisRound = [];   // 輕模式：每回合開始重置技師出招紀錄（每技師每回合限一招）
 
   // T05 fault-warning：若對手場上有 T05（且 SCADA 未被 F09 停用），
   // 從當前玩家手牌中隨機選 1 張 fault 卡預警（不消耗手牌，僅揭示）。
@@ -376,6 +377,55 @@ export function _repairFaults(s: GameState, player: 0 | 1, config: RulesConfig):
       t.shutdown = false;
       events.push({ kind: 'turbine-restart', player, turbineIdx: ti, cardId: t.cardId });
     }
+  }
+  return events;
+}
+
+/**
+ * 輕模式（技師主角）：技師主動出招「快修」。
+ * 立即修復自家指定機組上「drop 最高」的一個故障——提前修復代表本回合起就恢復發電。
+ * Route B 品質規則沿用 _repairFaults：技師 specialty 與故障 faultCategory 相符 → 完全修復；
+ * 不符（或缺對應欄位）→ 部分修復（故障移除，但 avail 永久下修 ⌊drop×0.5⌋）。
+ * 修復後若機組原為停機且有效可用率 > 0 → 復機。
+ * 注意：此函式不檢查前置條件（由 actions.canUseSkill 把關），也不觸碰 actionsLeft（獨立資源池）。
+ */
+export function _useTechSkillMutate(
+  s: GameState,
+  player: 0 | 1,
+  techId: string,
+  turbineIdx: number,
+): GameEvent[] {
+  const events: GameEvent[] = [];
+  const p = s.players[player];
+  const t = p.turbines[turbineIdx];
+  if (!t || t.faults.length === 0) return events;
+
+  // 選 drop 最高的故障修復
+  let fi = 0;
+  for (let i = 1; i < t.faults.length; i++) {
+    if (t.faults[i].drop > t.faults[fi].drop) fi = i;
+  }
+  const fault = t.faults[fi];
+  const fullRepair = doesTechMatchFault(techId, fault.cardId);
+  let availLost = 0;
+  if (!fullRepair) {
+    availLost = Math.floor(fault.drop * 0.5); // 專長不符 → 永久損耗半個 drop
+    t.avail = Math.max(0, t.avail - availLost);
+  }
+  t.faults.splice(fi, 1);
+  events.push({
+    kind: 'fault-repaired',
+    player,
+    targetIdx: turbineIdx,
+    cardId: fault.cardId,
+    by: techId,
+    quality: fullRepair ? 'full' : 'partial',
+    ...(availLost > 0 ? { availLost } : {}),
+  });
+  // 修復後復機檢查
+  if (t.shutdown && effectiveAvail(t) > 0) {
+    t.shutdown = false;
+    events.push({ kind: 'turbine-restart', player, turbineIdx, cardId: t.cardId });
   }
   return events;
 }

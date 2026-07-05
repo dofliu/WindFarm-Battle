@@ -40,6 +40,7 @@ function createPlayer(name: string, rng: Rng): PlayerState {
     techPlayedThisRound: false,
     usedOncePerGame: [],
     funcBonusThisRound: 0,
+    usedSkillThisRound: [],
   };
 }
 
