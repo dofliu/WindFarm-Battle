@@ -170,6 +170,15 @@ export function evaluateTechPlay(
     }
   }
 
+  // R4：招募能「新增專長」的技師 → 推進/解鎖組合(團隊互補/全能小組)，加分
+  if (card.specialty) {
+    const specs = new Set(me.techs.map((id) => CARDS[id].specialty).filter(Boolean));
+    if (!specs.has(card.specialty)) {
+      const next = specs.size + 1;
+      score += next === 2 ? 10 : next === 3 ? 14 : 4;
+    }
+  }
+
   score -= card.cost * 4;
   if (strategy.phase === 'late') score *= 0.5;
   score *= repairMult; // 難度修復係數

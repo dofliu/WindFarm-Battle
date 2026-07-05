@@ -117,6 +117,12 @@ export const en = {
   'farm.emptySlot': 'Empty',
   'farm.noTech': 'No technicians · draw to recruit',
   'farm.techsTitle': 'Technicians & Skills',
+  // ── R4 tech roster / combo UI ───────────────────────────────
+  'combo.label': 'Combo',
+  'combo.duo': 'Team Synergy',
+  'combo.trio': 'Full Crew',
+  'combo.duoHint': 'all repairs are full',
+  'combo.trioHint': 'full repairs · extra availability recovery',
   // ── Shared incident (co-op) UI ──────────────────────────────
   'incident.banner': 'This round: {name} strikes — both farms hit at once',
   'incident.label': 'Incident',

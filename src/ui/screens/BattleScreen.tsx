@@ -21,6 +21,7 @@ import { LibraryModal } from '../components/LibraryModal';
 import { ThemeSwitcher } from '../components/ThemeSwitcher';
 import { Hourglass, Crosshair } from '../icons';
 import { uiPreviewMwh } from '../../store/game-store';
+import { comboTier, MAX_TECHS } from '../../core/rules-engine';
 import { t, cardName } from '../../i18n';
 import { useLocale } from '../locale/LocaleContext';
 import { useOrientation } from '../stage/useOrientation';
@@ -202,8 +203,29 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
             aiThinking={sideKey === 'opp' ? isAiThinking : undefined}
           />
         </div>
-        <div style={{ fontSize: 10, letterSpacing: '0.14em', color: theme.textSecondary, textTransform: 'uppercase', fontFamily: theme.fontUI }}>
-          {t('farm.techsTitle')}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 10, letterSpacing: '0.14em', color: theme.textSecondary, textTransform: 'uppercase', fontFamily: theme.fontUI }}>
+            {t('farm.techsTitle')} {p.techs.length}/{MAX_TECHS}
+          </span>
+          {comboTier(p) > 0 && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '2px 9px',
+                borderRadius: 999,
+                fontSize: 10,
+                fontWeight: 800,
+                color: '#fff',
+                background: comboTier(p) >= 2 ? 'linear-gradient(180deg,#d9a85a,#b8893f)' : 'linear-gradient(180deg,#5db58c,#2a8a5a)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              }}
+              title={comboTier(p) >= 2 ? t('combo.trioHint') : t('combo.duoHint')}
+            >
+              ✦ {t('combo.label')}：{comboTier(p) >= 2 ? t('combo.trio') : t('combo.duo')}
+            </span>
+          )}
         </div>
         {p.techs.length === 0 ? (
           <div

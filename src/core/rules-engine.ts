@@ -500,6 +500,34 @@ export function _repairFaults(s: GameState, player: 0 | 1, config: RulesConfig):
   return events;
 }
 
+// ── R4 技師隊伍 + 組合招 ──────────────────────────────────────
+/** 場上技師上限（隊伍規模）。 */
+export const MAX_TECHS = 3;
+/** 組合「全能小組」(3 種專長)額外回復的可用率。 */
+export const COMBO_TRIO_HEAL = 10;
+
+/** 場上技師涵蓋的相異專長集合。 */
+export function teamSpecialties(p: PlayerState): Set<string> {
+  const set = new Set<string>();
+  for (const id of p.techs) {
+    const sp = CARDS[id].specialty;
+    if (sp) set.add(sp);
+  }
+  return set;
+}
+
+/**
+ * 組合等級（依相異專長數）：
+ *   0 = 無；1 = 團隊互補(≥2 種專長)；2 = 全能小組(≥3 種專長)。
+ * 效果套用在快修：
+ *   tier≥1 → 即使專長不符也視為完全修復(無永久損耗)；
+ *   tier≥2 → 修復後額外回復 COMBO_TRIO_HEAL 可用率。
+ */
+export function comboTier(p: PlayerState): 0 | 1 | 2 {
+  const n = teamSpecialties(p).size;
+  return n >= 3 ? 2 : n >= 2 ? 1 : 0;
+}
+
 /**
  * 輕模式（技師主角）：技師主動出招「快修」。
  * 立即修復自家指定機組上「drop 最高」的一個故障——提前修復代表本回合起就恢復發電。
@@ -525,13 +553,20 @@ export function _useTechSkillMutate(
     if (t.faults[i].drop > t.faults[fi].drop) fi = i;
   }
   const fault = t.faults[fi];
-  const fullRepair = doesTechMatchFault(techId, fault.cardId);
+  // R4 組合：tier≥1(團隊互補) → 即使專長不符也視為完全修復
+  const tier = comboTier(p);
+  const fullRepair = doesTechMatchFault(techId, fault.cardId) || tier >= 1;
   let availLost = 0;
   if (!fullRepair) {
     availLost = Math.floor(fault.drop * 0.5); // 專長不符 → 永久損耗半個 drop
     t.avail = Math.max(0, t.avail - availLost);
   }
   t.faults.splice(fi, 1);
+  // R4 組合：tier≥2(全能小組) → 修復後額外回復可用率（不超過部署初始值）
+  if (tier >= 2) {
+    const cap = t.originalAvail ?? 100;
+    t.avail = Math.min(cap, t.avail + COMBO_TRIO_HEAL);
+  }
   events.push({
     kind: 'fault-repaired',
     player,
