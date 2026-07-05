@@ -9,7 +9,7 @@ import type { GameState, PlayerState, Wind } from './types';
 import type { Rng } from './rng';
 import { shuffle } from './rng';
 import type { GameEvent, ApplyResult } from './events';
-import { CARDS, deckCardIds } from './cards';
+import { CARDS, deckCardIds, coopDeckCardIds, INCIDENT_FAULT_IDS } from './cards';
 import { cloneState } from './game-state';
 import {
   getAuraMwBonus, effectiveCoeff, isFaultImmune, isFragile, FRAGILE_DROP_MULT, hasPeriodicRepair,
@@ -99,8 +99,11 @@ function doesTechMatchFault(techCardId: string, faultCardId: string): boolean {
 /** @internal 給 actions.ts 共用；外部請改用 drawCard() 純函式版。 */
 export function _drawCard(s: GameState, player: 0 | 1, rng: Rng, _config: RulesConfig): void {
   const p = s.players[player];
-  // Route B：牌庫空則以 deckCardIds（可抽卡池）重洗，排除開局艦隊和汰除升級牌
-  if (p.deck.length === 0) p.deck = shuffle(deckCardIds as string[], rng);
+  // Route B：牌庫空則以卡池重洗。同題模式(weather-challenge)用 coopDeckCardIds（排除故障與新風機）。
+  if (p.deck.length === 0) {
+    const pool = s.mode === 'weather-challenge' ? coopDeckCardIds : deckCardIds;
+    p.deck = shuffle(pool as string[], rng);
+  }
   const cardId = p.deck.pop();
   if (cardId !== undefined && p.hand.length < 7) p.hand.push(cardId); // 手牌上限 7（對齊 v3）
 }
@@ -131,6 +134,50 @@ export function _beginTurn(s: GameState, player: 0 | 1): GameEvent[] {
     }
   }
 
+  return events;
+}
+
+/** 同題模式：每回合發生環境事件的機率（共享 RNG 決定，雙方同題）。 */
+export const INCIDENT_PROB = 0.6;
+
+/**
+ * 同題模式：本回合共享環境事件。
+ * 以共享 RNG 決定「是否發生 / 哪種故障 / 哪個槽位」，然後對雙方玩家的「同一槽位」
+ * 施加「同一故障」——真正同題；分歧來自各自後續修復速度。
+ * RNG 消耗固定：1 次(是否發生)；若發生再 2 次(faultId, slot)。versus 模式直接跳過(零消耗)。
+ * 注意：同題不施加 cascade，維持雙方對稱。
+ */
+export function _applyEnvironmentIncident(s: GameState, rng: Rng): GameEvent[] {
+  const events: GameEvent[] = [];
+  if (s.mode !== 'weather-challenge') return events;
+  if (rng.next() >= INCIDENT_PROB) return events;
+  const faultId = INCIDENT_FAULT_IDS[rng.int(0, INCIDENT_FAULT_IDS.length - 1)];
+  const slot = rng.int(0, 2);
+  const card = CARDS[faultId];
+  const drop = card.stats?.drop ?? 0;
+  const rounds = card.stats?.rounds ?? 1;
+  const sev = card.stats?.sev ?? 1;
+  events.push({ kind: 'incident', round: s.round, faultCardId: faultId, turbineIdx: slot });
+  for (let pi = 0; pi < 2; pi++) {
+    const player = pi as 0 | 1;
+    const t = s.players[pi].turbines[slot];
+    if (!t) continue;
+    if (isFaultImmune(t, faultId)) continue;
+    // 尊重同台故障上限(2)：已滿則直接停機
+    if (t.faults.length >= 2) {
+      if (!t.shutdown) {
+        t.shutdown = true;
+        events.push({ kind: 'turbine-shutdown', player, turbineIdx: slot, cardId: t.cardId });
+      }
+      continue;
+    }
+    t.faults.push({ cardId: faultId, roundsLeft: rounds, sev, drop });
+    events.push({ kind: 'fault-applied', player, targetIdx: slot, cardId: faultId, drop });
+    if (!t.shutdown && effectiveAvail(t) <= 0) {
+      t.shutdown = true;
+      events.push({ kind: 'turbine-shutdown', player, turbineIdx: slot, cardId: t.cardId });
+    }
+  }
   return events;
 }
 
@@ -677,6 +724,8 @@ export function runGame(
     events.push(..._tickFaults(s));
     // S3.5：F08 unpredictable 隨機 shuffle（_tickFaults 之後、抽牌前；保持 RNG 順序穩定）
     events.push(..._unpredictableShuffle(s, rng));
+    // R2 同題：共享環境事件（同故障同槽砸雙方）。versus 模式零消耗直接跳過。
+    events.push(..._applyEnvironmentIncident(s, rng));
     s.players.forEach((p) => {
       p.mwhBoostActive = false;
     });

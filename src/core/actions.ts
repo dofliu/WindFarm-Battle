@@ -143,6 +143,8 @@ export function canPlayCard(state: GameState, player: 0 | 1, handIdx: number): b
 
   if (card.type === 'tech' && p.techs.includes(cardId)) return false; // 不可重複派遣
   if (card.type === 'tech' && p.techPlayedThisRound) return false; // 一回合只能出一張技師卡
+  // R2 同題模式：故障改為共享環境事件，玩家不可主動施加故障（不打對手風場）
+  if (card.type === 'fault' && state.mode === 'weather-challenge') return false;
   // 故障卡：對手無機組 或 所有機組都在停機中（已無攻擊目標）→ 不可出牌
   if (card.type === 'fault') {
     const oppTurbines = state.players[1 - player].turbines;

@@ -46,6 +46,8 @@ export type GameEvent =
   /** 對手搶先達成合約目標，打出者失去獎勵機會 */
   | { kind: 'contract-stolen'; stolenBy: 0 | 1; cardId: string }
   | { kind: 'round-scored'; player: 0 | 1; mwh: number; total: number }
+  /** 同題模式：本回合共享環境事件（同一故障同時砸向雙方同一槽位） */
+  | { kind: 'incident'; round: number; faultCardId: string; turbineIdx: number }
   | { kind: 'game-over'; winner: 0 | 1 | -1 };
 
 export type EventLog = GameEvent[];

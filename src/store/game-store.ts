@@ -26,6 +26,7 @@ import {
   _periodicRepair,
   _repairFaults,
   _unpredictableShuffle,
+  _applyEnvironmentIncident,
   _tickWeather,
   _checkContracts,
   UI_RICH_CONFIG,
@@ -148,6 +149,8 @@ function startRound(s: GameState, rng: Rng): GameEvent[] {
 
   events.push(..._tickFaults(s));
   events.push(..._unpredictableShuffle(s, rng));
+  // R2 同題：共享環境事件（同故障同槽砸雙方）
+  events.push(..._applyEnvironmentIncident(s, rng));
   s.players.forEach((p) => {
     p.mwhBoostActive = false;
   });
@@ -224,7 +227,8 @@ function runAiTurn(s: GameState, difficulty: Difficulty, rng: Rng): GameEvent[] 
 // ============================================================
 function makeInitialStoreState(seed: number, difficulty: Difficulty) {
   const rng = createRng(seed);
-  const state = createInitialState(rng);
+  // R2：UI 預設走同題競賽模式（共享環境事件、風場固定、無 PvP）
+  const state = createInitialState(rng, 'weather-challenge');
   // 開局手牌：initialDraws 張（UI_RICH_CONFIG = 3，讓玩家一開始就有選擇）
   const initialDraws = UI_RICH_CONFIG.initialDraws ?? 0;
   for (let i = 0; i < initialDraws; i++) {
@@ -272,7 +276,7 @@ function _nextEffectId(): string {
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
-  mode: 'versus',
+  mode: 'weather-challenge',
   difficulty: 'hard',
   setDifficulty: (d) => set({ difficulty: d }),
 

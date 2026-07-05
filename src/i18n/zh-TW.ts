@@ -117,6 +117,9 @@ export const zhTW = {
   'farm.emptySlot': '空缺',
   'farm.noTech': '尚無技師 · 抽牌招募',
   'farm.techsTitle': '技師與招式',
+  // ── 同題環境事件 UI ─────────────────────────────────────────
+  'incident.banner': '本回合事件：{name} 來襲 · 雙方風場同時受影響',
+  'incident.label': '環境事件',
   // ── Weather Immunity UI ────────────────────────────────────
   'weather.selfImmuneShutdown': '🛡 我方免疫停機',
   'weather.selfImmuneWindPenalty': '🛡 我方免疫風速懲罰',

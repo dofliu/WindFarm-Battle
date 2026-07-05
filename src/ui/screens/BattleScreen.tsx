@@ -21,7 +21,7 @@ import { LibraryModal } from '../components/LibraryModal';
 import { ThemeSwitcher } from '../components/ThemeSwitcher';
 import { Hourglass, Crosshair } from '../icons';
 import { uiPreviewMwh } from '../../store/game-store';
-import { t } from '../../i18n';
+import { t, cardName } from '../../i18n';
 import { useLocale } from '../locale/LocaleContext';
 import { useOrientation } from '../stage/useOrientation';
 
@@ -51,8 +51,13 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
   const lastRoundScore = useGameStore((s) => s.lastRoundScore);
   const clearLastRoundScore = useGameStore((s) => s.clearLastRoundScore);
   const effects = useGameStore((s) => s.effects);
+  const events = useGameStore((s) => s.events);
   const windRolling = useGameStore((s) => s.windRolling);
   const setWindRolling = useGameStore((s) => s.setWindRolling);
+
+  // R2 同題：本回合共享環境事件（供頂部橫幅顯示）
+  const incident = [...events].reverse().find((e) => e.kind === 'incident' && e.round === state.round);
+  const incidentName = incident && incident.kind === 'incident' ? cardName(incident.faultCardId) || incident.faultCardId : null;
 
   const [showLibrary, setShowLibrary] = useState(false);
   const [showTheme, setShowTheme] = useState(false);
@@ -300,6 +305,29 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
 
         {/* 頂條：回合 · 風速 · 動作（共享資訊，去掉「中間」） */}
         <BattleCenter state={state} windRolling={windRolling} />
+
+        {/* R2 同題：本回合共享環境事件橫幅 */}
+        {incidentName && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              padding: '5px 12px',
+              background: themeKey === 'tideboard' ? 'rgba(168,69,58,0.25)' : 'rgba(217,108,90,0.12)',
+              borderBottom: '1px solid rgba(217,108,90,0.35)',
+              color: '#a8453a',
+              fontSize: 12,
+              fontWeight: 700,
+              fontFamily: theme.fontUI,
+              animation: 'wf-fade-in 0.4s ease-out both',
+            }}
+          >
+            <Crosshair size={13} stroke="#a8453a" />
+            {t('incident.banner', { name: incidentName })}
+          </div>
+        )}
 
         {/* 上下兩半：opp 在上、me 在下；各半＝左技師舞台 + 右風場面板 */}
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>

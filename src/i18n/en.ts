@@ -117,6 +117,9 @@ export const en = {
   'farm.emptySlot': 'Empty',
   'farm.noTech': 'No technicians · draw to recruit',
   'farm.techsTitle': 'Technicians & Skills',
+  // ── Shared incident (co-op) UI ──────────────────────────────
+  'incident.banner': 'This round: {name} strikes — both farms hit at once',
+  'incident.label': 'Incident',
   // ── Weather Immunity UI ────────────────────────────────────
   'weather.selfImmuneShutdown': '🛡 Self: Immune to Shutdown',
   'weather.selfImmuneWindPenalty': '🛡 Self: Immune to Wind Penalty',
