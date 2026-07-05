@@ -27,6 +27,7 @@ import {
   _repairFaults,
   _unpredictableShuffle,
   _applyEnvironmentIncident,
+  _spawnRoundResources,
   _tickWeather,
   _checkContracts,
   UI_RICH_CONFIG,
@@ -126,6 +127,12 @@ interface GameStore {
   activateSkill: (techId: string, turbineIdx?: number) => void;
   /** 輕模式：挑好要快修的機組後完成出招 */
   selectSkillTarget: (turbineIdx: number) => void;
+  /** R3：玩家正在替某資源(備品/吊車)挑選要施用的自家機組時，記住資源 ID；否則 null */
+  pendingResourceId: string | null;
+  /** R3：搶共享資源（花 1 動作）。備品/吊車未指定機組且多台可修時切「挑機組」模式 */
+  grabResource: (resourceId: string, turbineIdx?: number) => void;
+  /** R3：挑好機組後完成搶資源 */
+  selectResourceTarget: (turbineIdx: number) => void;
   cancelPending: () => void;
   /** 玩家主動棄牌（不花費動作，但每回合只能用一次） */
   discardCard: (handIdx: number) => void;
@@ -151,6 +158,8 @@ function startRound(s: GameState, rng: Rng): GameEvent[] {
   events.push(..._unpredictableShuffle(s, rng));
   // R2 同題：共享環境事件（同故障同槽砸雙方）
   events.push(..._applyEnvironmentIncident(s, rng));
+  // R3 同題：生成本回合共享資源（並歸零併網加成）
+  events.push(..._spawnRoundResources(s, rng));
   s.players.forEach((p) => {
     p.mwhBoostActive = false;
   });
@@ -284,6 +293,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   pendingFaultHandIdx: null,
   pendingReplaceHandIdx: null,
   pendingSkillTechId: null,
+  pendingResourceId: null,
   hasDiscarded: false,
   isAiThinking: false,
   lastRoundScore: null,
@@ -308,7 +318,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   newGame: (seed = Date.now() & 0xffffffff) => {
     const { difficulty } = get();
     const fresh = makeInitialStoreState(seed, difficulty);
-    set({ ...fresh, pendingFaultHandIdx: null, pendingReplaceHandIdx: null, pendingSkillTechId: null, hasDiscarded: false, isAiThinking: false, lastRoundScore: null, lastAiActions: [], effects: [], windRolling: false, gameStartedAt: new Date() });
+    set({ ...fresh, pendingFaultHandIdx: null, pendingReplaceHandIdx: null, pendingSkillTechId: null, pendingResourceId: null, hasDiscarded: false, isAiThinking: false, lastRoundScore: null, lastAiActions: [], effects: [], windRolling: false, gameStartedAt: new Date() });
   },
 
   playCard: (handIdx, options) => {
@@ -347,6 +357,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       pendingFaultHandIdx: null,
       pendingReplaceHandIdx: null,
       pendingSkillTechId: null,
+      pendingResourceId: null,
       lastAiActions: [],   // 玩家開始動作 → 清除 AI 摘要
     });
     // 觸發一次性視覺特效（故障/修復）
@@ -401,6 +412,51 @@ export const useGameStore = create<GameStore>((set, get) => ({
     activateSkill(pendingSkillTechId, turbineIdx);
   },
 
+  grabResource: (resourceId, turbineIdx) => {
+    const { state, events, rng } = get();
+    if (state.gameOver || state.currentPlayer !== HUMAN) return;
+    if (state.actionsLeft < 1) return;
+    const res = state.roundResources.find((r) => r.id === resourceId);
+    if (!res || res.claimedBy !== undefined) return;
+    let target = turbineIdx;
+    if (res.type !== 'grid-priority' && target === undefined) {
+      const faultedIdx = state.players[HUMAN].turbines
+        .map((t, i) => (t.faults.length > 0 ? i : -1))
+        .filter((i) => i >= 0);
+      if (faultedIdx.length === 0) return; // 無故障可修 → 不能用此資源
+      if (faultedIdx.length > 1) {
+        set({ pendingResourceId: resourceId, pendingFaultHandIdx: null, pendingReplaceHandIdx: null, pendingSkillTechId: null });
+        return;
+      }
+      target = faultedIdx[0];
+    }
+    const s = cloneState(state);
+    const eventsNew = _applyActionMutate(
+      s,
+      { kind: 'grab-resource', player: HUMAN, resourceId, turbineIdx: target },
+      rng,
+      UI_RICH_CONFIG,
+    );
+    set({
+      state: s,
+      events: [...events, ...eventsNew].slice(-EVENT_LOG_LIMIT),
+      pendingResourceId: null,
+      pendingFaultHandIdx: null,
+      pendingReplaceHandIdx: null,
+      pendingSkillTechId: null,
+      lastAiActions: [],
+    });
+    for (const fx of _deriveEffects(eventsNew)) {
+      get().pushEffect(fx.type, { side: fx.side, slot: fx.slot, cardId: fx.cardId });
+    }
+  },
+
+  selectResourceTarget: (turbineIdx) => {
+    const { pendingResourceId, grabResource } = get();
+    if (pendingResourceId === null) return;
+    grabResource(pendingResourceId, turbineIdx);
+  },
+
   selectFaultTarget: (targetIdx) => {
     const { pendingFaultHandIdx, playCard, state } = get();
     if (pendingFaultHandIdx === null) return;
@@ -416,7 +472,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     playCard(pendingReplaceHandIdx, { replaceIdx });
   },
 
-  cancelPending: () => set({ pendingFaultHandIdx: null, pendingReplaceHandIdx: null, pendingSkillTechId: null }),
+  cancelPending: () => set({ pendingFaultHandIdx: null, pendingReplaceHandIdx: null, pendingSkillTechId: null, pendingResourceId: null }),
 
   discardCard: (handIdx) => {
     const { state, events, hasDiscarded } = get();
@@ -435,6 +491,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       pendingFaultHandIdx: null,
       pendingReplaceHandIdx: null,
       pendingSkillTechId: null,
+      pendingResourceId: null,
       lastAiActions: [],   // 玩家棄牌 → 清除 AI 摘要
     });
   },
@@ -460,6 +517,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         pendingFaultHandIdx: null,
         pendingReplaceHandIdx: null,
         pendingSkillTechId: null,
+        pendingResourceId: null,
         hasDiscarded: false,
         isAiThinking: true,
       });
@@ -527,6 +585,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         pendingFaultHandIdx: null,
         pendingReplaceHandIdx: null,
         pendingSkillTechId: null,
+        pendingResourceId: null,
         hasDiscarded: false,
         isAiThinking: false,
         lastRoundScore: roundScore,

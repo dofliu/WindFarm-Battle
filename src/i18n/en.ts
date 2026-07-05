@@ -120,6 +120,15 @@ export const en = {
   // ── Shared incident (co-op) UI ──────────────────────────────
   'incident.banner': 'This round: {name} strikes — both farms hit at once',
   'incident.label': 'Incident',
+  // ── R3 shared resources UI ──────────────────────────────────
+  'resource.title': 'Shared Resources',
+  'resource.hint': 'first come first served',
+  'resource.spare-part': 'Spare Part',
+  'resource.crane': 'Crane',
+  'resource.grid-priority': 'Grid Priority',
+  'resource.claimedYou': 'You claimed',
+  'resource.claimedAi': 'AI claimed',
+  'resource.pickTarget': 'Pick a turbine to apply the resource',
   // ── Weather Immunity UI ────────────────────────────────────
   'weather.selfImmuneShutdown': '🛡 Self: Immune to Shutdown',
   'weather.selfImmuneWindPenalty': '🛡 Self: Immune to Wind Penalty',

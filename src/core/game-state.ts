@@ -42,6 +42,7 @@ function createPlayer(name: string, rng: Rng, mode: GameMode): PlayerState {
     usedOncePerGame: [],
     funcBonusThisRound: 0,
     usedSkillThisRound: [],
+    gridBonusThisRound: 0,
   };
 }
 
@@ -59,6 +60,7 @@ export function createInitialState(rng: Rng, mode: GameMode = 'versus'): GameSta
     futureWind: [],
     activeWeather: [],
     activeContracts: [],
+    roundResources: [],
     gameOver: false,
   };
 }

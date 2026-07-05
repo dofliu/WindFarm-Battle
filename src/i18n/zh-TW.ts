@@ -120,6 +120,15 @@ export const zhTW = {
   // ── 同題環境事件 UI ─────────────────────────────────────────
   'incident.banner': '本回合事件：{name} 來襲 · 雙方風場同時受影響',
   'incident.label': '環境事件',
+  // ── R3 共享資源 UI ──────────────────────────────────────────
+  'resource.title': '共享資源',
+  'resource.hint': '先搶先得',
+  'resource.spare-part': '備品',
+  'resource.crane': '吊車',
+  'resource.grid-priority': '併網優先',
+  'resource.claimedYou': '你已搶',
+  'resource.claimedAi': 'AI 已搶',
+  'resource.pickTarget': '選擇要施用資源的機組',
   // ── Weather Immunity UI ────────────────────────────────────
   'weather.selfImmuneShutdown': '🛡 我方免疫停機',
   'weather.selfImmuneWindPenalty': '🛡 我方免疫風速懲罰',

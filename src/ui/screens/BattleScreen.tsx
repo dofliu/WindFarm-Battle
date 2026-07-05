@@ -30,6 +30,13 @@ interface Props {
   readonly onGameOver: () => void;
 }
 
+/** R3 共享資源圖示 */
+const RES_ICON: Record<string, string> = {
+  'spare-part': '🔧',
+  'crane': '🏗️',
+  'grid-priority': '⚡',
+};
+
 export function BattleScreen({ onTitle, onGameOver }: Props) {
   const { theme, themeKey } = useTheme();
   useLocale(); // 訂閱語言切換，觸發重新渲染
@@ -42,6 +49,9 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
   const activateSkill = useGameStore((s) => s.activateSkill);
   const pendingSkillTechId = useGameStore((s) => s.pendingSkillTechId);
   const selectSkillTarget = useGameStore((s) => s.selectSkillTarget);
+  const grabResource = useGameStore((s) => s.grabResource);
+  const pendingResourceId = useGameStore((s) => s.pendingResourceId);
+  const selectResourceTarget = useGameStore((s) => s.selectResourceTarget);
   const cancelPending = useGameStore((s) => s.cancelPending);
   const endTurn = useGameStore((s) => s.endTurn);
   const newGame = useGameStore((s) => s.newGame);
@@ -174,6 +184,7 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
     const active = sideKey === 'me' ? isMyTurn : state.currentPlayer === 1 && !isAiThinking;
     const faultTargeting = sideKey === 'opp' && pendingFaultHandIdx !== null;
     const skillTargeting = sideKey === 'me' && pendingSkillTechId !== null;
+    const resourceTargeting = sideKey === 'me' && pendingResourceId !== null;
     const dropActive =
       !!dragInfo &&
       (sideKey === 'opp' ? CARDS[dragInfo.cardId]?.type === 'fault' : CARDS[dragInfo.cardId]?.type !== 'fault');
@@ -241,12 +252,13 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
           const tu = p.turbines[slot];
           if (!tu) return false;
           if (faultTargeting) return !tu.shutdown;
-          if (skillTargeting) return tu.faults.length > 0;
+          if (skillTargeting || resourceTargeting) return tu.faults.length > 0;
           return false;
         }}
         onSlotClick={(slot) => {
           if (faultTargeting) selectFaultTarget(slot);
           else if (skillTargeting) selectSkillTarget(slot);
+          else if (resourceTargeting) selectResourceTarget(slot);
         }}
       />
     );
@@ -326,6 +338,68 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
           >
             <Crosshair size={13} stroke="#a8453a" />
             {t('incident.banner', { name: incidentName })}
+          </div>
+        )}
+
+        {/* R3：本回合共享資源（先搶先得） */}
+        {state.roundResources.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              padding: '6px 12px',
+              borderBottom: `1px solid ${theme.border}`,
+              background: themeKey === 'tideboard' ? 'rgba(40,25,15,0.4)' : 'rgba(255,255,255,0.35)',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span style={{ fontSize: 10, color: theme.textSecondary, letterSpacing: '0.08em', fontFamily: theme.fontUI }}>
+              {t('resource.title')} · {t('resource.hint')}
+            </span>
+            {state.roundResources.map((res) => {
+              const claimed = res.claimedBy !== undefined;
+              const mine = res.claimedBy === 0;
+              const canGrab = isMyTurn && !claimed && state.actionsLeft >= 1;
+              return (
+                <button
+                  key={res.id}
+                  type="button"
+                  disabled={!canGrab}
+                  onClick={canGrab ? () => grabResource(res.id) : undefined}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '4px 12px',
+                    borderRadius: 999,
+                    border: claimed ? `1px solid ${theme.border}` : '1px solid rgba(58,167,200,0.5)',
+                    background: claimed
+                      ? mine
+                        ? 'rgba(58,167,200,0.15)'
+                        : 'rgba(168,91,74,0.15)'
+                      : canGrab
+                        ? 'rgba(58,167,200,0.14)'
+                        : 'rgba(0,0,0,0.04)',
+                    color: claimed ? (mine ? '#2a7a9a' : '#a8453a') : theme.textPrimary,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: canGrab ? 'pointer' : 'default',
+                    fontFamily: theme.fontUI,
+                    opacity: claimed ? 0.7 : 1,
+                  }}
+                >
+                  <span>{RES_ICON[res.type]}</span>
+                  {t(`resource.${res.type}` as Parameters<typeof t>[0])}
+                  {claimed && (
+                    <span style={{ fontSize: 9, marginLeft: 2 }}>
+                      · {mine ? t('resource.claimedYou') : t('resource.claimedAi')}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -419,6 +493,49 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
               }}
             >
               ⚡ {t('skill.pickTarget')}
+              <button
+                type="button"
+                onClick={cancelPending}
+                style={{
+                  marginLeft: 8,
+                  background: 'rgba(0,0,0,0.2)',
+                  border: 'none',
+                  color: '#fff',
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* R3：挑選要施用資源(備品/吊車)的自家機組 */}
+          {pendingResourceId !== null && (
+            <div
+              style={{
+                position: 'absolute',
+                top: -4,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                padding: '7px 16px',
+                background: themeKey === 'tideboard' ? 'linear-gradient(180deg, #3a7a9a, #1a5a7a)' : 'rgba(58,167,200,0.95)',
+                border: themeKey === 'tideboard' ? '1.5px solid #a8d8e8' : 'none',
+                color: '#fff',
+                fontSize: 12,
+                fontWeight: 700,
+                borderRadius: themeKey === 'tideboard' ? 0 : 999,
+                boxShadow: '0 6px 16px rgba(58,167,200,0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                zIndex: 5,
+                fontFamily: theme.fontUI,
+              }}
+            >
+              🔧 {t('resource.pickTarget')}
               <button
                 type="button"
                 onClick={cancelPending}

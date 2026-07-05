@@ -20,6 +20,7 @@ import {
   evaluateFaultPlay,
   evaluateFuncPlay,
   evaluateSkillPlay,
+  evaluateResourceGrab,
   RESERVE_THRESHOLD,
 } from './evaluator';
 import {
@@ -107,6 +108,29 @@ export function generateActions(
         score: evaluateSkillPlay(techId, me.turbines[ti], state, player, strategy, difficulty),
         desc: `${techId} 快修 → 機組#${ti}`,
       });
+    }
+  }
+
+  // R3：搶共享資源候選（需 ≥1 動作）
+  if (state.actionsLeft >= 1) {
+    for (const res of state.roundResources) {
+      if (res.claimedBy !== undefined) continue;
+      if (res.type === 'grid-priority') {
+        actions.push({
+          action: { kind: 'grab-resource', player, resourceId: res.id },
+          score: evaluateResourceGrab('grid-priority', undefined, state, player, strategy, difficulty),
+          desc: `搶 併網優先`,
+        });
+      } else {
+        for (let ti = 0; ti < me.turbines.length; ti++) {
+          if (me.turbines[ti].faults.length === 0) continue;
+          actions.push({
+            action: { kind: 'grab-resource', player, resourceId: res.id, turbineIdx: ti },
+            score: evaluateResourceGrab(res.type, me.turbines[ti], state, player, strategy, difficulty),
+            desc: `搶 ${res.type} → 機組#${ti}`,
+          });
+        }
+      }
     }
   }
 

@@ -5,7 +5,7 @@
 //   - 玩家動作 playCard 在 S2.3；AI 在 S2.4
 // 內部以 mutate 工作副本求效率，對外一律回傳新狀態（cloneState）。
 // ============================================================
-import type { GameState, PlayerState, Wind } from './types';
+import type { GameState, PlayerState, Wind, ResourceType } from './types';
 import type { Rng } from './rng';
 import { shuffle } from './rng';
 import type { GameEvent, ApplyResult } from './events';
@@ -140,6 +140,76 @@ export function _beginTurn(s: GameState, player: 0 | 1): GameEvent[] {
 /** 同題模式：每回合發生環境事件的機率（共享 RNG 決定，雙方同題）。 */
 export const INCIDENT_PROB = 0.6;
 
+// ── R3 共享資源（半競爭）──────────────────────────────────────
+export const RESOURCE_TYPES: readonly ResourceType[] = ['spare-part', 'crane', 'grid-priority'];
+export const GRID_PRIORITY_MWH = 5; // 併網優先：本回合 +5 MWh
+export const RESOURCE_COUNT_PER_ROUND = 2;
+
+/**
+ * 同題模式：回合開始生成本回合共享資源（共享 RNG 決定種類），並歸零雙方併網加成。
+ * versus 模式：清空資源、歸零加成、不生成。
+ */
+export function _spawnRoundResources(s: GameState, rng: Rng): GameEvent[] {
+  s.players.forEach((p) => {
+    p.gridBonusThisRound = 0;
+  });
+  s.roundResources = [];
+  if (s.mode !== 'weather-challenge') return [];
+  const spawned: import('./types').RoundResource[] = [];
+  for (let i = 0; i < RESOURCE_COUNT_PER_ROUND; i++) {
+    const type = RESOURCE_TYPES[rng.int(0, RESOURCE_TYPES.length - 1)];
+    spawned.push({ id: `r${s.round}-${i}`, type });
+  }
+  s.roundResources = spawned;
+  return [{ kind: 'resource-spawned', round: s.round, resources: spawned.map((r) => ({ id: r.id, type: r.type })) }];
+}
+
+/**
+ * R3：搶走一項共享資源並立即套用效果（先搶先得；由 canGrabResource 把關前置條件）。
+ *   - grid-priority：本回合 +GRID_PRIORITY_MWH（不需目標）
+ *   - spare-part：完全修復 target 機組 drop 最高的故障
+ *   - crane：完全修復 target 機組 sev 最高的故障並解停機
+ */
+export function _grabResourceMutate(
+  s: GameState,
+  player: 0 | 1,
+  resourceId: string,
+  turbineIdx?: number,
+): GameEvent[] {
+  const events: GameEvent[] = [];
+  const res = s.roundResources.find((r) => r.id === resourceId);
+  if (!res || res.claimedBy !== undefined) return events;
+  const p = s.players[player];
+  res.claimedBy = player;
+
+  if (res.type === 'grid-priority') {
+    p.gridBonusThisRound += GRID_PRIORITY_MWH;
+  } else if (turbineIdx !== undefined) {
+    const t = p.turbines[turbineIdx];
+    if (t && t.faults.length > 0) {
+      let fi = 0;
+      for (let i = 1; i < t.faults.length; i++) {
+        const better = res.type === 'crane' ? t.faults[i].sev > t.faults[fi].sev : t.faults[i].drop > t.faults[fi].drop;
+        if (better) fi = i;
+      }
+      const removed = t.faults.splice(fi, 1)[0];
+      events.push({ kind: 'fault-repaired', player, targetIdx: turbineIdx, cardId: removed.cardId, by: res.type, quality: 'full' });
+    }
+    if (res.type === 'crane' && t && t.shutdown && effectiveAvail(t) > 0) {
+      t.shutdown = false;
+      events.push({ kind: 'turbine-restart', player, turbineIdx, cardId: t.cardId });
+    }
+  }
+  events.push({
+    kind: 'resource-grabbed',
+    player,
+    resourceId,
+    resourceType: res.type,
+    turbineIdx: res.type === 'grid-priority' ? undefined : turbineIdx,
+  });
+  return events;
+}
+
 /**
  * 同題模式：本回合共享環境事件。
  * 以共享 RNG 決定「是否發生 / 哪種故障 / 哪個槽位」，然後對雙方玩家的「同一槽位」
@@ -249,6 +319,8 @@ export function _scoreRound(s: GameState): GameEvent[] {
     const selfBoostMult = isSelfBoostWind(s.activeWeather, player) ? WEATHER_SELF_BOOST_MULT : 1.0;
     mwh *= boostMult * selfBoostMult;
     mwh = Math.round(mwh);
+    // R3：併網優先資源加成（本回合搶到者 +GRID_PRIORITY_MWH）
+    mwh += p.gridBonusThisRound;
     p.score += mwh;
     events.push({ kind: 'round-scored', player: pi as 0 | 1, mwh, total: p.score });
   });
@@ -726,6 +798,8 @@ export function runGame(
     events.push(..._unpredictableShuffle(s, rng));
     // R2 同題：共享環境事件（同故障同槽砸雙方）。versus 模式零消耗直接跳過。
     events.push(..._applyEnvironmentIncident(s, rng));
+    // R3 同題：生成本回合共享資源（並歸零併網加成）
+    events.push(..._spawnRoundResources(s, rng));
     s.players.forEach((p) => {
       p.mwhBoostActive = false;
     });

@@ -3,8 +3,8 @@ import { describe, it, expect } from 'vitest';
 import type { Rng } from '../src/core/rng';
 import { createRng } from '../src/core/rng';
 import { createInitialState } from '../src/core/game-state';
-import { runGame, _applyEnvironmentIncident } from '../src/core/rules-engine';
-import { canPlayCard } from '../src/core/actions';
+import { runGame, _applyEnvironmentIncident, _spawnRoundResources, _scoreRound, GRID_PRIORITY_MWH } from '../src/core/rules-engine';
+import { canPlayCard, applyAction, canGrabResource } from '../src/core/actions';
 import { aiTakeTurn } from '../src/core/ai';
 import { CARDS } from '../src/core/cards';
 
@@ -70,6 +70,49 @@ describe('R2 同題：移除 PvP', () => {
     s.players[0].hand = ['F04'];
     s.actionsLeft = 4;
     expect(canPlayCard(s, 0, 0)).toBe(false);
+  });
+});
+
+describe('R3 共享資源', () => {
+  it('同題模式回合開始生成 2 項資源；versus 不生成', () => {
+    const coop = createInitialState(createRng(1), 'weather-challenge');
+    _spawnRoundResources(coop, fixedRng([0, 0.5, 0.9]));
+    expect(coop.roundResources).toHaveLength(2);
+    const versus = createInitialState(createRng(1), 'versus');
+    _spawnRoundResources(versus, fixedRng([0, 0.5]));
+    expect(versus.roundResources).toHaveLength(0);
+  });
+
+  it('搶「備品」→ 完全修復一個故障、花 1 動作、標記歸屬', () => {
+    const s = createInitialState(createRng(1), 'weather-challenge');
+    s.currentPlayer = 0;
+    s.actionsLeft = 2;
+    s.roundResources = [{ id: 'x', type: 'spare-part' }];
+    s.players[0].turbines[0].faults = [{ cardId: 'F04', roundsLeft: 2, sev: 3, drop: 20 }];
+    const { state } = applyAction(s, { kind: 'grab-resource', player: 0, resourceId: 'x', turbineIdx: 0 }, createRng(1));
+    expect(state.players[0].turbines[0].faults).toHaveLength(0);
+    expect(state.actionsLeft).toBe(1);
+    expect(state.roundResources[0].claimedBy).toBe(0);
+  });
+
+  it('搶「併網優先」→ 本回合發電 +GRID_PRIORITY_MWH（計入結算）', () => {
+    const s = createInitialState(createRng(1), 'weather-challenge');
+    s.currentPlayer = 0;
+    s.actionsLeft = 2;
+    s.roundResources = [{ id: 'g', type: 'grid-priority' }];
+    const { state } = applyAction(s, { kind: 'grab-resource', player: 0, resourceId: 'g' }, createRng(1));
+    expect(state.players[0].gridBonusThisRound).toBe(GRID_PRIORITY_MWH);
+    const before = state.players[0].score;
+    _scoreRound(state);
+    expect(state.players[0].score).toBeGreaterThanOrEqual(before + GRID_PRIORITY_MWH);
+  });
+
+  it('已被搶的資源不可再搶', () => {
+    const s = createInitialState(createRng(1), 'weather-challenge');
+    s.currentPlayer = 0;
+    s.actionsLeft = 2;
+    s.roundResources = [{ id: 'g', type: 'grid-priority', claimedBy: 1 }];
+    expect(canGrabResource(s, 0, 'g')).toBe(false);
   });
 });
 
