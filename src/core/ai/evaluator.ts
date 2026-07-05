@@ -242,6 +242,44 @@ export function evaluateFaultPlay(
   return score;
 }
 
+// ---------------- evaluateSkillPlay（輕模式：技師出招／快修）----------------
+/**
+ * 評估「技師對自家某機組出招快修」的價值。
+ * 立即修復 drop 最高的故障 → 本回合起恢復發電，價值 ≈ 被挽回的發電量。
+ * Route B：技師專長與故障不符時為部分修復（永久 avail 損耗）→ 扣分，讓 AI 傾向用對的人。
+ */
+export function evaluateSkillPlay(
+  techId: string,
+  turbine: DeployedTurbine,
+  _state: GameState,
+  _player: 0 | 1,
+  strategy: Strategy,
+  difficulty: Difficulty = 'hard',
+): number {
+  if (turbine.faults.length === 0) return -1000;
+  const { repairMult } = getDifficultyMultipliers(difficulty);
+  // 選 drop 最高故障（與 _useTechSkillMutate 一致）
+  let worst = turbine.faults[0];
+  for (const f of turbine.faults) if (f.drop > worst.drop) worst = f;
+
+  const mw = turbineMW(turbine);
+  const roundsLeft = Math.max(1, strategy.roundsLeft);
+  // 立即修復挽回的期望發電（drop% × MW × 平均風係數 × 剩餘回合）
+  const recovered = (worst.drop * mw * AI_AVG_WIND_COEFF) / 100 * roundsLeft;
+  let score = recovered * 2;
+
+  // Route B：專長不符 → 部分修復造成永久 avail 損耗，折算成扣分
+  const tech = CARDS[techId];
+  const fault = CARDS[worst.cardId];
+  const match = !!(tech.specialty && fault.faultCategory && tech.specialty === fault.faultCategory);
+  if (!match) {
+    const availLost = Math.floor(worst.drop * 0.5);
+    score -= (availLost * mw * AI_AVG_WIND_COEFF) / 100 * roundsLeft * 1.2;
+  }
+  score *= repairMult;
+  return score;
+}
+
 // ---------------- evaluateFuncPlay ----------------
 export function evaluateFuncPlay(card: Card, state: GameState, player: 0 | 1, strategy: Strategy): number {
   const me = state.players[player];

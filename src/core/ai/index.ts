@@ -19,6 +19,7 @@ import {
   evaluateTechPlay,
   evaluateFaultPlay,
   evaluateFuncPlay,
+  evaluateSkillPlay,
   RESERVE_THRESHOLD,
 } from './evaluator';
 import {
@@ -95,6 +96,20 @@ export function generateActions(
       });
     }
   }
+
+  // 輕模式：技師出招（快修）候選——每位未出招技師 × 每台有故障的自家機組
+  for (const techId of me.techs) {
+    if (me.usedSkillThisRound.includes(techId)) continue;
+    for (let ti = 0; ti < me.turbines.length; ti++) {
+      if (me.turbines[ti].faults.length === 0) continue;
+      actions.push({
+        action: { kind: 'use-skill', player, techId, turbineIdx: ti },
+        score: evaluateSkillPlay(techId, me.turbines[ti], state, player, strategy, difficulty),
+        desc: `${techId} 快修 → 機組#${ti}`,
+      });
+    }
+  }
+
   return { actions, strategy };
 }
 
@@ -119,16 +134,21 @@ export function aiChoose(
 export function aiTakeTurn(difficulty: Difficulty, config: RulesConfig = DEFAULT_CONFIG): TakeTurn {
   return (state: GameState, player: 0 | 1, rng: Rng): GameEvent[] => {
     const events: GameEvent[] = [];
-    // 安全網：手牌最多 7 張，每張最多 1 動作 → 不會無限迴圈，但仍設上限避免異常 ability 拖死
-    const HARD_CAP = 20;
+    // 安全網：出牌受 actionsLeft 限制、出招受「每技師每回合一次」限制 → 有限步數；仍設上限避免異常 ability 拖死。
+    // 輕模式後技師出招不消耗 actionsLeft，故迴圈條件改為「有進展就繼續」，不再只看 actionsLeft。
+    const HARD_CAP = 30;
     let steps = 0;
-    while (state.actionsLeft > 0 && !state.gameOver && steps++ < HARD_CAP) {
+    while (!state.gameOver && steps++ < HARD_CAP) {
       const choice = aiChoose(state, player, difficulty, rng);
       if (!choice || choice.chosen.score < RESERVE_THRESHOLD) break;
-      const before = state.actionsLeft;
+      const beforeActions = state.actionsLeft;
+      const beforeSkills = state.players[player].usedSkillThisRound.length;
       events.push(..._applyActionMutate(state, choice.chosen.action, rng, config));
-      // 若 action 因合法性檢查失敗未實際消耗動作，跳出避免死迴圈
-      if (state.actionsLeft === before) break;
+      // 進展判定：出牌消耗 actionsLeft，或技師出招使 usedSkillThisRound 增加。皆無 → 跳出避免死迴圈。
+      const progressed =
+        state.actionsLeft < beforeActions ||
+        state.players[player].usedSkillThisRound.length > beforeSkills;
+      if (!progressed) break;
     }
     return events;
   };

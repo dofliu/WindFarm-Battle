@@ -102,6 +102,10 @@ export const zhTW = {
   'turbine.roundsLeft': '剩 {n} 回',
   'turbine.drop': '-{n}%',
   'turbine.shutdown': '緊急停機',
+  // ── 技師出招（輕模式）UI ────────────────────────────────────
+  'skill.quickRepair': '快修',
+  'skill.used': '已出招',
+  'skill.pickTarget': '選擇要快修的機組',
   // ── Weather Immunity UI ────────────────────────────────────
   'weather.selfImmuneShutdown': '🛡 我方免疫停機',
   'weather.selfImmuneWindPenalty': '🛡 我方免疫風速懲罰',

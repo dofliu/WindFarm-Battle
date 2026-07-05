@@ -15,6 +15,7 @@ import {
   rollWind,
   _drawCard,
   _applyFault,
+  _useTechSkillMutate,
   type RulesConfig,
 } from './rules-engine';
 import { hasCardDrawTrigger, hasNoSlot } from './abilities';
@@ -29,6 +30,13 @@ export type Action =
       readonly target?: number;
       /** turbine：3 台已滿時的替換索引（不指定預設替換最弱） */
       readonly replaceIdx?: number;
+    }
+  | {
+      // 輕模式：技師主動出招（P1 = 快修）。獨立資源池，不消耗打牌動作。
+      readonly kind: 'use-skill';
+      readonly player: 0 | 1;
+      readonly techId: string;
+      readonly turbineIdx: number;
     }
   | { readonly kind: 'end-turn'; readonly player: 0 | 1 };
 
@@ -160,6 +168,27 @@ export function canPlayCard(state: GameState, player: 0 | 1, handIdx: number): b
   return true;
 }
 
+/**
+ * 輕模式：某位在場技師能否對指定自家機組出招（P1 快修）。
+ * 條件：當前玩家、技師在場、本回合此技師尚未出招、目標機組存在且有故障可修。
+ * 注意：出招用獨立資源池，不受 actionsLeft 限制。
+ */
+export function canUseSkill(
+  state: GameState,
+  player: 0 | 1,
+  techId: string,
+  turbineIdx: number,
+): boolean {
+  if (state.gameOver) return false;
+  if (player !== state.currentPlayer) return false;
+  const p = state.players[player];
+  if (!p.techs.includes(techId)) return false;
+  if (p.usedSkillThisRound.includes(techId)) return false;
+  const t = p.turbines[turbineIdx];
+  if (!t || t.faults.length === 0) return false;
+  return true;
+}
+
 /** 列出當前玩家所有合法動作（含 end-turn）。S2.4 AI 用。 */
 export function legalActions(state: GameState, player: 0 | 1): Action[] {
   const actions: Action[] = [{ kind: 'end-turn', player }];
@@ -168,6 +197,14 @@ export function legalActions(state: GameState, player: 0 | 1): Action[] {
   for (let i = 0; i < p.hand.length; i++) {
     if (canPlayCard(state, player, i)) {
       actions.push({ kind: 'play-card', player, handIdx: i });
+    }
+  }
+  // 輕模式：技師出招（獨立於打牌動作）
+  for (const techId of p.techs) {
+    for (let ti = 0; ti < p.turbines.length; ti++) {
+      if (canUseSkill(state, player, techId, ti)) {
+        actions.push({ kind: 'use-skill', player, techId, turbineIdx: ti });
+      }
     }
   }
   return actions;
@@ -488,6 +525,21 @@ export function _applyActionMutate(
 
   if (action.kind === 'end-turn') {
     events.push({ kind: 'turn-ended', player: action.player });
+    return events;
+  }
+
+  // 輕模式：技師出招（獨立資源池，不消耗 actionsLeft）
+  if (action.kind === 'use-skill') {
+    if (!canUseSkill(s, action.player, action.techId, action.turbineIdx)) return events;
+    events.push(..._useTechSkillMutate(s, action.player, action.techId, action.turbineIdx));
+    s.players[action.player].usedSkillThisRound.push(action.techId);
+    events.push({
+      kind: 'skill-used',
+      player: action.player,
+      techId: action.techId,
+      turbineIdx: action.turbineIdx,
+      skill: 'quick-repair',
+    });
     return events;
   }
 
