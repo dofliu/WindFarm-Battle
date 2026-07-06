@@ -18,6 +18,7 @@ import {
   _useTechSkillMutate,
   _grabResourceMutate,
   MAX_TECHS,
+  techSkill,
   type RulesConfig,
 } from './rules-engine';
 
@@ -41,7 +42,8 @@ export type Action =
       readonly kind: 'use-skill';
       readonly player: 0 | 1;
       readonly techId: string;
-      readonly turbineIdx: number;
+      /** 無目標招式(scada-scan/field-diagnosis/dispatch)不需 turbineIdx */
+      readonly turbineIdx?: number;
     }
   | {
       // R3：搶共享資源（先搶先得，花 1 動作）。spare-part/crane 需 turbineIdx；grid-priority 不需。
@@ -192,16 +194,21 @@ export function canUseSkill(
   state: GameState,
   player: 0 | 1,
   techId: string,
-  turbineIdx: number,
+  turbineIdx?: number,
 ): boolean {
   if (state.gameOver) return false;
   if (player !== state.currentPlayer) return false;
   const p = state.players[player];
   if (!p.techs.includes(techId)) return false;
   if (p.usedSkillThisRound.includes(techId)) return false;
+  // P2：依招式目標種類把關
+  const { targetKind } = techSkill(techId);
+  if (targetKind === 'none') return true;
+  if (turbineIdx === undefined) return false;
   const t = p.turbines[turbineIdx];
-  if (!t || t.faults.length === 0) return false;
-  return true;
+  if (!t) return false;
+  if (targetKind === 'ownFault') return t.faults.length > 0;
+  return true; // ownTurbine：任一機組
 }
 
 /**
@@ -237,11 +244,16 @@ export function legalActions(state: GameState, player: 0 | 1): Action[] {
       actions.push({ kind: 'play-card', player, handIdx: i });
     }
   }
-  // 輕模式：技師出招（獨立於打牌動作）
+  // 輕模式：技師出招（獨立於打牌動作）。依招式目標種類產生候選。
   for (const techId of p.techs) {
-    for (let ti = 0; ti < p.turbines.length; ti++) {
-      if (canUseSkill(state, player, techId, ti)) {
-        actions.push({ kind: 'use-skill', player, techId, turbineIdx: ti });
+    const { targetKind } = techSkill(techId);
+    if (targetKind === 'none') {
+      if (canUseSkill(state, player, techId)) actions.push({ kind: 'use-skill', player, techId });
+    } else {
+      for (let ti = 0; ti < p.turbines.length; ti++) {
+        if (canUseSkill(state, player, techId, ti)) {
+          actions.push({ kind: 'use-skill', player, techId, turbineIdx: ti });
+        }
       }
     }
   }
@@ -589,7 +601,7 @@ export function _applyActionMutate(
       player: action.player,
       techId: action.techId,
       turbineIdx: action.turbineIdx,
-      skill: 'quick-repair',
+      skill: techSkill(action.techId).tag,
     });
     return events;
   }

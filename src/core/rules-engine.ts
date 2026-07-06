@@ -528,58 +528,160 @@ export function comboTier(p: PlayerState): 0 | 1 | 2 {
   return n >= 3 ? 2 : n >= 2 ? 1 : 0;
 }
 
+// ── P2 技師專屬招式 ──────────────────────────────────────────
+export type SkillTargetKind = 'ownFault' | 'ownTurbine' | 'none';
+export interface TechSkillDef {
+  readonly tag: string;
+  readonly targetKind: SkillTargetKind;
+}
+/** 每位技師的招牌招式（techId → 招式）。未列出者退回通用「快修」。 */
+export const TECH_SKILLS: Readonly<Record<string, TechSkillDef>> = {
+  T01: { tag: 'quick-repair', targetKind: 'ownFault' },
+  T02: { tag: 'blade-repair', targetKind: 'ownFault' },
+  T03: { tag: 'mech-overhaul', targetKind: 'ownFault' },
+  T04: { tag: 'elec-reset', targetKind: 'ownFault' },
+  T05: { tag: 'scada-scan', targetKind: 'none' },
+  T06: { tag: 'field-diagnosis', targetKind: 'none' },
+  T07: { tag: 'dispatch', targetKind: 'none' },
+  T08: { tag: 'drone-sweep', targetKind: 'ownFault' },
+  T09: { tag: 'rnd-upgrade', targetKind: 'ownTurbine' },
+};
+const DEFAULT_SKILL: TechSkillDef = { tag: 'quick-repair', targetKind: 'ownFault' };
+export function techSkill(techId: string): TechSkillDef {
+  return TECH_SKILLS[techId] ?? DEFAULT_SKILL;
+}
+
+type Turbine = import('./types').DeployedTurbine;
+
+/** 依故障類別偏好挑一個故障索引；無偏好或找不到 → drop 最高。 */
+function pickFaultIdx(t: Turbine, prefCategory?: string): number {
+  if (prefCategory) {
+    const idx = t.faults.findIndex((f) => CARDS[f.cardId].faultCategory === prefCategory);
+    if (idx >= 0) return idx;
+  }
+  let fi = 0;
+  for (let i = 1; i < t.faults.length; i++) if (t.faults[i].drop > t.faults[fi].drop) fi = i;
+  return fi;
+}
+
+/** 修復後復機檢查。 */
+function _restartIfRecovered(t: Turbine, player: 0 | 1, turbineIdx: number, events: GameEvent[]): void {
+  if (t.shutdown && effectiveAvail(t) > 0) {
+    t.shutdown = false;
+    events.push({ kind: 'turbine-restart', player, turbineIdx, cardId: t.cardId });
+  }
+}
+
 /**
- * 輕模式（技師主角）：技師主動出招「快修」。
- * 立即修復自家指定機組上「drop 最高」的一個故障——提前修復代表本回合起就恢復發電。
- * Route B 品質規則沿用 _repairFaults：技師 specialty 與故障 faultCategory 相符 → 完全修復；
- * 不符（或缺對應欄位）→ 部分修復（故障移除，但 avail 永久下修 ⌊drop×0.5⌋）。
- * 修復後若機組原為停機且有效可用率 > 0 → 復機。
- * 注意：此函式不檢查前置條件（由 actions.canUseSkill 把關），也不觸碰 actionsLeft（獨立資源池）。
+ * 技師主動出招（P2：每位技師專屬招式，依 techSkill(techId).tag 分派）。
+ * 獨立資源池：不檢查前置(由 canUseSkill 把關)、不觸碰 actionsLeft(dispatch 招式除外，它就是給動作)。
+ * turbineIdx 對「無目標」招式(scada-scan/field-diagnosis/dispatch)不使用。
  */
 export function _useTechSkillMutate(
   s: GameState,
   player: 0 | 1,
   techId: string,
-  turbineIdx: number,
+  turbineIdx?: number,
 ): GameEvent[] {
   const events: GameEvent[] = [];
   const p = s.players[player];
-  const t = p.turbines[turbineIdx];
-  if (!t || t.faults.length === 0) return events;
-
-  // 選 drop 最高的故障修復
-  let fi = 0;
-  for (let i = 1; i < t.faults.length; i++) {
-    if (t.faults[i].drop > t.faults[fi].drop) fi = i;
-  }
-  const fault = t.faults[fi];
-  // R4 組合：tier≥1(團隊互補) → 即使專長不符也視為完全修復
+  const { tag } = techSkill(techId);
   const tier = comboTier(p);
-  const fullRepair = doesTechMatchFault(techId, fault.cardId) || tier >= 1;
-  let availLost = 0;
-  if (!fullRepair) {
-    availLost = Math.floor(fault.drop * 0.5); // 專長不符 → 永久損耗半個 drop
-    t.avail = Math.max(0, t.avail - availLost);
-  }
-  t.faults.splice(fi, 1);
-  // R4 組合：tier≥2(全能小組) → 修復後額外回復可用率（不超過部署初始值）
-  if (tier >= 2) {
-    const cap = t.originalAvail ?? 100;
-    t.avail = Math.min(cap, t.avail + COMBO_TRIO_HEAL);
-  }
-  events.push({
-    kind: 'fault-repaired',
-    player,
-    targetIdx: turbineIdx,
-    cardId: fault.cardId,
-    by: techId,
-    quality: fullRepair ? 'full' : 'partial',
-    ...(availLost > 0 ? { availLost } : {}),
-  });
-  // 修復後復機檢查
-  if (t.shutdown && effectiveAvail(t) > 0) {
-    t.shutdown = false;
-    events.push({ kind: 'turbine-restart', player, turbineIdx, cardId: t.cardId });
+
+  switch (tag) {
+    case 'dispatch': {
+      // T07 緊急調度：本回合 +1 動作
+      s.actionsLeft += 1;
+      break;
+    }
+    case 'scada-scan': {
+      // T05 預警掃描：己方所有故障剩餘回合 -1（到 0 即痊癒）
+      for (let ti = 0; ti < p.turbines.length; ti++) {
+        const t = p.turbines[ti];
+        for (let fi = t.faults.length - 1; fi >= 0; fi--) {
+          t.faults[fi].roundsLeft -= 1;
+          if (t.faults[fi].roundsLeft <= 0) {
+            const removed = t.faults.splice(fi, 1)[0];
+            events.push({ kind: 'fault-repaired', player, targetIdx: ti, cardId: removed.cardId, by: techId, quality: 'full' });
+          }
+        }
+        _restartIfRecovered(t, player, ti, events);
+      }
+      break;
+    }
+    case 'field-diagnosis': {
+      // T06 全場診斷：己方每台機組「drop 最高故障」drop -10（≤0 移除）
+      for (let ti = 0; ti < p.turbines.length; ti++) {
+        const t = p.turbines[ti];
+        if (t.faults.length === 0) continue;
+        const fi = pickFaultIdx(t);
+        t.faults[fi].drop -= 10;
+        if (t.faults[fi].drop <= 0) {
+          const removed = t.faults.splice(fi, 1)[0];
+          events.push({ kind: 'fault-repaired', player, targetIdx: ti, cardId: removed.cardId, by: techId, quality: 'full' });
+        }
+        _restartIfRecovered(t, player, ti, events);
+      }
+      break;
+    }
+    case 'drone-sweep': {
+      // T08 無人機巡檢：清除目標機組所有故障
+      if (turbineIdx === undefined) break;
+      const t = p.turbines[turbineIdx];
+      if (!t || t.faults.length === 0) break;
+      for (const f of t.faults) {
+        events.push({ kind: 'fault-repaired', player, targetIdx: turbineIdx, cardId: f.cardId, by: techId, quality: 'full' });
+      }
+      t.faults = [];
+      _restartIfRecovered(t, player, turbineIdx, events);
+      break;
+    }
+    case 'rnd-upgrade': {
+      // T09 技改增幅：目標機組永久 +2 MW
+      if (turbineIdx === undefined) break;
+      const t = p.turbines[turbineIdx];
+      if (!t) break;
+      t.mwBonus += 2;
+      events.push({ kind: 'turbine-upgraded', player, cardId: t.cardId, bonus: 2 });
+      break;
+    }
+    default: {
+      // quick-repair / blade-repair / mech-overhaul / elec-reset：修一個故障
+      if (turbineIdx === undefined) break;
+      const t = p.turbines[turbineIdx];
+      if (!t || t.faults.length === 0) break;
+      const pref = tag === 'blade-repair' ? 'blade' : tag === 'mech-overhaul' ? 'mechanical' : tag === 'elec-reset' ? 'electrical' : undefined;
+      const fi = pickFaultIdx(t, pref);
+      const fault = t.faults[fi];
+      // 專科招式(blade/mech/elec)必完全修復；quick-repair 走 Route B(專長符 或 組合 tier≥1)
+      const isSpecialist = tag !== 'quick-repair';
+      const fullRepair = isSpecialist || doesTechMatchFault(techId, fault.cardId) || tier >= 1;
+      let availLost = 0;
+      if (!fullRepair) {
+        availLost = Math.floor(fault.drop * 0.5);
+        t.avail = Math.max(0, t.avail - availLost);
+      }
+      t.faults.splice(fi, 1);
+      if (tag === 'mech-overhaul') {
+        const cap = t.originalAvail ?? 100;
+        t.avail = Math.min(cap, t.avail + 5); // 機械大修：+5 可用率
+      }
+      if (tier >= 2) {
+        const cap = t.originalAvail ?? 100;
+        t.avail = Math.min(cap, t.avail + COMBO_TRIO_HEAL); // 全能小組額外回復
+      }
+      events.push({
+        kind: 'fault-repaired',
+        player,
+        targetIdx: turbineIdx,
+        cardId: fault.cardId,
+        by: techId,
+        quality: fullRepair ? 'full' : 'partial',
+        ...(availLost > 0 ? { availLost } : {}),
+      });
+      _restartIfRecovered(t, player, turbineIdx, events);
+      break;
+    }
   }
   return events;
 }

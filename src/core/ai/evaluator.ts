@@ -16,6 +16,7 @@ import type { Card, DeployedTurbine, GameState, PlayerState, ResourceType } from
 import type { Difficulty } from '../types';
 import { CARDS } from '../cards';
 import { hasNoSlot, NO_WIND_POWER_COEFF } from '../abilities';
+import { techSkill } from '../rules-engine';
 import type { Strategy } from './strategy';
 
 /**
@@ -257,36 +258,59 @@ export function evaluateFaultPlay(
  * 立即修復 drop 最高的故障 → 本回合起恢復發電，價值 ≈ 被挽回的發電量。
  * Route B：技師專長與故障不符時為部分修復（永久 avail 損耗）→ 扣分，讓 AI 傾向用對的人。
  */
+/**
+ * P2：評估技師專屬招式的價值。依 techSkill(techId).tag 分派。
+ * target 對「無目標」招式(scada-scan/field-diagnosis/dispatch)為 undefined。
+ */
 export function evaluateSkillPlay(
   techId: string,
-  turbine: DeployedTurbine,
-  _state: GameState,
-  _player: 0 | 1,
+  target: DeployedTurbine | undefined,
+  state: GameState,
+  player: 0 | 1,
   strategy: Strategy,
   difficulty: Difficulty = 'hard',
 ): number {
-  if (turbine.faults.length === 0) return -1000;
   const { repairMult } = getDifficultyMultipliers(difficulty);
-  // 選 drop 最高故障（與 _useTechSkillMutate 一致）
-  let worst = turbine.faults[0];
-  for (const f of turbine.faults) if (f.drop > worst.drop) worst = f;
-
-  const mw = turbineMW(turbine);
   const roundsLeft = Math.max(1, strategy.roundsLeft);
-  // 立即修復挽回的期望發電（drop% × MW × 平均風係數 × 剩餘回合）
-  const recovered = (worst.drop * mw * AI_AVG_WIND_COEFF) / 100 * roundsLeft;
-  let score = recovered * 2;
+  const me = state.players[player];
+  const { tag } = techSkill(techId);
+  const recoveredFor = (t: DeployedTurbine, drop: number): number =>
+    ((drop * turbineMW(t) * AI_AVG_WIND_COEFF) / 100) * roundsLeft;
 
-  // Route B：專長不符 → 部分修復造成永久 avail 損耗，折算成扣分
-  const tech = CARDS[techId];
-  const fault = CARDS[worst.cardId];
-  const match = !!(tech.specialty && fault.faultCategory && tech.specialty === fault.faultCategory);
-  if (!match) {
-    const availLost = Math.floor(worst.drop * 0.5);
-    score -= (availLost * mw * AI_AVG_WIND_COEFF) / 100 * roundsLeft * 1.2;
+  switch (tag) {
+    case 'dispatch':
+      return 8; // +1 動作
+    case 'scada-scan': {
+      const total = me.turbines.reduce((n, t) => n + t.faults.length, 0);
+      return total > 0 ? total * 3 : -1000;
+    }
+    case 'field-diagnosis': {
+      const total = me.turbines.reduce((n, t) => n + t.faults.length, 0);
+      return total > 0 ? total * 4 * repairMult : -1000;
+    }
+    case 'rnd-upgrade':
+      return target ? 2 * AI_AVG_WIND_COEFF * roundsLeft * 1.5 - 2 : -1000;
+    case 'drone-sweep': {
+      if (!target || target.faults.length === 0) return -1000;
+      const val = target.faults.reduce((s, f) => s + recoveredFor(target, f.drop), 0);
+      return val * 2 * repairMult;
+    }
+    default: {
+      // quick-repair / blade-repair / mech-overhaul / elec-reset：修一個故障
+      if (!target || target.faults.length === 0) return -1000;
+      let worst = target.faults[0];
+      for (const f of target.faults) if (f.drop > worst.drop) worst = f;
+      let score = recoveredFor(target, worst.drop) * 2;
+      // 僅 quick-repair 走 Route B（專科招式必完全修復，無 mismatch 懲罰）
+      if (tag === 'quick-repair') {
+        const tech = CARDS[techId];
+        const fc = CARDS[worst.cardId];
+        const match = !!(tech.specialty && fc.faultCategory && tech.specialty === fc.faultCategory);
+        if (!match) score -= (Math.floor(worst.drop * 0.5) * turbineMW(target) * AI_AVG_WIND_COEFF) / 100 * roundsLeft * 1.2;
+      }
+      return score * repairMult;
+    }
   }
-  score *= repairMult;
-  return score;
 }
 
 // ---------------- evaluateResourceGrab（R3：搶共享資源）----------------

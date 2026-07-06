@@ -34,6 +34,7 @@ import {
   determineWinner,
 } from '../core/rules-engine';
 import { _applyActionMutate, canPlayCard, effectiveCost } from '../core/actions';
+import { techSkill } from '../core/rules-engine';
 import { aiTakeTurn } from '../core/ai';
 import { CARDS } from '../core/cards';
 
@@ -371,19 +372,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (state.gameOver || state.currentPlayer !== HUMAN) return;
     const p = state.players[HUMAN];
     if (!p.techs.includes(techId) || p.usedSkillThisRound.includes(techId)) return;
-    // 可快修的自家機組（有故障）
-    const faultedIdx = p.turbines
-      .map((t, i) => (t.faults.length > 0 ? i : -1))
-      .filter((i) => i >= 0);
-    if (faultedIdx.length === 0) return;
+    // P2：依招式目標種類決定要不要挑機組
+    const { targetKind } = techSkill(techId);
     let target = turbineIdx;
-    if (target === undefined) {
-      // 多台可修 → 進入挑機組模式；單台 → 自動鎖定
-      if (faultedIdx.length > 1) {
-        set({ pendingSkillTechId: techId, pendingFaultHandIdx: null, pendingReplaceHandIdx: null });
+    if (targetKind !== 'none' && target === undefined) {
+      // 候選機組：ownFault → 有故障者；ownTurbine → 全部
+      const candIdx = p.turbines
+        .map((t, i) => (targetKind === 'ownFault' ? (t.faults.length > 0 ? i : -1) : i))
+        .filter((i) => i >= 0);
+      if (candIdx.length === 0) return;
+      if (candIdx.length > 1) {
+        set({ pendingSkillTechId: techId, pendingFaultHandIdx: null, pendingReplaceHandIdx: null, pendingResourceId: null });
         return;
       }
-      target = faultedIdx[0];
+      target = candIdx[0];
     }
 
     const s = cloneState(state);

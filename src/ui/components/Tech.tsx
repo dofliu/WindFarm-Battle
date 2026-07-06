@@ -10,11 +10,13 @@ interface Props {
   readonly skillReady?: boolean;
   /** 輕模式：此技師本回合已出過招 */
   readonly skillUsed?: boolean;
-  /** 輕模式：點「快修」出招鈕 */
+  /** P2：此技師招式的顯示名稱 */
+  readonly skillLabel?: string;
+  /** 輕模式：點出招鈕 */
   readonly onUseSkill?: () => void;
 }
 
-export function Tech({ techId, skillReady, skillUsed, onUseSkill }: Props) {
+export function Tech({ techId, skillReady, skillUsed, skillLabel, onUseSkill }: Props) {
   const { themeKey } = useTheme();
   const card = CARDS[techId];
   if (!card) return null;
@@ -22,6 +24,7 @@ export function Tech({ techId, skillReady, skillUsed, onUseSkill }: Props) {
   const name = cardName(techId) || techId;
   const legendary = !!card.legendary;
   const showSkill = skillReady || skillUsed;
+  const label = skillLabel ?? t('skill.quickRepair');
 
   if (themeKey === 'tideboard') {
     return (
@@ -76,7 +79,7 @@ export function Tech({ techId, skillReady, skillUsed, onUseSkill }: Props) {
               whiteSpace: 'nowrap',
             }}
           >
-            {skillUsed ? t('skill.used') : t('skill.quickRepair')}
+            {skillUsed ? t('skill.used') : label}
           </button>
         )}
       </div>
@@ -129,7 +132,7 @@ export function Tech({ techId, skillReady, skillUsed, onUseSkill }: Props) {
             whiteSpace: 'nowrap',
           }}
         >
-          {skillUsed ? t('skill.used') : `⚡ ${t('skill.quickRepair')}`}
+          {skillUsed ? t('skill.used') : `⚡ ${label}`}
         </button>
       )}
     </div>

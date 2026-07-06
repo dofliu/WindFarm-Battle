@@ -12,7 +12,7 @@ import type { Rng } from '../rng';
 import type { GameEvent } from '../events';
 import { CARDS } from '../cards';
 import { canPlayCard, _applyActionMutate } from '../actions';
-import { type RulesConfig, DEFAULT_CONFIG, type TakeTurn } from '../rules-engine';
+import { type RulesConfig, DEFAULT_CONFIG, type TakeTurn, techSkill } from '../rules-engine';
 import { getStrategy, type Strategy } from './strategy';
 import {
   evaluateTurbinePlay,
@@ -98,16 +98,26 @@ export function generateActions(
     }
   }
 
-  // 輕模式：技師出招（快修）候選——每位未出招技師 × 每台有故障的自家機組
+  // P2：技師專屬招式候選——依招式目標種類產生（無目標一個候選；有目標每台機組一個）
   for (const techId of me.techs) {
     if (me.usedSkillThisRound.includes(techId)) continue;
-    for (let ti = 0; ti < me.turbines.length; ti++) {
-      if (me.turbines[ti].faults.length === 0) continue;
+    const { targetKind } = techSkill(techId);
+    if (targetKind === 'none') {
       actions.push({
-        action: { kind: 'use-skill', player, techId, turbineIdx: ti },
-        score: evaluateSkillPlay(techId, me.turbines[ti], state, player, strategy, difficulty),
-        desc: `${techId} 快修 → 機組#${ti}`,
+        action: { kind: 'use-skill', player, techId },
+        score: evaluateSkillPlay(techId, undefined, state, player, strategy, difficulty),
+        desc: `${techId} 出招`,
       });
+    } else {
+      for (let ti = 0; ti < me.turbines.length; ti++) {
+        const tu = me.turbines[ti];
+        if (targetKind === 'ownFault' && tu.faults.length === 0) continue;
+        actions.push({
+          action: { kind: 'use-skill', player, techId, turbineIdx: ti },
+          score: evaluateSkillPlay(techId, tu, state, player, strategy, difficulty),
+          desc: `${techId} 出招 → 機組#${ti}`,
+        });
+      }
     }
   }
 

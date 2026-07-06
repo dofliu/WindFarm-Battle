@@ -21,7 +21,7 @@ import { LibraryModal } from '../components/LibraryModal';
 import { ThemeSwitcher } from '../components/ThemeSwitcher';
 import { Hourglass, Crosshair } from '../icons';
 import { uiPreviewMwh } from '../../store/game-store';
-import { comboTier, MAX_TECHS } from '../../core/rules-engine';
+import { comboTier, MAX_TECHS, techSkill } from '../../core/rules-engine';
 import { t, cardName } from '../../i18n';
 import { useLocale } from '../locale/LocaleContext';
 import { useOrientation } from '../stage/useOrientation';
@@ -246,12 +246,15 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
             {p.techs.map((id) => {
               if (sideKey === 'opp') return <Tech key={id} techId={id} />;
               const used = me.usedSkillThisRound.includes(id);
+              const { tag, targetKind } = techSkill(id);
+              const ready = isMyTurn && !used && (targetKind === 'ownFault' ? myHasFault : true);
               return (
                 <Tech
                   key={id}
                   techId={id}
                   skillUsed={used}
-                  skillReady={isMyTurn && !used && myHasFault}
+                  skillReady={ready}
+                  skillLabel={t(`skill.${tag}` as Parameters<typeof t>[0])}
                   onUseSkill={() => activateSkill(id)}
                 />
               );
@@ -274,7 +277,11 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
           const tu = p.turbines[slot];
           if (!tu) return false;
           if (faultTargeting) return !tu.shutdown;
-          if (skillTargeting || resourceTargeting) return tu.faults.length > 0;
+          if (skillTargeting) {
+            // 依 pending 技師招式的目標種類：ownFault 需故障；ownTurbine 任一機組
+            return techSkill(pendingSkillTechId as string).targetKind === 'ownFault' ? tu.faults.length > 0 : true;
+          }
+          if (resourceTargeting) return tu.faults.length > 0;
           return false;
         }}
         onSlotClick={(slot) => {

@@ -24,8 +24,8 @@ export type GameEvent =
   /** FN08 insurance-shield：保護層吸收了一次故障，故障短路 */
   | { kind: 'shield-absorbed'; player: 0 | 1; turbineIdx: number; faultCardId: string; shieldLeft: number }
   | { kind: 'fault-repaired'; player: 0 | 1; targetIdx: number; cardId: string; by?: string; quality?: 'full' | 'partial'; availLost?: number }
-  /** 技師主動出招（輕模式）：某位在場技師對自家機組發動招式（P1：快修） */
-  | { kind: 'skill-used'; player: 0 | 1; techId: string; turbineIdx: number; skill: string }
+  /** 技師主動出招（P2：各技師專屬招式）；turbineIdx 對無目標招式為 undefined */
+  | { kind: 'skill-used'; player: 0 | 1; techId: string; turbineIdx?: number; skill: string }
   | { kind: 'func-played'; player: 0 | 1; cardId: string; effect: string }
   | { kind: 'predict-wind'; player: 0 | 1; labels: string[] }
   /** T05 fault-warning：對手 T05 在本回合開始時預警 1 種故障（warnedPlayer 是被預警的玩家） */
