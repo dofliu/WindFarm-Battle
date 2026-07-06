@@ -117,6 +117,24 @@ export const zhTW = {
   'farm.emptySlot': '空缺',
   'farm.noTech': '尚無技師 · 抽牌招募',
   'farm.techsTitle': '技師與招式',
+  // ── R4 技師隊伍 / 組合招 UI ──────────────────────────────────
+  'combo.label': '組合',
+  'combo.duo': '團隊互補',
+  'combo.trio': '全能小組',
+  'combo.duoHint': '維修皆完全修復',
+  'combo.trioHint': '維修完全修復 · 額外回復可用率',
+  // ── 同題環境事件 UI ─────────────────────────────────────────
+  'incident.banner': '本回合事件：{name} 來襲 · 雙方風場同時受影響',
+  'incident.label': '環境事件',
+  // ── R3 共享資源 UI ──────────────────────────────────────────
+  'resource.title': '共享資源',
+  'resource.hint': '先搶先得',
+  'resource.spare-part': '備品',
+  'resource.crane': '吊車',
+  'resource.grid-priority': '併網優先',
+  'resource.claimedYou': '你已搶',
+  'resource.claimedAi': 'AI 已搶',
+  'resource.pickTarget': '選擇要施用資源的機組',
   // ── Weather Immunity UI ────────────────────────────────────
   'weather.selfImmuneShutdown': '🛡 我方免疫停機',
   'weather.selfImmuneWindPenalty': '🛡 我方免疫風速懲罰',

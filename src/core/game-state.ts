@@ -2,7 +2,7 @@
 import type { GameState, GameMode, PlayerState } from './types';
 import type { Rng } from './rng';
 import { shuffle } from './rng';
-import { CARDS, deckCardIds } from './cards';
+import { CARDS, deckCardIds, coopDeckCardIds } from './cards';
 
 /** 深拷貝狀態（確保 core 動作為純函式，不更動入參）。 */
 export function cloneState(state: GameState): GameState {
@@ -25,11 +25,12 @@ function makeStartingFleet(): import('./types').DeployedTurbine[] {
   ];
 }
 
-function createPlayer(name: string, rng: Rng): PlayerState {
+function createPlayer(name: string, rng: Rng, mode: GameMode): PlayerState {
+  // 同題模式(weather-challenge)牌組排除故障與新風機（風場固定、故障改為環境事件）
+  const pool = mode === 'weather-challenge' ? coopDeckCardIds : deckCardIds;
   return {
     name,
-    // Route B：牌組只含可抽卡池（排除開局艦隊和汰除升級牌）
-    deck: shuffle(deckCardIds as string[], rng),
+    deck: shuffle(pool as string[], rng),
     hand: [],
     // Route B：雙方開局各有相同的離岸艦隊（OS8 + OS10 + OS12）
     turbines: makeStartingFleet(),
@@ -41,6 +42,7 @@ function createPlayer(name: string, rng: Rng): PlayerState {
     usedOncePerGame: [],
     funcBonusThisRound: 0,
     usedSkillThisRound: [],
+    gridBonusThisRound: 0,
   };
 }
 
@@ -54,10 +56,11 @@ export function createInitialState(rng: Rng, mode: GameMode = 'versus'): GameSta
     currentPlayer: 0,
     firstPlayer: 0,
     actionsLeft: 2,
-    players: [createPlayer('P1', rng), createPlayer('P2', rng)],
+    players: [createPlayer('P1', rng, mode), createPlayer('P2', rng, mode)],
     futureWind: [],
     activeWeather: [],
     activeContracts: [],
+    roundResources: [],
     gameOver: false,
   };
 }

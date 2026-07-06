@@ -9,6 +9,7 @@ import type { Difficulty, GameState } from '../types';
 import type { Rng } from '../rng';
 import { createRng } from '../rng';
 import { createInitialState } from '../game-state';
+import type { GameMode } from '../types';
 import { runGame, type RulesConfig, DEFAULT_CONFIG } from '../rules-engine';
 import { aiTakeTurn } from '../ai';
 
@@ -50,6 +51,8 @@ export interface SimOptions {
   /** 基底 seed；第 i 場使用 baseSeed + i，便於重現與平行擴展 */
   readonly seed?: number;
   readonly config?: RulesConfig;
+  /** 遊戲模式（預設 versus）；'weather-challenge' = 同題競賽 */
+  readonly mode?: GameMode;
 }
 
 function makeTakeTurn(p1: Difficulty, p2: Difficulty, config: RulesConfig) {
@@ -92,9 +95,10 @@ export function simulate(opts: SimOptions): SimSummary {
   let blowout = 0;
 
   const takeTurn = makeTakeTurn(opts.p1, opts.p2, config);
+  const mode: GameMode = opts.mode ?? 'versus';
   for (let i = 0; i < opts.games; i++) {
     const seed = baseSeed + i;
-    const initial = createInitialState(createRng(seed));
+    const initial = createInitialState(createRng(seed), mode);
     const r = runGame(initial, createRng(seed), takeTurn, config);
 
     for (const ev of r.events) {

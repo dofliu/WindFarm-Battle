@@ -46,6 +46,12 @@ export type GameEvent =
   /** 對手搶先達成合約目標，打出者失去獎勵機會 */
   | { kind: 'contract-stolen'; stolenBy: 0 | 1; cardId: string }
   | { kind: 'round-scored'; player: 0 | 1; mwh: number; total: number }
+  /** 同題模式：本回合共享環境事件（同一故障同時砸向雙方同一槽位） */
+  | { kind: 'incident'; round: number; faultCardId: string; turbineIdx: number }
+  /** R3：本回合開出的共享資源 */
+  | { kind: 'resource-spawned'; round: number; resources: readonly { id: string; type: string }[] }
+  /** R3：某玩家搶走一項共享資源（先搶先得） */
+  | { kind: 'resource-grabbed'; player: 0 | 1; resourceId: string; resourceType: string; turbineIdx?: number }
   | { kind: 'game-over'; winner: 0 | 1 | -1 };
 
 export type EventLog = GameEvent[];

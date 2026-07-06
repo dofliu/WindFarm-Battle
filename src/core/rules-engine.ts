@@ -5,11 +5,11 @@
 //   - 玩家動作 playCard 在 S2.3；AI 在 S2.4
 // 內部以 mutate 工作副本求效率，對外一律回傳新狀態（cloneState）。
 // ============================================================
-import type { GameState, PlayerState, Wind } from './types';
+import type { GameState, PlayerState, Wind, ResourceType } from './types';
 import type { Rng } from './rng';
 import { shuffle } from './rng';
 import type { GameEvent, ApplyResult } from './events';
-import { CARDS, deckCardIds } from './cards';
+import { CARDS, deckCardIds, coopDeckCardIds, INCIDENT_FAULT_IDS } from './cards';
 import { cloneState } from './game-state';
 import {
   getAuraMwBonus, effectiveCoeff, isFaultImmune, isFragile, FRAGILE_DROP_MULT, hasPeriodicRepair,
@@ -99,8 +99,11 @@ function doesTechMatchFault(techCardId: string, faultCardId: string): boolean {
 /** @internal 給 actions.ts 共用；外部請改用 drawCard() 純函式版。 */
 export function _drawCard(s: GameState, player: 0 | 1, rng: Rng, _config: RulesConfig): void {
   const p = s.players[player];
-  // Route B：牌庫空則以 deckCardIds（可抽卡池）重洗，排除開局艦隊和汰除升級牌
-  if (p.deck.length === 0) p.deck = shuffle(deckCardIds as string[], rng);
+  // Route B：牌庫空則以卡池重洗。同題模式(weather-challenge)用 coopDeckCardIds（排除故障與新風機）。
+  if (p.deck.length === 0) {
+    const pool = s.mode === 'weather-challenge' ? coopDeckCardIds : deckCardIds;
+    p.deck = shuffle(pool as string[], rng);
+  }
   const cardId = p.deck.pop();
   if (cardId !== undefined && p.hand.length < 7) p.hand.push(cardId); // 手牌上限 7（對齊 v3）
 }
@@ -131,6 +134,120 @@ export function _beginTurn(s: GameState, player: 0 | 1): GameEvent[] {
     }
   }
 
+  return events;
+}
+
+/** 同題模式：每回合發生環境事件的機率（共享 RNG 決定，雙方同題）。 */
+export const INCIDENT_PROB = 0.6;
+
+// ── R3 共享資源（半競爭）──────────────────────────────────────
+export const RESOURCE_TYPES: readonly ResourceType[] = ['spare-part', 'crane', 'grid-priority'];
+export const GRID_PRIORITY_MWH = 5; // 併網優先：本回合 +5 MWh
+export const RESOURCE_COUNT_PER_ROUND = 2;
+
+/**
+ * 同題模式：回合開始生成本回合共享資源（共享 RNG 決定種類），並歸零雙方併網加成。
+ * versus 模式：清空資源、歸零加成、不生成。
+ */
+export function _spawnRoundResources(s: GameState, rng: Rng): GameEvent[] {
+  s.players.forEach((p) => {
+    p.gridBonusThisRound = 0;
+  });
+  s.roundResources = [];
+  if (s.mode !== 'weather-challenge') return [];
+  const spawned: import('./types').RoundResource[] = [];
+  for (let i = 0; i < RESOURCE_COUNT_PER_ROUND; i++) {
+    const type = RESOURCE_TYPES[rng.int(0, RESOURCE_TYPES.length - 1)];
+    spawned.push({ id: `r${s.round}-${i}`, type });
+  }
+  s.roundResources = spawned;
+  return [{ kind: 'resource-spawned', round: s.round, resources: spawned.map((r) => ({ id: r.id, type: r.type })) }];
+}
+
+/**
+ * R3：搶走一項共享資源並立即套用效果（先搶先得；由 canGrabResource 把關前置條件）。
+ *   - grid-priority：本回合 +GRID_PRIORITY_MWH（不需目標）
+ *   - spare-part：完全修復 target 機組 drop 最高的故障
+ *   - crane：完全修復 target 機組 sev 最高的故障並解停機
+ */
+export function _grabResourceMutate(
+  s: GameState,
+  player: 0 | 1,
+  resourceId: string,
+  turbineIdx?: number,
+): GameEvent[] {
+  const events: GameEvent[] = [];
+  const res = s.roundResources.find((r) => r.id === resourceId);
+  if (!res || res.claimedBy !== undefined) return events;
+  const p = s.players[player];
+  res.claimedBy = player;
+
+  if (res.type === 'grid-priority') {
+    p.gridBonusThisRound += GRID_PRIORITY_MWH;
+  } else if (turbineIdx !== undefined) {
+    const t = p.turbines[turbineIdx];
+    if (t && t.faults.length > 0) {
+      let fi = 0;
+      for (let i = 1; i < t.faults.length; i++) {
+        const better = res.type === 'crane' ? t.faults[i].sev > t.faults[fi].sev : t.faults[i].drop > t.faults[fi].drop;
+        if (better) fi = i;
+      }
+      const removed = t.faults.splice(fi, 1)[0];
+      events.push({ kind: 'fault-repaired', player, targetIdx: turbineIdx, cardId: removed.cardId, by: res.type, quality: 'full' });
+    }
+    if (res.type === 'crane' && t && t.shutdown && effectiveAvail(t) > 0) {
+      t.shutdown = false;
+      events.push({ kind: 'turbine-restart', player, turbineIdx, cardId: t.cardId });
+    }
+  }
+  events.push({
+    kind: 'resource-grabbed',
+    player,
+    resourceId,
+    resourceType: res.type,
+    turbineIdx: res.type === 'grid-priority' ? undefined : turbineIdx,
+  });
+  return events;
+}
+
+/**
+ * 同題模式：本回合共享環境事件。
+ * 以共享 RNG 決定「是否發生 / 哪種故障 / 哪個槽位」，然後對雙方玩家的「同一槽位」
+ * 施加「同一故障」——真正同題；分歧來自各自後續修復速度。
+ * RNG 消耗固定：1 次(是否發生)；若發生再 2 次(faultId, slot)。versus 模式直接跳過(零消耗)。
+ * 注意：同題不施加 cascade，維持雙方對稱。
+ */
+export function _applyEnvironmentIncident(s: GameState, rng: Rng): GameEvent[] {
+  const events: GameEvent[] = [];
+  if (s.mode !== 'weather-challenge') return events;
+  if (rng.next() >= INCIDENT_PROB) return events;
+  const faultId = INCIDENT_FAULT_IDS[rng.int(0, INCIDENT_FAULT_IDS.length - 1)];
+  const slot = rng.int(0, 2);
+  const card = CARDS[faultId];
+  const drop = card.stats?.drop ?? 0;
+  const rounds = card.stats?.rounds ?? 1;
+  const sev = card.stats?.sev ?? 1;
+  events.push({ kind: 'incident', round: s.round, faultCardId: faultId, turbineIdx: slot });
+  for (let pi = 0; pi < 2; pi++) {
+    const player = pi as 0 | 1;
+    const t = s.players[pi].turbines[slot];
+    if (!t) continue;
+    if (isFaultImmune(t, faultId)) continue;
+    // 尊重同台故障上限(2)：已滿則直接停機
+    if (t.faults.length >= 2) {
+      if (!t.shutdown) {
+        t.shutdown = true;
+        events.push({ kind: 'turbine-shutdown', player, turbineIdx: slot, cardId: t.cardId });
+      }
+      continue;
+    }
+    t.faults.push({ cardId: faultId, roundsLeft: rounds, sev, drop });
+    events.push({ kind: 'fault-applied', player, targetIdx: slot, cardId: faultId, drop });
+    if (!t.shutdown && effectiveAvail(t) <= 0) {
+      t.shutdown = true;
+      events.push({ kind: 'turbine-shutdown', player, turbineIdx: slot, cardId: t.cardId });
+    }
+  }
   return events;
 }
 
@@ -202,6 +319,8 @@ export function _scoreRound(s: GameState): GameEvent[] {
     const selfBoostMult = isSelfBoostWind(s.activeWeather, player) ? WEATHER_SELF_BOOST_MULT : 1.0;
     mwh *= boostMult * selfBoostMult;
     mwh = Math.round(mwh);
+    // R3：併網優先資源加成（本回合搶到者 +GRID_PRIORITY_MWH）
+    mwh += p.gridBonusThisRound;
     p.score += mwh;
     events.push({ kind: 'round-scored', player: pi as 0 | 1, mwh, total: p.score });
   });
@@ -381,6 +500,34 @@ export function _repairFaults(s: GameState, player: 0 | 1, config: RulesConfig):
   return events;
 }
 
+// ── R4 技師隊伍 + 組合招 ──────────────────────────────────────
+/** 場上技師上限（隊伍規模）。 */
+export const MAX_TECHS = 3;
+/** 組合「全能小組」(3 種專長)額外回復的可用率。 */
+export const COMBO_TRIO_HEAL = 10;
+
+/** 場上技師涵蓋的相異專長集合。 */
+export function teamSpecialties(p: PlayerState): Set<string> {
+  const set = new Set<string>();
+  for (const id of p.techs) {
+    const sp = CARDS[id].specialty;
+    if (sp) set.add(sp);
+  }
+  return set;
+}
+
+/**
+ * 組合等級（依相異專長數）：
+ *   0 = 無；1 = 團隊互補(≥2 種專長)；2 = 全能小組(≥3 種專長)。
+ * 效果套用在快修：
+ *   tier≥1 → 即使專長不符也視為完全修復(無永久損耗)；
+ *   tier≥2 → 修復後額外回復 COMBO_TRIO_HEAL 可用率。
+ */
+export function comboTier(p: PlayerState): 0 | 1 | 2 {
+  const n = teamSpecialties(p).size;
+  return n >= 3 ? 2 : n >= 2 ? 1 : 0;
+}
+
 /**
  * 輕模式（技師主角）：技師主動出招「快修」。
  * 立即修復自家指定機組上「drop 最高」的一個故障——提前修復代表本回合起就恢復發電。
@@ -406,13 +553,20 @@ export function _useTechSkillMutate(
     if (t.faults[i].drop > t.faults[fi].drop) fi = i;
   }
   const fault = t.faults[fi];
-  const fullRepair = doesTechMatchFault(techId, fault.cardId);
+  // R4 組合：tier≥1(團隊互補) → 即使專長不符也視為完全修復
+  const tier = comboTier(p);
+  const fullRepair = doesTechMatchFault(techId, fault.cardId) || tier >= 1;
   let availLost = 0;
   if (!fullRepair) {
     availLost = Math.floor(fault.drop * 0.5); // 專長不符 → 永久損耗半個 drop
     t.avail = Math.max(0, t.avail - availLost);
   }
   t.faults.splice(fi, 1);
+  // R4 組合：tier≥2(全能小組) → 修復後額外回復可用率（不超過部署初始值）
+  if (tier >= 2) {
+    const cap = t.originalAvail ?? 100;
+    t.avail = Math.min(cap, t.avail + COMBO_TRIO_HEAL);
+  }
   events.push({
     kind: 'fault-repaired',
     player,
@@ -677,6 +831,10 @@ export function runGame(
     events.push(..._tickFaults(s));
     // S3.5：F08 unpredictable 隨機 shuffle（_tickFaults 之後、抽牌前；保持 RNG 順序穩定）
     events.push(..._unpredictableShuffle(s, rng));
+    // R2 同題：共享環境事件（同故障同槽砸雙方）。versus 模式零消耗直接跳過。
+    events.push(..._applyEnvironmentIncident(s, rng));
+    // R3 同題：生成本回合共享資源（並歸零併網加成）
+    events.push(..._spawnRoundResources(s, rng));
     s.players.forEach((p) => {
       p.mwhBoostActive = false;
     });

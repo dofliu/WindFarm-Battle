@@ -12,7 +12,7 @@
 //   - 所有「魔法數字」逐字對齊 v3：×1.5、cost×4、0.75^len、early×1.4、late×0.4 等
 //   - 不在此檔處理難度／RNG／合法性過濾，那些屬 difficulty.ts / generateActions
 // ============================================================
-import type { Card, DeployedTurbine, GameState, PlayerState } from '../types';
+import type { Card, DeployedTurbine, GameState, PlayerState, ResourceType } from '../types';
 import type { Difficulty } from '../types';
 import { CARDS } from '../cards';
 import { hasNoSlot, NO_WIND_POWER_COEFF } from '../abilities';
@@ -170,6 +170,15 @@ export function evaluateTechPlay(
     }
   }
 
+  // R4：招募能「新增專長」的技師 → 推進/解鎖組合(團隊互補/全能小組)，加分
+  if (card.specialty) {
+    const specs = new Set(me.techs.map((id) => CARDS[id].specialty).filter(Boolean));
+    if (!specs.has(card.specialty)) {
+      const next = specs.size + 1;
+      score += next === 2 ? 10 : next === 3 ? 14 : 4;
+    }
+  }
+
   score -= card.cost * 4;
   if (strategy.phase === 'late') score *= 0.5;
   score *= repairMult; // 難度修復係數
@@ -278,6 +287,39 @@ export function evaluateSkillPlay(
   }
   score *= repairMult;
   return score;
+}
+
+// ---------------- evaluateResourceGrab（R3：搶共享資源）----------------
+/**
+ * 評估「搶一項共享資源」的價值（花 1 動作）。
+ * grid-priority：本回合 +5 MWh；spare-part/crane：完全修復目標機組最嚴重故障(挽回發電)。
+ * 額外加一點「掠奪價值」——搶到即剝奪對手。
+ */
+export function evaluateResourceGrab(
+  resType: ResourceType,
+  target: DeployedTurbine | undefined,
+  _state: GameState,
+  _player: 0 | 1,
+  strategy: Strategy,
+  difficulty: Difficulty = 'hard',
+): number {
+  const { repairMult } = getDifficultyMultipliers(difficulty);
+  const roundsLeft = Math.max(1, strategy.roundsLeft);
+  let value: number;
+  if (resType === 'grid-priority') {
+    value = 5 * 2; // +5 MWh，估值 ×2
+  } else if (target && target.faults.length > 0) {
+    let worst = target.faults[0];
+    for (const f of target.faults) {
+      const better = resType === 'crane' ? f.sev > worst.sev : f.drop > worst.drop;
+      if (better) worst = f;
+    }
+    const mw = turbineMW(target);
+    value = ((worst.drop * mw * AI_AVG_WIND_COEFF) / 100) * roundsLeft * 2 * repairMult;
+  } else {
+    return -1000;
+  }
+  return value + 3 /* 掠奪價值 */ - 4 /* 1 動作成本 */;
 }
 
 // ---------------- evaluateFuncPlay ----------------

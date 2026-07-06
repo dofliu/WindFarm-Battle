@@ -16,8 +16,13 @@ import {
   _drawCard,
   _applyFault,
   _useTechSkillMutate,
+  _grabResourceMutate,
+  MAX_TECHS,
   type RulesConfig,
 } from './rules-engine';
+
+/** R3：搶資源消耗的動作點 */
+export const RESOURCE_ACTION_COST = 1;
 import { hasCardDrawTrigger, hasNoSlot } from './abilities';
 
 // ---------- Action 型別 ----------
@@ -37,6 +42,13 @@ export type Action =
       readonly player: 0 | 1;
       readonly techId: string;
       readonly turbineIdx: number;
+    }
+  | {
+      // R3：搶共享資源（先搶先得，花 1 動作）。spare-part/crane 需 turbineIdx；grid-priority 不需。
+      readonly kind: 'grab-resource';
+      readonly player: 0 | 1;
+      readonly resourceId: string;
+      readonly turbineIdx?: number;
     }
   | { readonly kind: 'end-turn'; readonly player: 0 | 1 };
 
@@ -143,6 +155,9 @@ export function canPlayCard(state: GameState, player: 0 | 1, handIdx: number): b
 
   if (card.type === 'tech' && p.techs.includes(cardId)) return false; // 不可重複派遣
   if (card.type === 'tech' && p.techPlayedThisRound) return false; // 一回合只能出一張技師卡
+  if (card.type === 'tech' && p.techs.length >= MAX_TECHS) return false; // R4：場上技師上限 3
+  // R2 同題模式：故障改為共享環境事件，玩家不可主動施加故障（不打對手風場）
+  if (card.type === 'fault' && state.mode === 'weather-challenge') return false;
   // 故障卡：對手無機組 或 所有機組都在停機中（已無攻擊目標）→ 不可出牌
   if (card.type === 'fault') {
     const oppTurbines = state.players[1 - player].turbines;
@@ -189,6 +204,29 @@ export function canUseSkill(
   return true;
 }
 
+/**
+ * R3：能否搶指定共享資源（先搶先得，花 1 動作）。
+ * grid-priority 不需目標；spare-part/crane 需指定一台「自家有故障」的機組。
+ */
+export function canGrabResource(
+  state: GameState,
+  player: 0 | 1,
+  resourceId: string,
+  turbineIdx?: number,
+): boolean {
+  if (state.gameOver) return false;
+  if (player !== state.currentPlayer) return false;
+  if (state.mode !== 'weather-challenge') return false;
+  if (state.actionsLeft < RESOURCE_ACTION_COST) return false;
+  const res = state.roundResources.find((r) => r.id === resourceId);
+  if (!res || res.claimedBy !== undefined) return false;
+  if (res.type === 'grid-priority') return true;
+  // spare-part / crane：需目標機組且該機組有故障
+  if (turbineIdx === undefined) return false;
+  const t = state.players[player].turbines[turbineIdx];
+  return !!t && t.faults.length > 0;
+}
+
 /** 列出當前玩家所有合法動作（含 end-turn）。S2.4 AI 用。 */
 export function legalActions(state: GameState, player: 0 | 1): Action[] {
   const actions: Action[] = [{ kind: 'end-turn', player }];
@@ -204,6 +242,19 @@ export function legalActions(state: GameState, player: 0 | 1): Action[] {
     for (let ti = 0; ti < p.turbines.length; ti++) {
       if (canUseSkill(state, player, techId, ti)) {
         actions.push({ kind: 'use-skill', player, techId, turbineIdx: ti });
+      }
+    }
+  }
+  // R3：搶共享資源
+  for (const res of state.roundResources) {
+    if (res.claimedBy !== undefined) continue;
+    if (res.type === 'grid-priority') {
+      if (canGrabResource(state, player, res.id)) actions.push({ kind: 'grab-resource', player, resourceId: res.id });
+    } else {
+      for (let ti = 0; ti < p.turbines.length; ti++) {
+        if (canGrabResource(state, player, res.id, ti)) {
+          actions.push({ kind: 'grab-resource', player, resourceId: res.id, turbineIdx: ti });
+        }
       }
     }
   }
@@ -540,6 +591,14 @@ export function _applyActionMutate(
       turbineIdx: action.turbineIdx,
       skill: 'quick-repair',
     });
+    return events;
+  }
+
+  // R3：搶共享資源（花 1 動作）
+  if (action.kind === 'grab-resource') {
+    if (!canGrabResource(s, action.player, action.resourceId, action.turbineIdx)) return events;
+    s.actionsLeft -= RESOURCE_ACTION_COST;
+    events.push(..._grabResourceMutate(s, action.player, action.resourceId, action.turbineIdx));
     return events;
   }
 

@@ -32,6 +32,21 @@ export const deckCardIds: readonly string[] = allCardIds.filter(
   (id) => !STARTING_FLEET_IDS.has(id) && !RETIRED_UPGRADE_IDS.has(id),
 );
 
+/**
+ * 同題競賽模式（weather-challenge）的抽牌池。
+ * 在 deckCardIds 基礎上再排除：
+ *   - 故障卡（type='fault'）：改由「環境事件引擎」共享施加，不再是玩家手牌武器
+ *   - 新風機部署（type='turbine'，即 M01–M04）：風場固定為開局艦隊，僅可升級
+ * 保留：技師 / 功能(含 UP 升級) / 天氣 / 合約。
+ */
+export const coopDeckCardIds: readonly string[] = deckCardIds.filter((id) => {
+  const type = CARDS[id].type;
+  return type !== 'fault' && type !== 'turbine';
+});
+
+/** 環境事件引擎可抽用的故障卡 ID（同題模式：同一事件同時砸向雙方）。 */
+export const INCIDENT_FAULT_IDS: readonly string[] = allCardIds.filter((id) => CARDS[id].type === 'fault');
+
 export function getCard(id: string): Card {
   const card = CARDS[id];
   if (!card) throw new Error(`未知卡牌 ID：${id}`);

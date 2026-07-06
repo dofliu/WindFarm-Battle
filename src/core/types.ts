@@ -16,6 +16,21 @@ export type FaultCategory = 'mechanical' | 'blade' | 'electrical' | 'sensor' | '
 /** D7：core 設計為「模式無關」，對戰與同題競賽共用同一規則引擎 */
 export type GameMode = 'versus' | 'weather-challenge';
 
+/**
+ * R3 共享資源（半競爭）：同題模式每回合開出有限資源，先搶先得、搶走即對手不可用。
+ *   - spare-part 備品：立即完全修復一台自家機組 drop 最高的故障（無永久損耗）
+ *   - crane 吊車：立即完全修復一台自家機組最嚴重故障並復機（可解停機）
+ *   - grid-priority 併網優先：本回合自家發電 +GRID_PRIORITY_MWH
+ */
+export type ResourceType = 'spare-part' | 'crane' | 'grid-priority';
+
+export interface RoundResource {
+  readonly id: string;
+  readonly type: ResourceType;
+  /** 已被哪位玩家搶走；undefined = 尚未被搶 */
+  claimedBy?: 0 | 1;
+}
+
 // 文案（name/desc）已抽到 i18n（D3）；這裡只留結構/數值。
 export interface Ability {
   readonly tag: string;
@@ -122,6 +137,10 @@ export interface PlayerState {
    * _beginTurn 時重置為空陣列。
    */
   usedSkillThisRound: string[];
+  /**
+   * R3：本回合搶到「併網優先」資源的發電加成（MWh），_scoreRound 時計入、每回合開始歸零。
+   */
+  gridBonusThisRound: number;
 }
 
 export interface Wind {
@@ -166,5 +185,7 @@ export interface GameState {
   activeWeather: ActiveWeather[];
   /** S3.7：當前生效的合約（fulfilled=false 才需檢查；fulfilled=true 將於下次 tick 移除） */
   activeContracts: ActiveContract[];
+  /** R3：本回合的共享資源（同題模式；每回合重生成）。 */
+  roundResources: RoundResource[];
   gameOver: boolean;
 }

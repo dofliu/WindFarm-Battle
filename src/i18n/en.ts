@@ -117,6 +117,24 @@ export const en = {
   'farm.emptySlot': 'Empty',
   'farm.noTech': 'No technicians · draw to recruit',
   'farm.techsTitle': 'Technicians & Skills',
+  // ── R4 tech roster / combo UI ───────────────────────────────
+  'combo.label': 'Combo',
+  'combo.duo': 'Team Synergy',
+  'combo.trio': 'Full Crew',
+  'combo.duoHint': 'all repairs are full',
+  'combo.trioHint': 'full repairs · extra availability recovery',
+  // ── Shared incident (co-op) UI ──────────────────────────────
+  'incident.banner': 'This round: {name} strikes — both farms hit at once',
+  'incident.label': 'Incident',
+  // ── R3 shared resources UI ──────────────────────────────────
+  'resource.title': 'Shared Resources',
+  'resource.hint': 'first come first served',
+  'resource.spare-part': 'Spare Part',
+  'resource.crane': 'Crane',
+  'resource.grid-priority': 'Grid Priority',
+  'resource.claimedYou': 'You claimed',
+  'resource.claimedAi': 'AI claimed',
+  'resource.pickTarget': 'Pick a turbine to apply the resource',
   // ── Weather Immunity UI ────────────────────────────────────
   'weather.selfImmuneShutdown': '🛡 Self: Immune to Shutdown',
   'weather.selfImmuneWindPenalty': '🛡 Self: Immune to Wind Penalty',
