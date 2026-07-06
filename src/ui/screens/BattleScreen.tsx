@@ -21,8 +21,8 @@ import { LibraryModal } from '../components/LibraryModal';
 import { ThemeSwitcher } from '../components/ThemeSwitcher';
 import { Hourglass, Crosshair } from '../icons';
 import { uiPreviewMwh } from '../../store/game-store';
-import { comboTier, MAX_TECHS, techSkill } from '../../core/rules-engine';
-import { t, cardName } from '../../i18n';
+import { comboTier, MAX_TECHS, techSkills, techSkillDef, techAbilityTag } from '../../core/rules-engine';
+import { t, cardName, abilityName } from '../../i18n';
 import { useLocale } from '../locale/LocaleContext';
 import { useOrientation } from '../stage/useOrientation';
 
@@ -49,6 +49,7 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
   const selectFaultTarget = useGameStore((s) => s.selectFaultTarget);
   const activateSkill = useGameStore((s) => s.activateSkill);
   const pendingSkillTechId = useGameStore((s) => s.pendingSkillTechId);
+  const pendingSkillTag = useGameStore((s) => s.pendingSkillTag);
   const selectSkillTarget = useGameStore((s) => s.selectSkillTarget);
   const grabResource = useGameStore((s) => s.grabResource);
   const pendingResourceId = useGameStore((s) => s.pendingResourceId);
@@ -244,20 +245,17 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: themeKey === 'tideboard' ? 18 : 2 }}>
             {p.techs.map((id) => {
-              if (sideKey === 'opp') return <Tech key={id} techId={id} />;
+              const abilTag = techAbilityTag(id);
+              const abilityLabel = abilTag ? abilityName(id, 0) : undefined;
+              if (sideKey === 'opp') return <Tech key={id} techId={id} abilityLabel={abilityLabel} />;
               const used = me.usedSkillThisRound.includes(id);
-              const { tag, targetKind } = techSkill(id);
-              const ready = isMyTurn && !used && (targetKind === 'ownFault' ? myHasFault : true);
-              return (
-                <Tech
-                  key={id}
-                  techId={id}
-                  skillUsed={used}
-                  skillReady={ready}
-                  skillLabel={t(`skill.${tag}` as Parameters<typeof t>[0])}
-                  onUseSkill={() => activateSkill(id)}
-                />
-              );
+              const skills = techSkills(id).map((def) => ({
+                tag: def.tag,
+                label: t(`skill.${def.tag}` as Parameters<typeof t>[0]),
+                ready: isMyTurn && !used && (def.targetKind === 'ownFault' ? myHasFault : true),
+                onUse: () => activateSkill(id, def.tag),
+              }));
+              return <Tech key={id} techId={id} skills={skills} skillUsed={used} abilityLabel={abilityLabel} />;
             })}
           </div>
         )}
@@ -278,8 +276,9 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
           if (!tu) return false;
           if (faultTargeting) return !tu.shutdown;
           if (skillTargeting) {
-            // 依 pending 技師招式的目標種類：ownFault 需故障；ownTurbine 任一機組
-            return techSkill(pendingSkillTechId as string).targetKind === 'ownFault' ? tu.faults.length > 0 : true;
+            // 依 pending 招式的目標種類：ownFault 需故障；ownTurbine 任一機組
+            const def = pendingSkillTag ? techSkillDef(pendingSkillTechId as string, pendingSkillTag) : undefined;
+            return def?.targetKind === 'ownFault' ? tu.faults.length > 0 : true;
           }
           if (resourceTargeting) return tu.faults.length > 0;
           return false;

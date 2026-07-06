@@ -29,7 +29,7 @@ describe('R4 組合影響快修', () => {
     s.players[0].techs = ['T01', 'T03', 'T04'];
     const avail0 = s.players[0].turbines[0].avail;
     s.players[0].turbines[0].faults = [{ cardId: 'F04', roundsLeft: 2, sev: 3, drop: 20 }]; // blade，對 T01 不符
-    const { state } = applyAction(s, { kind: 'use-skill', player: 0, techId: 'T01', turbineIdx: 0 }, createRng(1));
+    const { state } = applyAction(s, { kind: 'use-skill', player: 0, techId: 'T01', skillTag: 'quick-repair', turbineIdx: 0 }, createRng(1));
     expect(state.players[0].turbines[0].faults).toHaveLength(0);
     expect(state.players[0].turbines[0].avail).toBe(avail0); // 組合使不符也完全修復、無損耗
   });
@@ -43,7 +43,7 @@ describe('R4 組合影響快修', () => {
     tu.originalAvail = 90;
     tu.faults = [{ cardId: 'F04', roundsLeft: 2, sev: 3, drop: 20 }];
     // 用 T04 電控復歸(完全修復、無額外 +avail)，只看組合回復：70 +10 = 80
-    const { state } = applyAction(s, { kind: 'use-skill', player: 0, techId: 'T04', turbineIdx: 0 }, createRng(1));
+    const { state } = applyAction(s, { kind: 'use-skill', player: 0, techId: 'T04', skillTag: 'elec-reset', turbineIdx: 0 }, createRng(1));
     expect(state.players[0].turbines[0].avail).toBe(80); // 70 + 10，capped 90
   });
 });

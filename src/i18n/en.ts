@@ -116,6 +116,7 @@ export const en = {
   'skill.dispatch': 'Dispatch',
   'skill.drone-sweep': 'Drone Sweep',
   'skill.rnd-upgrade': 'R&D Upgrade',
+  'skill.ability': 'Ability',
   // ── Farm panel (co-op competition layout) UI ────────────────
   'farm.mine': 'Your Farm',
   'farm.opp': 'AI Farm',

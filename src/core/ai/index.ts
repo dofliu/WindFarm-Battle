@@ -12,7 +12,7 @@ import type { Rng } from '../rng';
 import type { GameEvent } from '../events';
 import { CARDS } from '../cards';
 import { canPlayCard, _applyActionMutate } from '../actions';
-import { type RulesConfig, DEFAULT_CONFIG, type TakeTurn, techSkill } from '../rules-engine';
+import { type RulesConfig, DEFAULT_CONFIG, type TakeTurn, techSkills } from '../rules-engine';
 import { getStrategy, type Strategy } from './strategy';
 import {
   evaluateTurbinePlay,
@@ -98,25 +98,26 @@ export function generateActions(
     }
   }
 
-  // P2：技師專屬招式候選——依招式目標種類產生（無目標一個候選；有目標每台機組一個）
+  // 技師招式候選——每技師的每一招 × 目標種類（一回合每技師只會出一招，由 usedSkillThisRound 把關）
   for (const techId of me.techs) {
     if (me.usedSkillThisRound.includes(techId)) continue;
-    const { targetKind } = techSkill(techId);
-    if (targetKind === 'none') {
-      actions.push({
-        action: { kind: 'use-skill', player, techId },
-        score: evaluateSkillPlay(techId, undefined, state, player, strategy, difficulty),
-        desc: `${techId} 出招`,
-      });
-    } else {
-      for (let ti = 0; ti < me.turbines.length; ti++) {
-        const tu = me.turbines[ti];
-        if (targetKind === 'ownFault' && tu.faults.length === 0) continue;
+    for (const def of techSkills(techId)) {
+      if (def.targetKind === 'none') {
         actions.push({
-          action: { kind: 'use-skill', player, techId, turbineIdx: ti },
-          score: evaluateSkillPlay(techId, tu, state, player, strategy, difficulty),
-          desc: `${techId} 出招 → 機組#${ti}`,
+          action: { kind: 'use-skill', player, techId, skillTag: def.tag },
+          score: evaluateSkillPlay(techId, def.tag, undefined, state, player, strategy, difficulty),
+          desc: `${techId} ${def.tag}`,
         });
+      } else {
+        for (let ti = 0; ti < me.turbines.length; ti++) {
+          const tu = me.turbines[ti];
+          if (def.targetKind === 'ownFault' && tu.faults.length === 0) continue;
+          actions.push({
+            action: { kind: 'use-skill', player, techId, skillTag: def.tag, turbineIdx: ti },
+            score: evaluateSkillPlay(techId, def.tag, tu, state, player, strategy, difficulty),
+            desc: `${techId} ${def.tag} → 機組#${ti}`,
+          });
+        }
       }
     }
   }

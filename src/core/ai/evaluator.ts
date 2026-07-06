@@ -16,7 +16,6 @@ import type { Card, DeployedTurbine, GameState, PlayerState, ResourceType } from
 import type { Difficulty } from '../types';
 import { CARDS } from '../cards';
 import { hasNoSlot, NO_WIND_POWER_COEFF } from '../abilities';
-import { techSkill } from '../rules-engine';
 import type { Strategy } from './strategy';
 
 /**
@@ -264,6 +263,7 @@ export function evaluateFaultPlay(
  */
 export function evaluateSkillPlay(
   techId: string,
+  tag: string,
   target: DeployedTurbine | undefined,
   state: GameState,
   player: 0 | 1,
@@ -273,7 +273,6 @@ export function evaluateSkillPlay(
   const { repairMult } = getDifficultyMultipliers(difficulty);
   const roundsLeft = Math.max(1, strategy.roundsLeft);
   const me = state.players[player];
-  const { tag } = techSkill(techId);
   const recoveredFor = (t: DeployedTurbine, drop: number): number =>
     ((drop * turbineMW(t) * AI_AVG_WIND_COEFF) / 100) * roundsLeft;
 

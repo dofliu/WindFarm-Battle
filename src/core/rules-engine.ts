@@ -534,21 +534,45 @@ export interface TechSkillDef {
   readonly tag: string;
   readonly targetKind: SkillTargetKind;
 }
-/** 每位技師的招牌招式（techId → 招式）。未列出者退回通用「快修」。 */
-export const TECH_SKILLS: Readonly<Record<string, TechSkillDef>> = {
-  T01: { tag: 'quick-repair', targetKind: 'ownFault' },
-  T02: { tag: 'blade-repair', targetKind: 'ownFault' },
-  T03: { tag: 'mech-overhaul', targetKind: 'ownFault' },
-  T04: { tag: 'elec-reset', targetKind: 'ownFault' },
-  T05: { tag: 'scada-scan', targetKind: 'none' },
-  T06: { tag: 'field-diagnosis', targetKind: 'none' },
-  T07: { tag: 'dispatch', targetKind: 'none' },
-  T08: { tag: 'drone-sweep', targetKind: 'ownFault' },
-  T09: { tag: 'rnd-upgrade', targetKind: 'ownTurbine' },
+/**
+ * 每位技師的招式（寶可夢式分級）：
+ *   基礎(★≤2)：1 招；進化(★3-4)：2 招；傳奇 ex(★5)：招式 + 特性(被動)。
+ * 一回合每技師仍只出一招（多招＝選一個）。未列出者退回通用「快修」。
+ */
+export const TECH_SKILLS: Readonly<Record<string, readonly TechSkillDef[]>> = {
+  // 基礎（1 招）
+  T01: [{ tag: 'quick-repair', targetKind: 'ownFault' }],
+  T02: [{ tag: 'blade-repair', targetKind: 'ownFault' }],
+  T03: [{ tag: 'mech-overhaul', targetKind: 'ownFault' }],
+  T04: [{ tag: 'elec-reset', targetKind: 'ownFault' }],
+  // 進化（2 招）
+  T05: [{ tag: 'scada-scan', targetKind: 'none' }, { tag: 'elec-reset', targetKind: 'ownFault' }],
+  T06: [{ tag: 'field-diagnosis', targetKind: 'none' }, { tag: 'quick-repair', targetKind: 'ownFault' }],
+  T08: [{ tag: 'drone-sweep', targetKind: 'ownFault' }, { tag: 'blade-repair', targetKind: 'ownFault' }],
+  T09: [{ tag: 'rnd-upgrade', targetKind: 'ownTurbine' }, { tag: 'quick-repair', targetKind: 'ownFault' }],
+  // 傳奇 ex（招式「緊急調度」+ 特性 aura-action 常態 +1 動作）
+  T07: [{ tag: 'dispatch', targetKind: 'none' }],
 };
-const DEFAULT_SKILL: TechSkillDef = { tag: 'quick-repair', targetKind: 'ownFault' };
-export function techSkill(techId: string): TechSkillDef {
-  return TECH_SKILLS[techId] ?? DEFAULT_SKILL;
+const DEFAULT_SKILLS: readonly TechSkillDef[] = [{ tag: 'quick-repair', targetKind: 'ownFault' }];
+export function techSkills(techId: string): readonly TechSkillDef[] {
+  return TECH_SKILLS[techId] ?? DEFAULT_SKILLS;
+}
+export function techSkillDef(techId: string, tag: string): TechSkillDef | undefined {
+  return techSkills(techId).find((sk) => sk.tag === tag);
+}
+
+export type TechTier = 'basic' | 'evolved' | 'ex';
+/** 技師分級：傳奇/★5＝ex；★3-4＝進化；否則基礎。 */
+export function techTier(techId: string): TechTier {
+  const card = CARDS[techId];
+  if (!card) return 'basic';
+  if (card.legendary || (card.rarity ?? 1) >= 5) return 'ex';
+  return (card.rarity ?? 1) >= 3 ? 'evolved' : 'basic';
+}
+/** ex 技師的「特性」被動 ability tag（顯示用）；非 ex 回 undefined。 */
+export function techAbilityTag(techId: string): string | undefined {
+  if (techTier(techId) !== 'ex') return undefined;
+  return CARDS[techId]?.abilities?.[0]?.tag;
 }
 
 type Turbine = import('./types').DeployedTurbine;
@@ -573,7 +597,7 @@ function _restartIfRecovered(t: Turbine, player: 0 | 1, turbineIdx: number, even
 }
 
 /**
- * 技師主動出招（P2：每位技師專屬招式，依 techSkill(techId).tag 分派）。
+ * 技師主動出招（依傳入的招式 tag 分派）。
  * 獨立資源池：不檢查前置(由 canUseSkill 把關)、不觸碰 actionsLeft(dispatch 招式除外，它就是給動作)。
  * turbineIdx 對「無目標」招式(scada-scan/field-diagnosis/dispatch)不使用。
  */
@@ -581,11 +605,11 @@ export function _useTechSkillMutate(
   s: GameState,
   player: 0 | 1,
   techId: string,
+  tag: string,
   turbineIdx?: number,
 ): GameEvent[] {
   const events: GameEvent[] = [];
   const p = s.players[player];
-  const { tag } = techSkill(techId);
   const tier = comboTier(p);
 
   switch (tag) {

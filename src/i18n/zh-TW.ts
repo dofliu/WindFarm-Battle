@@ -116,6 +116,7 @@ export const zhTW = {
   'skill.dispatch': '緊急調度',
   'skill.drone-sweep': '無人機巡檢',
   'skill.rnd-upgrade': '技改增幅',
+  'skill.ability': '特性',
   // ── 風場面板（同題競賽版面）UI ──────────────────────────────
   'farm.mine': '你的風場',
   'farm.opp': 'AI 風場',

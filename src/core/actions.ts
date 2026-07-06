@@ -18,7 +18,8 @@ import {
   _useTechSkillMutate,
   _grabResourceMutate,
   MAX_TECHS,
-  techSkill,
+  techSkills,
+  techSkillDef,
   type RulesConfig,
 } from './rules-engine';
 
@@ -42,6 +43,8 @@ export type Action =
       readonly kind: 'use-skill';
       readonly player: 0 | 1;
       readonly techId: string;
+      /** 要施展的招式 tag（技師可有多招，選一個） */
+      readonly skillTag: string;
       /** 無目標招式(scada-scan/field-diagnosis/dispatch)不需 turbineIdx */
       readonly turbineIdx?: number;
     }
@@ -194,15 +197,17 @@ export function canUseSkill(
   state: GameState,
   player: 0 | 1,
   techId: string,
+  skillTag: string,
   turbineIdx?: number,
 ): boolean {
   if (state.gameOver) return false;
   if (player !== state.currentPlayer) return false;
   const p = state.players[player];
   if (!p.techs.includes(techId)) return false;
-  if (p.usedSkillThisRound.includes(techId)) return false;
-  // P2：依招式目標種類把關
-  const { targetKind } = techSkill(techId);
+  if (p.usedSkillThisRound.includes(techId)) return false; // 一回合每技師只出一招
+  const def = techSkillDef(techId, skillTag);
+  if (!def) return false; // 該技師沒有這招
+  const { targetKind } = def;
   if (targetKind === 'none') return true;
   if (turbineIdx === undefined) return false;
   const t = p.turbines[turbineIdx];
@@ -244,15 +249,18 @@ export function legalActions(state: GameState, player: 0 | 1): Action[] {
       actions.push({ kind: 'play-card', player, handIdx: i });
     }
   }
-  // 輕模式：技師出招（獨立於打牌動作）。依招式目標種類產生候選。
+  // 技師出招（獨立於打牌動作）。每技師的每一招 × 目標種類產生候選。
   for (const techId of p.techs) {
-    const { targetKind } = techSkill(techId);
-    if (targetKind === 'none') {
-      if (canUseSkill(state, player, techId)) actions.push({ kind: 'use-skill', player, techId });
-    } else {
-      for (let ti = 0; ti < p.turbines.length; ti++) {
-        if (canUseSkill(state, player, techId, ti)) {
-          actions.push({ kind: 'use-skill', player, techId, turbineIdx: ti });
+    for (const def of techSkills(techId)) {
+      if (def.targetKind === 'none') {
+        if (canUseSkill(state, player, techId, def.tag)) {
+          actions.push({ kind: 'use-skill', player, techId, skillTag: def.tag });
+        }
+      } else {
+        for (let ti = 0; ti < p.turbines.length; ti++) {
+          if (canUseSkill(state, player, techId, def.tag, ti)) {
+            actions.push({ kind: 'use-skill', player, techId, skillTag: def.tag, turbineIdx: ti });
+          }
         }
       }
     }
@@ -593,15 +601,15 @@ export function _applyActionMutate(
 
   // 輕模式：技師出招（獨立資源池，不消耗 actionsLeft）
   if (action.kind === 'use-skill') {
-    if (!canUseSkill(s, action.player, action.techId, action.turbineIdx)) return events;
-    events.push(..._useTechSkillMutate(s, action.player, action.techId, action.turbineIdx));
+    if (!canUseSkill(s, action.player, action.techId, action.skillTag, action.turbineIdx)) return events;
+    events.push(..._useTechSkillMutate(s, action.player, action.techId, action.skillTag, action.turbineIdx));
     s.players[action.player].usedSkillThisRound.push(action.techId);
     events.push({
       kind: 'skill-used',
       player: action.player,
       techId: action.techId,
       turbineIdx: action.turbineIdx,
-      skill: techSkill(action.techId).tag,
+      skill: action.skillTag,
     });
     return events;
   }
