@@ -22,26 +22,28 @@ describe('R4 組合等級', () => {
 });
 
 describe('R4 組合影響快修', () => {
-  it('團隊互補(tier1)：即使專長不符也完全修復，無永久損耗', () => {
+  it('團隊互補(tier1)：通用快修即使專長不符也完全修復，無永久損耗', () => {
     const s = createInitialState(createRng(1), 'weather-challenge');
     s.currentPlayer = 0;
-    s.players[0].techs = ['T03', 'T04']; // tier1
+    // T01 通用快修(無 specialty) + T03機械 + T04電氣 → 2 種專長 = tier1
+    s.players[0].techs = ['T01', 'T03', 'T04'];
     const avail0 = s.players[0].turbines[0].avail;
-    s.players[0].turbines[0].faults = [{ cardId: 'F04', roundsLeft: 2, sev: 3, drop: 20 }]; // blade，對 T03 不符
-    const { state } = applyAction(s, { kind: 'use-skill', player: 0, techId: 'T03', turbineIdx: 0 }, createRng(1));
+    s.players[0].turbines[0].faults = [{ cardId: 'F04', roundsLeft: 2, sev: 3, drop: 20 }]; // blade，對 T01 不符
+    const { state } = applyAction(s, { kind: 'use-skill', player: 0, techId: 'T01', skillTag: 'quick-repair', turbineIdx: 0 }, createRng(1));
     expect(state.players[0].turbines[0].faults).toHaveLength(0);
-    expect(state.players[0].turbines[0].avail).toBe(avail0); // 完全修復、無損耗
+    expect(state.players[0].turbines[0].avail).toBe(avail0); // 組合使不符也完全修復、無損耗
   });
 
   it('全能小組(tier2)：修復後額外回復可用率(不超過初始值)', () => {
     const s = createInitialState(createRng(1), 'weather-challenge');
     s.currentPlayer = 0;
-    s.players[0].techs = ['T03', 'T04', 'T05']; // tier2
+    s.players[0].techs = ['T03', 'T04', 'T05']; // mechanical+electrical+sensor → tier2
     const tu = s.players[0].turbines[0];
     tu.avail = 70;
     tu.originalAvail = 90;
     tu.faults = [{ cardId: 'F04', roundsLeft: 2, sev: 3, drop: 20 }];
-    const { state } = applyAction(s, { kind: 'use-skill', player: 0, techId: 'T03', turbineIdx: 0 }, createRng(1));
+    // 用 T04 電控復歸(完全修復、無額外 +avail)，只看組合回復：70 +10 = 80
+    const { state } = applyAction(s, { kind: 'use-skill', player: 0, techId: 'T04', skillTag: 'elec-reset', turbineIdx: 0 }, createRng(1));
     expect(state.players[0].turbines[0].avail).toBe(80); // 70 + 10，capped 90
   });
 });

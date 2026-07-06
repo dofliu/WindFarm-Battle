@@ -34,6 +34,7 @@ import {
   determineWinner,
 } from '../core/rules-engine';
 import { _applyActionMutate, canPlayCard, effectiveCost } from '../core/actions';
+import { techSkillDef } from '../core/rules-engine';
 import { aiTakeTurn } from '../core/ai';
 import { CARDS } from '../core/cards';
 
@@ -121,11 +122,12 @@ interface GameStore {
   /** 玩家挑選 fault 目標後完成出牌 */
   selectFaultTarget: (targetIdx: number) => void;
   selectReplaceTarget: (replaceIdx: number) => void;
-  /** 輕模式：玩家正在替某技師挑選要快修的自家機組時，記住技師 ID；否則 null */
+  /** 技師出招挑目標時記住的技師 ID / 招式 tag；否則 null */
   pendingSkillTechId: string | null;
-  /** 輕模式：技師出招（快修）。未指定 turbineIdx 且有多台可修時，切到「挑機組」模式 */
-  activateSkill: (techId: string, turbineIdx?: number) => void;
-  /** 輕模式：挑好要快修的機組後完成出招 */
+  pendingSkillTag: string | null;
+  /** 技師出招（指定招式 tag）。需目標且多台可選時，切到「挑機組」模式 */
+  activateSkill: (techId: string, skillTag: string, turbineIdx?: number) => void;
+  /** 挑好機組後完成出招 */
   selectSkillTarget: (turbineIdx: number) => void;
   /** R3：玩家正在替某資源(備品/吊車)挑選要施用的自家機組時，記住資源 ID；否則 null */
   pendingResourceId: string | null;
@@ -293,6 +295,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   pendingFaultHandIdx: null,
   pendingReplaceHandIdx: null,
   pendingSkillTechId: null,
+  pendingSkillTag: null,
   pendingResourceId: null,
   hasDiscarded: false,
   isAiThinking: false,
@@ -318,7 +321,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   newGame: (seed = Date.now() & 0xffffffff) => {
     const { difficulty } = get();
     const fresh = makeInitialStoreState(seed, difficulty);
-    set({ ...fresh, pendingFaultHandIdx: null, pendingReplaceHandIdx: null, pendingSkillTechId: null, pendingResourceId: null, hasDiscarded: false, isAiThinking: false, lastRoundScore: null, lastAiActions: [], effects: [], windRolling: false, gameStartedAt: new Date() });
+    set({ ...fresh, pendingFaultHandIdx: null, pendingReplaceHandIdx: null, pendingSkillTechId: null, pendingSkillTag: null, pendingResourceId: null, hasDiscarded: false, isAiThinking: false, lastRoundScore: null, lastAiActions: [], effects: [], windRolling: false, gameStartedAt: new Date() });
   },
 
   playCard: (handIdx, options) => {
@@ -366,30 +369,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  activateSkill: (techId, turbineIdx) => {
+  activateSkill: (techId, skillTag, turbineIdx) => {
     const { state, events, rng } = get();
     if (state.gameOver || state.currentPlayer !== HUMAN) return;
     const p = state.players[HUMAN];
     if (!p.techs.includes(techId) || p.usedSkillThisRound.includes(techId)) return;
-    // 可快修的自家機組（有故障）
-    const faultedIdx = p.turbines
-      .map((t, i) => (t.faults.length > 0 ? i : -1))
-      .filter((i) => i >= 0);
-    if (faultedIdx.length === 0) return;
+    const def = techSkillDef(techId, skillTag);
+    if (!def) return;
     let target = turbineIdx;
-    if (target === undefined) {
-      // 多台可修 → 進入挑機組模式；單台 → 自動鎖定
-      if (faultedIdx.length > 1) {
-        set({ pendingSkillTechId: techId, pendingFaultHandIdx: null, pendingReplaceHandIdx: null });
+    if (def.targetKind !== 'none' && target === undefined) {
+      const candIdx = p.turbines
+        .map((t, i) => (def.targetKind === 'ownFault' ? (t.faults.length > 0 ? i : -1) : i))
+        .filter((i) => i >= 0);
+      if (candIdx.length === 0) return;
+      if (candIdx.length > 1) {
+        set({ pendingSkillTechId: techId, pendingSkillTag: skillTag, pendingFaultHandIdx: null, pendingReplaceHandIdx: null, pendingResourceId: null });
         return;
       }
-      target = faultedIdx[0];
+      target = candIdx[0];
     }
 
     const s = cloneState(state);
     const eventsNew = _applyActionMutate(
       s,
-      { kind: 'use-skill', player: HUMAN, techId, turbineIdx: target },
+      { kind: 'use-skill', player: HUMAN, techId, skillTag, turbineIdx: target },
       rng,
       UI_RICH_CONFIG,
     );
@@ -397,6 +400,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       state: s,
       events: [...events, ...eventsNew].slice(-EVENT_LOG_LIMIT),
       pendingSkillTechId: null,
+      pendingSkillTag: null,
       pendingFaultHandIdx: null,
       pendingReplaceHandIdx: null,
       lastAiActions: [],
@@ -407,9 +411,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   selectSkillTarget: (turbineIdx) => {
-    const { pendingSkillTechId, activateSkill } = get();
-    if (pendingSkillTechId === null) return;
-    activateSkill(pendingSkillTechId, turbineIdx);
+    const { pendingSkillTechId, pendingSkillTag, activateSkill } = get();
+    if (pendingSkillTechId === null || pendingSkillTag === null) return;
+    activateSkill(pendingSkillTechId, pendingSkillTag, turbineIdx);
   },
 
   grabResource: (resourceId, turbineIdx) => {
@@ -472,7 +476,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     playCard(pendingReplaceHandIdx, { replaceIdx });
   },
 
-  cancelPending: () => set({ pendingFaultHandIdx: null, pendingReplaceHandIdx: null, pendingSkillTechId: null, pendingResourceId: null }),
+  cancelPending: () => set({ pendingFaultHandIdx: null, pendingReplaceHandIdx: null, pendingSkillTechId: null, pendingSkillTag: null, pendingResourceId: null }),
 
   discardCard: (handIdx) => {
     const { state, events, hasDiscarded } = get();

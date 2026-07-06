@@ -20,7 +20,7 @@ describe('輕模式：技師出招（快修）', () => {
     const avail0 = s.players[0].turbines[0].avail;
     const { state, events } = applyAction(
       s,
-      { kind: 'use-skill', player: 0, techId: 'T02', turbineIdx: 0 },
+      { kind: 'use-skill', player: 0, techId: 'T02', skillTag: 'blade-repair', turbineIdx: 0 },
       createRng(1),
     );
     expect(state.players[0].turbines[0].faults).toHaveLength(0);
@@ -31,12 +31,13 @@ describe('輕模式：技師出招（快修）', () => {
     expect(state.players[0].usedSkillThisRound).toContain('T02');
   });
 
-  it('專長不符 → 部分修復，avail 永久 -⌊drop×0.5⌋', () => {
-    const s = withTechAndFault('T03', 'F04', 20); // T03 specialty=mechanical vs blade → 不符
+  it('通用快修專長不符 → 部分修復，avail 永久 -⌊drop×0.5⌋', () => {
+    // T01 泛用維修(quick-repair，無 specialty) → 對任何故障皆不符 → 部分修復
+    const s = withTechAndFault('T01', 'F04', 20);
     const avail0 = s.players[0].turbines[0].avail;
     const { state, events } = applyAction(
       s,
-      { kind: 'use-skill', player: 0, techId: 'T03', turbineIdx: 0 },
+      { kind: 'use-skill', player: 0, techId: 'T01', skillTag: 'quick-repair', turbineIdx: 0 },
       createRng(1),
     );
     expect(state.players[0].turbines[0].faults).toHaveLength(0);
@@ -53,7 +54,7 @@ describe('輕模式：技師出招（快修）', () => {
     s.actionsLeft = 2;
     const { state } = applyAction(
       s,
-      { kind: 'use-skill', player: 0, techId: 'T02', turbineIdx: 0 },
+      { kind: 'use-skill', player: 0, techId: 'T02', skillTag: 'blade-repair', turbineIdx: 0 },
       createRng(1),
     );
     expect(state.actionsLeft).toBe(2);
@@ -65,17 +66,17 @@ describe('輕模式：技師出招（快修）', () => {
     s.players[0].turbines[1].faults = [{ cardId: 'F04', roundsLeft: 2, sev: 3, drop: 20 }];
     const { state } = applyAction(
       s,
-      { kind: 'use-skill', player: 0, techId: 'T02', turbineIdx: 0 },
+      { kind: 'use-skill', player: 0, techId: 'T02', skillTag: 'blade-repair', turbineIdx: 0 },
       createRng(1),
     );
-    expect(canUseSkill(state, 0, 'T02', 1)).toBe(false);
+    expect(canUseSkill(state, 0, 'T02', 'blade-repair', 1)).toBe(false);
   });
 
   it('無故障的機組不可出招', () => {
     const s = structuredClone(createInitialState(createRng(1)));
     s.currentPlayer = 0;
     s.players[0].techs = ['T02'];
-    expect(canUseSkill(s, 0, 'T02', 0)).toBe(false);
+    expect(canUseSkill(s, 0, 'T02', 'blade-repair', 0)).toBe(false);
   });
 
   it('legalActions 會列出技師出招動作', () => {

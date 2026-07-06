@@ -105,7 +105,18 @@ export const zhTW = {
   // ── 技師出招（輕模式）UI ────────────────────────────────────
   'skill.quickRepair': '快修',
   'skill.used': '已出招',
-  'skill.pickTarget': '選擇要快修的機組',
+  'skill.pickTarget': '選擇要施用招式的機組',
+  // P2 技師專屬招式名稱（對應 techSkill tag）
+  'skill.quick-repair': '快修',
+  'skill.blade-repair': '葉片專修',
+  'skill.mech-overhaul': '機械大修',
+  'skill.elec-reset': '電控復歸',
+  'skill.scada-scan': '預警掃描',
+  'skill.field-diagnosis': '全場診斷',
+  'skill.dispatch': '緊急調度',
+  'skill.drone-sweep': '無人機巡檢',
+  'skill.rnd-upgrade': '技改增幅',
+  'skill.ability': '特性',
   // ── 風場面板（同題競賽版面）UI ──────────────────────────────
   'farm.mine': '你的風場',
   'farm.opp': 'AI 風場',

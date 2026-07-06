@@ -12,7 +12,7 @@ import type { Rng } from '../rng';
 import type { GameEvent } from '../events';
 import { CARDS } from '../cards';
 import { canPlayCard, _applyActionMutate } from '../actions';
-import { type RulesConfig, DEFAULT_CONFIG, type TakeTurn } from '../rules-engine';
+import { type RulesConfig, DEFAULT_CONFIG, type TakeTurn, techSkills } from '../rules-engine';
 import { getStrategy, type Strategy } from './strategy';
 import {
   evaluateTurbinePlay,
@@ -98,16 +98,27 @@ export function generateActions(
     }
   }
 
-  // 輕模式：技師出招（快修）候選——每位未出招技師 × 每台有故障的自家機組
+  // 技師招式候選——每技師的每一招 × 目標種類（一回合每技師只會出一招，由 usedSkillThisRound 把關）
   for (const techId of me.techs) {
     if (me.usedSkillThisRound.includes(techId)) continue;
-    for (let ti = 0; ti < me.turbines.length; ti++) {
-      if (me.turbines[ti].faults.length === 0) continue;
-      actions.push({
-        action: { kind: 'use-skill', player, techId, turbineIdx: ti },
-        score: evaluateSkillPlay(techId, me.turbines[ti], state, player, strategy, difficulty),
-        desc: `${techId} 快修 → 機組#${ti}`,
-      });
+    for (const def of techSkills(techId)) {
+      if (def.targetKind === 'none') {
+        actions.push({
+          action: { kind: 'use-skill', player, techId, skillTag: def.tag },
+          score: evaluateSkillPlay(techId, def.tag, undefined, state, player, strategy, difficulty),
+          desc: `${techId} ${def.tag}`,
+        });
+      } else {
+        for (let ti = 0; ti < me.turbines.length; ti++) {
+          const tu = me.turbines[ti];
+          if (def.targetKind === 'ownFault' && tu.faults.length === 0) continue;
+          actions.push({
+            action: { kind: 'use-skill', player, techId, skillTag: def.tag, turbineIdx: ti },
+            score: evaluateSkillPlay(techId, def.tag, tu, state, player, strategy, difficulty),
+            desc: `${techId} ${def.tag} → 機組#${ti}`,
+          });
+        }
+      }
     }
   }
 

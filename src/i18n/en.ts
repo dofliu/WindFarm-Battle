@@ -105,7 +105,18 @@ export const en = {
   // ── Technician Skill (light mode) UI ────────────────────────
   'skill.quickRepair': 'Quick Fix',
   'skill.used': 'Used',
-  'skill.pickTarget': 'Pick a turbine to quick-fix',
+  'skill.pickTarget': 'Pick a turbine for the skill',
+  // P2 technician signature skill names (by techSkill tag)
+  'skill.quick-repair': 'Quick Fix',
+  'skill.blade-repair': 'Blade Repair',
+  'skill.mech-overhaul': 'Gearbox Overhaul',
+  'skill.elec-reset': 'Control Reset',
+  'skill.scada-scan': 'SCADA Scan',
+  'skill.field-diagnosis': 'Field Diagnosis',
+  'skill.dispatch': 'Dispatch',
+  'skill.drone-sweep': 'Drone Sweep',
+  'skill.rnd-upgrade': 'R&D Upgrade',
+  'skill.ability': 'Ability',
   // ── Farm panel (co-op competition layout) UI ────────────────
   'farm.mine': 'Your Farm',
   'farm.opp': 'AI Farm',
