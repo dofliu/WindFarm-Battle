@@ -9,9 +9,8 @@ import { CARDS } from '../../core/cards';
 import { useTheme } from '../theme/ThemeContext';
 import { ThemeBackground } from '../effects/ThemeBackground';
 import { TopBar } from '../components/TopBar';
-import { SideLabel } from '../components/SideLabel';
 import { BattleCenter } from '../components/BattleCenter';
-import { FarmPanel } from '../components/FarmPanel';
+import { FarmStatsPanel, TurbineStage } from '../components/FarmPanel';
 import { Tech } from '../components/Tech';
 import { Hand, DragOverlay } from '../components/Hand';
 import type { DragInfo } from '../components/Hand';
@@ -105,11 +104,6 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
     return () => window.clearTimeout(t);
   }, [state.round, setWindRolling]);
 
-  // 機組數值 — MW 合計
-  const myMw = me.turbines.reduce((s, t) => s + ((CARDS[t.cardId].stats?.mw ?? 0) + t.mwBonus), 0);
-  const aiMw = opp.turbines.reduce((s, t) => s + ((CARDS[t.cardId].stats?.mw ?? 0) + t.mwBonus), 0);
-  const myFaulted = me.turbines.some((t) => t.faults.length > 0);
-  const aiFaulted = opp.turbines.some((t) => t.faults.length > 0);
   const myPreview = uiPreviewMwh(state, 0);
   const myHasFault = me.turbines.some((tu) => tu.faults.length > 0);
 
@@ -189,7 +183,9 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
       });
   };
 
-  // 一半 = 左側技師舞台 + 右側風場面板（opp 在上、me 在下）
+  // 一半 = 戰場（主力大格 + 備戰區）+ 風場資訊窄側欄。
+  // 寶可夢式版面：我方風場資訊放我方戰鬥卡「左邊」；對方風場資訊放對方戰鬥卡「右邊」
+  // （opp 在上、me 在下；靠 sidebar/stage 的 DOM 順序 + TurbineStage 的 reverseOrder 達成）。
   const renderHalf = (sideKey: 'me' | 'opp') => {
     const p = sideKey === 'me' ? me : opp;
     const active = sideKey === 'me' ? isMyTurn : state.currentPlayer === 1 && !isAiThinking;
@@ -200,32 +196,44 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
       !!dragInfo &&
       (sideKey === 'opp' ? CARDS[dragInfo.cardId]?.type === 'fault' : CARDS[dragInfo.cardId]?.type !== 'fault');
 
-    const techArea = (
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
-          <SideLabel
-            side={sideKey}
-            hand={p.hand.length}
-            deck={p.deck.length}
-            mw={sideKey === 'me' ? myMw : aiMw}
-            faulted={sideKey === 'me' ? myFaulted : aiFaulted}
-            active={active}
-            aiThinking={sideKey === 'opp' ? isAiThinking : undefined}
-          />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 10, letterSpacing: '0.14em', color: theme.textSecondary, textTransform: 'uppercase', fontFamily: theme.fontUI }}>
-            {t('farm.techsTitle')} {p.techs.length}/{MAX_TECHS}
-          </span>
+    const sidebar = (
+      <div
+        style={{
+          width: isPortrait ? 108 : 152,
+          flexShrink: 0,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          overflowY: 'auto',
+        }}
+      >
+        <FarmStatsPanel
+          side={sideKey}
+          player={p}
+          score={p.score}
+          previewMwh={sideKey === 'me' ? myPreview : undefined}
+          active={active}
+          compact={isPortrait}
+        />
+
+        {/* 技師與招式 */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 9, letterSpacing: '0.1em', color: theme.textSecondary, textTransform: 'uppercase', fontFamily: theme.fontUI }}>
+              {t('farm.techsTitle')} {p.techs.length}/{MAX_TECHS}
+            </span>
+          </div>
           {comboTier(p) > 0 && (
             <span
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4,
+                marginTop: 4,
                 padding: '2px 9px',
                 borderRadius: 999,
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: 800,
                 color: '#fff',
                 background: comboTier(p) >= 2 ? 'linear-gradient(180deg,#d9a85a,#b8893f)' : 'linear-gradient(180deg,#5db58c,#2a8a5a)',
@@ -233,52 +241,51 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
               }}
               title={comboTier(p) >= 2 ? t('combo.trioHint') : t('combo.duoHint')}
             >
-              ✦ {t('combo.label')}：{comboTier(p) >= 2 ? t('combo.trio') : t('combo.duo')}
+              ✦ {comboTier(p) >= 2 ? t('combo.trio') : t('combo.duo')}
             </span>
           )}
+          {p.techs.length === 0 ? (
+            <div
+              style={{
+                fontSize: 10,
+                color: theme.textSecondary,
+                padding: '8px 10px',
+                marginTop: 4,
+                border: `1.5px dashed ${theme.border}`,
+                borderRadius: 10,
+                fontFamily: theme.fontUI,
+              }}
+            >
+              {t('farm.noTech')}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: themeKey === 'tideboard' ? 16 : 4 }}>
+              {p.techs.map((id) => {
+                const abilTag = techAbilityTag(id);
+                const abilityLabel = abilTag ? abilityName(id, 0) : undefined;
+                if (sideKey === 'opp') return <Tech key={id} techId={id} abilityLabel={abilityLabel} />;
+                const used = me.usedSkillThisRound.includes(id);
+                const skills = techSkills(id).map((def) => ({
+                  tag: def.tag,
+                  label: t(`skill.${def.tag}` as Parameters<typeof t>[0]),
+                  ready: isMyTurn && !used && (def.targetKind === 'ownFault' ? myHasFault : true),
+                  onUse: () => activateSkill(id, def.tag),
+                }));
+                return <Tech key={id} techId={id} skills={skills} skillUsed={used} abilityLabel={abilityLabel} />;
+              })}
+            </div>
+          )}
         </div>
-        {p.techs.length === 0 ? (
-          <div
-            style={{
-              fontSize: 11,
-              color: theme.textSecondary,
-              padding: '12px 14px',
-              border: `1.5px dashed ${theme.border}`,
-              borderRadius: 10,
-              alignSelf: 'flex-start',
-              fontFamily: theme.fontUI,
-            }}
-          >
-            {t('farm.noTech')}
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: themeKey === 'tideboard' ? 18 : 2 }}>
-            {p.techs.map((id) => {
-              const abilTag = techAbilityTag(id);
-              const abilityLabel = abilTag ? abilityName(id, 0) : undefined;
-              if (sideKey === 'opp') return <Tech key={id} techId={id} abilityLabel={abilityLabel} />;
-              const used = me.usedSkillThisRound.includes(id);
-              const skills = techSkills(id).map((def) => ({
-                tag: def.tag,
-                label: t(`skill.${def.tag}` as Parameters<typeof t>[0]),
-                ready: isMyTurn && !used && (def.targetKind === 'ownFault' ? myHasFault : true),
-                onUse: () => activateSkill(id, def.tag),
-              }));
-              return <Tech key={id} techId={id} skills={skills} skillUsed={used} abilityLabel={abilityLabel} />;
-            })}
-          </div>
-        )}
       </div>
     );
 
-    const panel = (
-      <FarmPanel
+    const stage = (
+      <TurbineStage
         side={sideKey}
         player={p}
-        score={p.score}
-        previewMwh={sideKey === 'me' ? myPreview : undefined}
-        active={active}
-        fullWidth={isPortrait}
+        reverseOrder={sideKey === 'opp'}
+        activeSize={isPortrait ? 104 : 156}
+        benchSize={isPortrait ? 64 : 92}
         dropActive={dropActive}
         isSlotTargetable={(slot) => {
           const tu = p.turbines[slot];
@@ -318,9 +325,9 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
           flex: 1,
           minHeight: 0,
           display: 'flex',
-          flexDirection: isPortrait ? 'column' : 'row',
+          flexDirection: 'row',
           gap: isPortrait ? 8 : 16,
-          padding: isPortrait ? '8px 12px' : '10px 24px',
+          padding: isPortrait ? '8px 10px' : '10px 24px',
           alignItems: 'stretch',
           background: sideKey === 'me' ? theme.bgPlayer : theme.bgOpponent,
           borderTop:
@@ -332,8 +339,18 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
           overflow: 'hidden',
         }}
       >
-        {techArea}
-        {panel}
+        {/* 我方：風場資訊在左、戰鬥卡在右；對方：戰鬥卡在左、風場資訊在右（鏡像對稱） */}
+        {sideKey === 'me' ? (
+          <>
+            {sidebar}
+            {stage}
+          </>
+        ) : (
+          <>
+            {stage}
+            {sidebar}
+          </>
+        )}
       </div>
     );
   };
