@@ -34,6 +34,9 @@ function createPlayer(name: string, rng: Rng, mode: GameMode): PlayerState {
     hand: [],
     // Route B：雙方開局各有相同的離岸艦隊（OS8 + OS10 + OS12）
     turbines: makeStartingFleet(),
+    // 寶可夢式主力/備戰區：開局艦隊第一台（OS8）直接視為主力，其餘 2 台為備戰區
+    // （設計決定：沿用既有「turbines[0]」慣例，避免大改開局艦隊建置邏輯）。
+    activeTurbineIdx: 0,
     techs: [],
     score: 0,
     pendingExtraActions: 0,

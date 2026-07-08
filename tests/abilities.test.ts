@@ -53,21 +53,24 @@ describe('S3.1 abilities：純查詢函式', () => {
   });
 });
 
-describe('S3.1 aura-mw 結算：自家所有機組 +1（含自身）', () => {
-  it('M07 + M01 同場 → 兩台都 +1', () => {
+describe('S3.1 aura-mw 結算：自家所有機組 +1（含自身；寶可夢式規則下只有主力計分）', () => {
+  it('M07 在備戰區、M01 為主力 → 主力仍拿到 aura +1MW；備戰區的 M07 自己不計分', () => {
+    // 寶可夢式規則：只有主力計分。M07 即使在備戰區，getAuraMwBonus 仍掃描全場（不分主力/備戰），
+    // 所以主力 M01 依然拿得到 +1MW 光環；但 M07 自己那 12MW 因為在備戰區、不計分。
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[0].turbines = [
-      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }, // 2MW → 3MW
-      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 12MW → 13MW
+      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }, // 主力：2MW → 3MW（aura）
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 備戰區：不計分，但仍提供 aura
     ];
-    // (3 × 1.0 × 0.95) + (13 × 1.0 × 0.88) = 2.85 + 11.44 = 14.29 → 14
-    expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(14);
+    s.players[0].activeTurbineIdx = 0;
+    // (2+1) × 1.0 × 0.95 = 2.85 → 3
+    expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(3);
   });
 
-  it('沒有 M07 時 aura-mw 不生效（開局艦隊 OS8+OS10+OS12 按原 MW 計算）', () => {
+  it('沒有 M07 時 aura-mw 不生效（開局艦隊主力 OS8 按原 MW 計算，備戰區 OS10/OS12 不計分）', () => {
     const s = createInitialState(createRng(1));
-    // OS8: 8×1.0×0.90=7.2  OS10: 10×1.0×0.88=8.8  OS12: 12×1.0×0.86=10.32 → 26
-    expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(26);
+    // 只有主力 OS8 計分：8×1.0×0.90=7.2 → 7
+    expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(7);
   });
 });
 
@@ -79,14 +82,15 @@ describe('S3.1 weather-immune：M07 對低風/颱風免疫', () => {
     expect(scoreRound(withWind(s, 0)).state.players[0].score).toBe(11);
   });
 
-  it('低風 coeff=0.4 → M07 視為 1.0；同場 M01 仍受 0.4 影響', () => {
+  it('低風 coeff=0.4 → 主力 M01 仍受 0.4 影響（備戰區 M07 的 weather-immune 不會保護未計分的自己，只提供 aura）', () => {
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[0].turbines = [
-      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] },
-      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] },
+      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }, // 主力，無 weather-immune
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 備戰區：weather-immune 對它自己已無意義（不計分），但仍提供 aura
     ];
-    // M01:(2+1)×0.4×0.95 = 1.14；M07:(12+1)×1.0×0.88 = 11.44；合計 12.58 → 13
-    expect(scoreRound(withWind(s, 0.4)).state.players[0].score).toBe(13);
+    s.players[0].activeTurbineIdx = 0;
+    // M01（主力）:(2+1)×0.4×0.95 = 1.14 → 1
+    expect(scoreRound(withWind(s, 0.4)).state.players[0].score).toBe(1);
   });
 
   it('額定 coeff=1.0 → max(1.0, 1.0)=1.0 不變', () => {
@@ -155,10 +159,10 @@ describe('S3.2 M03 lowwind-resist：低風 0.4 → 0.7（估計值）', () => {
     expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(4);
   });
 
-  it('開局艦隊無 lowwind-resist：低風各機組正常受 0.4 影響', () => {
-    // OS8: 8×0.4×0.90=2.88  OS10: 10×0.4×0.88=3.52  OS12: 12×0.4×0.86=4.128 → 10.528 → 11
+  it('開局艦隊無 lowwind-resist：主力 OS8 正常受 0.4 影響（備戰區 OS10/OS12 不計分）', () => {
+    // 只有主力 OS8 計分：8×0.4×0.90=2.88 → 3
     const s = createInitialState(createRng(1));
-    expect(scoreRound(withWind(s, 0.4)).state.players[0].score).toBe(11);
+    expect(scoreRound(withWind(s, 0.4)).state.players[0].score).toBe(3);
   });
 });
 
@@ -181,10 +185,10 @@ describe('S3.2 M05 offshore-delay：部署當回合不結算', () => {
     expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(5);
   });
 
-  it('開局艦隊（deployedRound=0）無 offshore-delay tag → 第 1 回合正常結算', () => {
-    // OS8/OS10/OS12 均無 offshore-delay，deployedRound=0 不觸發延遲
+  it('開局艦隊（deployedRound=0）無 offshore-delay tag → 主力第 1 回合正常結算', () => {
+    // OS8 無 offshore-delay，deployedRound=0 不觸發延遲；只有主力 OS8 計分（備戰區 OS10/OS12 不計分）
     const s = createInitialState(createRng(1));
-    expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(26);
+    expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(7);
   });
 });
 
@@ -324,21 +328,24 @@ describe('S3.3 M10 no-slot：不佔機組格', () => {
     expect(r.state.players[0].turbines.some((t) => t.cardId === 'M10')).toBe(true);
   });
 
-  it('場上滿格（M01,M02,M03 + M10）+ 部署 M07 → 替換最弱「非 no-slot」=M01，M10 保留', async () => {
+  it('主力 M01 + 備戰區已滿 3 台 + M10 + 部署 M07 → 只替換備戰區最弱，主力與 M10 皆保留', async () => {
     const { applyAction } = await import('../src/core/actions');
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[0].turbines = [
-      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }, // 2MW
-      { cardId: 'M02', avail: 93, mwBonus: 0, faults: [] }, // 3MW
-      { cardId: 'M03', avail: 92, mwBonus: 0, faults: [] }, // 4MW
-      { cardId: 'M10', avail: 98, mwBonus: 0, faults: [] }, // 1MW（no-slot）
+      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }, // 主力：2MW（受保護，不會被部署動作替換）
+      { cardId: 'M02', avail: 93, mwBonus: 0, faults: [] }, // 備戰：3MW（最弱，會被替換）
+      { cardId: 'M03', avail: 92, mwBonus: 0, faults: [] }, // 備戰：4MW
+      { cardId: 'OS8', avail: 90, mwBonus: 0, faults: [] }, // 備戰：8MW（湊滿備戰區 3 台）
+      { cardId: 'M10', avail: 98, mwBonus: 0, faults: [] }, // 1MW（no-slot，不佔備戰區格）
     ];
+    s.players[0].activeTurbineIdx = 0;
     s.players[0].hand = ['M07'];
     s.actionsLeft = 5;
     s.currentPlayer = 0;
     const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
-    // M01 被替換、M10 保留
-    expect(r.state.players[0].turbines.some((t) => t.cardId === 'M01')).toBe(false);
+    // 備戰區最弱（M02）被替換；主力 M01 與 no-slot 的 M10 都保留
+    expect(r.state.players[0].turbines.some((t) => t.cardId === 'M02')).toBe(false);
+    expect(r.state.players[0].turbines.some((t) => t.cardId === 'M01')).toBe(true);
     expect(r.state.players[0].turbines.some((t) => t.cardId === 'M10')).toBe(true);
     expect(r.state.players[0].turbines.some((t) => t.cardId === 'M07')).toBe(true);
   });

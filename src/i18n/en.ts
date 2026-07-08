@@ -126,8 +126,14 @@ export const en = {
   'farm.faults': 'Faults',
   'farm.capacity': 'Capacity',
   'farm.emptySlot': 'Empty',
+  'farm.emptyActive': 'No active turbine',
+  'farm.active': 'Active',
+  'farm.bench': 'Bench',
   'farm.noTech': 'No technicians · draw to recruit',
   'farm.techsTitle': 'Technicians & Skills',
+  // ── Pokemon-style retreat UI ─────────────────────────────────
+  'action.retreat': 'Retreat',
+  'action.retreatHint': 'Spend 1 action to swap this turbine into the active slot',
   // ── R4 tech roster / combo UI ───────────────────────────────
   'combo.label': 'Combo',
   'combo.duo': 'Team Synergy',

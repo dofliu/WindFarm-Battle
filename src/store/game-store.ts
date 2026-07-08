@@ -33,7 +33,7 @@ import {
   UI_RICH_CONFIG,
   determineWinner,
 } from '../core/rules-engine';
-import { _applyActionMutate, canPlayCard, effectiveCost } from '../core/actions';
+import { _applyActionMutate, canPlayCard, canRetreat, effectiveCost } from '../core/actions';
 import { techSkillDef } from '../core/rules-engine';
 import { aiTakeTurn } from '../core/ai';
 import { CARDS } from '../core/cards';
@@ -135,6 +135,8 @@ interface GameStore {
   grabResource: (resourceId: string, turbineIdx?: number) => void;
   /** R3：挑好機組後完成搶資源 */
   selectResourceTarget: (turbineIdx: number) => void;
+  /** 寶可夢式撤退：花 1 動作，把主力換成 benchIdx 指定的備戰區機組 */
+  retreat: (benchIdx: number) => void;
   cancelPending: () => void;
   /** 玩家主動棄牌（不花費動作，但每回合只能用一次） */
   discardCard: (handIdx: number) => void;
@@ -332,14 +334,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const cardId = state.players[HUMAN].hand[handIdx];
     const card = CARDS[cardId];
 
-    // Fault 卡需指定目標：非停機對手機組 > 1 台時讓玩家選；否則自動鎖定
-    if (card.type === 'fault' && options?.target === undefined) {
-      const validTargets = state.players[AI].turbines.filter((t) => !t.shutdown);
-      if (validTargets.length > 1) {
-        set({ pendingFaultHandIdx: handIdx, pendingReplaceHandIdx: null });
-        return;
-      }
-    }
+    // 寶可夢式規則：故障卡唯一合法目標＝對手主力機組，不再有「多台可選」的情境，
+    // 不需要 pendingFaultHandIdx 挑目標流程——canPlayCard 已保證主力存在且非停機，
+    // 未指定 target 時交給 _applyFault 自動解析為對手主力（見 rules-engine.activeTargetIndex）。
 
     // Turbine 滿格替換（M10 no-slot 除外，actions 內部已處理）
     if (card.type === 'turbine' && options?.replaceIdx === undefined) {
@@ -461,10 +458,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
     grabResource(pendingResourceId, turbineIdx);
   },
 
+  retreat: (benchIdx) => {
+    const { state, events, rng } = get();
+    if (state.gameOver || state.currentPlayer !== HUMAN) return;
+    if (!canRetreat(state, HUMAN, benchIdx)) return;
+    const s = cloneState(state);
+    const eventsNew = _applyActionMutate(
+      s,
+      { kind: 'retreat', player: HUMAN, benchIdx },
+      rng,
+      UI_RICH_CONFIG,
+    );
+    set({
+      state: s,
+      events: [...events, ...eventsNew].slice(-EVENT_LOG_LIMIT),
+      pendingFaultHandIdx: null,
+      pendingReplaceHandIdx: null,
+      pendingSkillTechId: null,
+      pendingResourceId: null,
+      lastAiActions: [],   // 玩家動作 → 清除 AI 摘要
+    });
+  },
+
   selectFaultTarget: (targetIdx) => {
     const { pendingFaultHandIdx, playCard, state } = get();
     if (pendingFaultHandIdx === null) return;
-    // 停機中的機組不可作為 fault 目標
+    // 寶可夢式規則：唯一合法目標＝對手主力機組（備戰區免疫故障目標）
+    if (targetIdx !== state.players[AI].activeTurbineIdx) return;
     const targetTurbine = state.players[AI].turbines[targetIdx];
     if (targetTurbine?.shutdown) return;
     playCard(pendingFaultHandIdx, { target: targetIdx });
@@ -552,7 +572,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           'card-played', 'turbine-deployed', 'turbine-replaced', 'turbine-returned',
           'tech-deployed', 'fault-applied', 'fault-cascaded', 'func-played',
           'weather-applied', 'contract-applied', 'mwh-boost', 'extra-action-banked',
-          'turbine-shutdown',
+          'turbine-shutdown', 'retreat',
         ]);
         const aiSummary = ev3.filter(e => INTERESTING_AI_KINDS.has(e.kind) && 'player' in e && (e as { player: number }).player === AI);
 
@@ -625,15 +645,17 @@ export function uiEffectiveCost(state: GameState, player: 0 | 1, cardId: string)
  */
 export function uiPreviewMwh(state: GameState, player: 0 | 1): number {
   const p = state.players[player];
+  // 寶可夢式主力/備戰區規則：只有主力機組計分，預覽值需與 _scoreRound 的口徑一致，
+  // 否則玩家會看到「預覽 3 台加總」但結算只拿到「1 台」的錯覺落差。
+  if (p.activeTurbineIdx === null) return 0;
+  const t = p.turbines[p.activeTurbineIdx];
+  if (!t) return 0;
   const coeff = state.wind.coeff;
-  let mwh = 0;
-  for (const t of p.turbines) {
-    const card = CARDS[t.cardId];
-    const mw = (card.stats?.mw ?? 0) + t.mwBonus;
-    const drop = t.faults.reduce((s, f) => s + f.drop, 0);
-    const avail = Math.max(0, t.avail - drop);
-    mwh += mw * coeff * (avail / 100);
-  }
+  const card = CARDS[t.cardId];
+  const mw = (card.stats?.mw ?? 0) + t.mwBonus;
+  const drop = t.faults.reduce((s, f) => s + f.drop, 0);
+  const avail = Math.max(0, t.avail - drop);
+  const mwh = mw * coeff * (avail / 100);
   const boost = p.mwhBoostActive ? 1.5 : 1.0;
   return Math.round(mwh * boost);
 }

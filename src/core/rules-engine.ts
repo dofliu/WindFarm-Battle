@@ -69,14 +69,13 @@ function turbineMW(cardId: string, mwBonus: number): number {
   return (CARDS[cardId].stats?.mw ?? 0) + mwBonus;
 }
 
-/** 對手最高 MW 非停機機組之索引（v3 fault 預設目標）。無可攻擊目標回 -1。 */
-function highestMwIndex(p: PlayerState): number {
-  // 優先選非停機機組；若全停機也不該到這裡（canPlayCard 已擋）
-  const candidates = p.turbines
-    .map((t, i) => ({ i, mw: turbineMW(t.cardId, t.mwBonus), shutdown: t.shutdown }))
-    .filter((c) => !c.shutdown);
-  if (candidates.length === 0) return p.turbines.length > 0 ? 0 : -1; // fallback
-  return candidates.reduce((best, c) => (c.mw > best.mw ? c : best)).i;
+/**
+ * 寶可夢式主力/備戰區規則：故障卡唯一合法目標＝對手目前的主力機組索引。
+ * 舊版「對手最高 MW 非停機機組」的預設目標邏輯已不適用（備戰區機組一律免疫故障目標），
+ * 改為直接回傳 activeTurbineIdx；無主力（尚未部署或已被清空）時回 -1。
+ */
+function activeTargetIndex(p: PlayerState): number {
+  return p.activeTurbineIdx ?? -1;
 }
 
 /** 該技師是否帶 auto-repair-low 標籤（D4：每回合 1 次上限的判定依據）。 */
@@ -293,7 +292,9 @@ export function _scoreRound(s: GameState): GameEvent[] {
     if (!shutdownAll || immuneShutdown) {
       // S3.1：M07 aura-mw 是 player-level 光環（自家所有機組共享 +value MW，含自身）
       const auraMw = getAuraMwBonus(p);
-      for (const t of p.turbines) {
+      // 寶可夢式主力/備戰區規則：只有主力機組會產生 MWh；備戰區安全待命但不計分。
+      const t = p.activeTurbineIdx !== null ? p.turbines[p.activeTurbineIdx] : undefined;
+      if (t) {
         // S3.5：對每個 fault 計算 effDrop（storm-amplify 在風暴/高風時 ×2）
         const totalDrop = t.faults.reduce((sum, f) => {
           const effDrop = stormAmplifyActive && isStormAmplifyFault(f.cardId)
@@ -305,10 +306,12 @@ export function _scoreRound(s: GameState): GameEvent[] {
         // S3.1 + S3.2：weather-immune / lowwind-resist / storm-vulnerable / offshore-delay 一次套用
         // 用 playerWind（已考慮打出者免疫風速懲罰）
         // 停機機組不計分（但打出 W02 的玩家免疫停機）
-        if (t.shutdown && !immuneShutdown) continue;
-        const { coeff, skip } = effectiveCoeff(t, playerWind, s.round);
-        if (skip) continue;
-        mwh += (turbineMW(t.cardId, t.mwBonus) + auraMw) * coeff * (avail / 100);
+        if (!t.shutdown || immuneShutdown) {
+          const { coeff, skip } = effectiveCoeff(t, playerWind, s.round);
+          if (!skip) {
+            mwh += (turbineMW(t.cardId, t.mwBonus) + auraMw) * coeff * (avail / 100);
+          }
+        }
       }
     }
     // S3.6：FN06 mwhBoost ×1.5 與 W04 mwh-double ×2 互斥取大（兩者同時 active 時 ×2）
@@ -329,9 +332,12 @@ export function _scoreRound(s: GameState): GameEvent[] {
 
 /**
  * S2.2：施加故障（對齊 v3 playCardFromHand 的 fault 分支）。
- * - 目標預設＝對手最高 MW 機組；options.targetIdx 可指定。
+ * - 寶可夢式主力/備戰區規則：唯一合法目標＝對手主力機組；options.targetIdx 若指定其他索引
+ *   （例如備戰區機組）一律視為非法（備戰區免疫故障目標），直接短路不施加。
  * - drop = card.stats.drop；目標 special==='big-fail' 再 +5（v4 資料目前無 big-fail，留作 parity）。
- * - cascade：rng.next() < card.cascade 且對手機組>1 → 另一台 +floor(drop/2)，發 fault-cascaded。
+ * - cascade：rng.next() < card.cascade 且對手機組>1 → 理論上命中「另一台機組」，
+ *   但備戰區免疫故障，新規則下場上只會有 1 台合法目標，因此連鎖實質不再造成傷害；
+ *   仍保留機率骰以維持既有種子（seed）下的 RNG 消耗順序穩定，方便對齊測試與模擬重現。
  * 重要：rng 消耗順序固定為「先 cascade 機率擲骰」，β 對齊（legacyV3）依此一致。
  */
 /** @internal 給 actions.ts 共用；外部請改用 applyFault() 純函式版。 */
@@ -350,8 +356,10 @@ export function _applyFault(
   const card = CARDS[cardId];
   if (card.type !== 'fault') return events;
 
-  const tIdx = targetIdx ?? highestMwIndex(opponent);
+  const activeIdx = activeTargetIndex(opponent);
+  const tIdx = targetIdx ?? activeIdx;
   if (tIdx < 0 || tIdx >= opponent.turbines.length) return events;
+  if (tIdx !== activeIdx) return events; // 備戰區機組免疫故障目標（寶可夢式規則）
 
   const target = opponent.turbines[tIdx];
 
@@ -399,39 +407,10 @@ export function _applyFault(
   }
 
   if (card.cascade && card.cascade > 0 && opponent.turbines.length > 1) {
-    const hit = rng.next() < card.cascade;
-    if (hit) {
-      const otherIdx = opponent.turbines.findIndex((_, i) => i !== tIdx);
-      if (otherIdx !== -1) {
-        const otherTurbine = opponent.turbines[otherIdx];
-        // S3.3：cascade 目標也檢查 fault-immune / fragile
-        if (!isFaultImmune(otherTurbine, cardId)) {
-          let cascadeDrop = Math.floor(drop / 2);
-          if (isFragile(otherTurbine)) cascadeDrop = Math.floor(cascadeDrop * FRAGILE_DROP_MULT);
-          // 故障數量上限：連鎖目標也遵守最多 2 個故障規則
-          if (otherTurbine.faults.length >= 2) {
-            // 連鎖第 3 個故障直接觸發停機
-            if (!otherTurbine.shutdown) {
-              otherTurbine.shutdown = true;
-              events.push({ kind: 'turbine-shutdown', player: oppId, turbineIdx: otherIdx, cardId: otherTurbine.cardId });
-            }
-          } else {
-            otherTurbine.faults.push({
-              cardId,
-              roundsLeft: rounds,
-              sev,
-              drop: cascadeDrop,
-            });
-            events.push({ kind: 'fault-cascaded', player: oppId, targetIdx: otherIdx, cardId });
-            // 連鎖也觸發停機檢查
-            if (!otherTurbine.shutdown && effectiveAvail(otherTurbine) <= 0) {
-              otherTurbine.shutdown = true;
-              events.push({ kind: 'turbine-shutdown', player: oppId, turbineIdx: otherIdx, cardId: otherTurbine.cardId });
-            }
-          }
-        }
-      }
-    }
+    // 消耗 cascade 機率骰以維持既有種子下的 RNG 順序穩定（β 對齊、模擬重現）。
+    // 寶可夢式主力/備戰區規則：備戰區免疫故障目標，場上永遠只有 1 台合法目標（主力），
+    // 因此就算命中也找不到「另一台合法機組」可連鎖——保留骰子但不再實際造成傷害。
+    rng.next();
   }
 
   // 主目標：施加故障後若有效可用率 ≤ 0 → 緊急停機

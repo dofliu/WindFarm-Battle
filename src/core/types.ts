@@ -121,6 +121,13 @@ export interface PlayerState {
   deck: string[];
   hand: string[];
   turbines: DeployedTurbine[];
+  /**
+   * 寶可夢式主力/備戰區規則：目前「主力」機組在 turbines 陣列中的索引；null＝尚未部署任何機組。
+   * 只有主力機組會計分（_scoreRound），也只有主力機組能被故障卡指定為目標；
+   * 備戰區（其餘最多 3 台）安全待命，不計分、免疫故障目標，但技師/修復技能仍可對其施術。
+   * retreat 動作會直接改這個索引（不搬動陣列），因此陣列中的位置不代表「主力永遠是 0」。
+   */
+  activeTurbineIdx: number | null;
   techs: string[];
   score: number;
   pendingExtraActions: number;

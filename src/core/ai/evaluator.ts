@@ -53,22 +53,41 @@ function cardHasNoWindPower(card: Card): boolean {
 export const AI_AVG_WIND_COEFF = 0.65;
 /** v3 doAITurn：若選到的最佳動作 score < RESERVE_THRESHOLD → 保留行動，跳過剩餘出牌。 */
 export const RESERVE_THRESHOLD = -10;
+/**
+ * 寶可夢式主力/備戰區規則（設計決定）：部署到備戰區的機組不會立即計分（只有主力計分），
+ * 要等之後 retreat 換上場才生效，因此部署評分要打折反映「日後才可能兌現」的不確定性。
+ * 折價係數為估計值，非對齊任何 v3 基準；如平衡性模擬顯示 AI 過度囤積備戰區可再調整。
+ */
+export const BENCH_RESERVE_DISCOUNT = 0.4;
+/** 撤退門檻（設計決定）：主力有效可用率低於此值時，AI 傾向撤退換血；與其他門檻常數同風格命名。 */
+export const RETREAT_AVAIL_THRESHOLD = 30;
 
 function turbineMW(t: DeployedTurbine): number {
   return (CARDS[t.cardId].stats?.mw ?? 0) + t.mwBonus;
 }
 
-function findWeakestTurbine(p: PlayerState): DeployedTurbine {
-  let weakest = p.turbines[0];
-  let weakestMW = turbineMW(weakest);
-  for (const t of p.turbines) {
-    const mw = turbineMW(t);
+/**
+ * 找備戰區（排除主力）中 MW 最低的機組，供部署/收回評分估算「值不值得換」。
+ * 寶可夢式規則：主力受保護，不會被部署/FN01 自動選中替換，AI 的評分邏輯要跟規則一致，
+ * 否則 AI 會誤判「打出更強機組可以替換主力」而選到一個實際上不會發生的動作。
+ */
+function findWeakestTurbine(p: PlayerState): DeployedTurbine | undefined {
+  let weakest: DeployedTurbine | undefined;
+  let weakestMW = Infinity;
+  for (let i = 0; i < p.turbines.length; i++) {
+    if (i === p.activeTurbineIdx) continue;
+    const mw = turbineMW(p.turbines[i]);
     if (mw < weakestMW) {
       weakestMW = mw;
-      weakest = t;
+      weakest = p.turbines[i];
     }
   }
   return weakest;
+}
+
+/** 有效可用率（base - 所有故障 drop 加總，最低 0）。供撤退評分估算目前主力/備戰機組的健康度。 */
+function effectiveAvailPct(t: DeployedTurbine): number {
+  return Math.max(0, t.avail - t.faults.reduce((s, f) => s + f.drop, 0));
 }
 
 // ---------------- evaluateTurbinePlay ----------------
@@ -90,24 +109,35 @@ export function evaluateTurbinePlay(
   let score = expectedMWh * 1.5;
   score -= card.cost * 4;
 
-  // M10 no-slot：部署後不佔機組格，可疊加在 3 台上限之上——跳過「替換最弱」邏輯
+  // M10 no-slot：部署後不佔機組格，可疊加在 3 台上限之上——跳過主力/備戰邏輯
   if (hasNoSlot(card.id)) {
     // 純增加 1 MW 的價值（不替換），邊際係數仍適用
     score *= Math.pow(0.75, me.turbines.length);
-  } else if (me.turbines.length >= 3) {
-    const weakest = findWeakestTurbine(me);
-    const weakestMW = turbineMW(weakest);
-    if (mw <= weakestMW) return -50; // 不值得替換
-    const upgrade = (mw - weakestMW) * windCoeff * strategy.roundsLeft;
-    score = upgrade * 1.5 - card.cost * 4;
+  } else if (me.activeTurbineIdx === null) {
+    // 尚無主力：這張立即成為主力、全額計分，維持 expectedMWh 原值，不用比較「最弱」
   } else {
-    score *= Math.pow(0.75, me.turbines.length); // 邊際遞減
+    const benchFull = me.turbines.reduce(
+      (n, t, i) => (i !== me.activeTurbineIdx && !hasNoSlot(t.cardId) ? n + 1 : n),
+      0,
+    ) >= 3;
+    if (benchFull) {
+      const weakest = findWeakestTurbine(me);
+      const weakestMW = weakest ? turbineMW(weakest) : 0;
+      if (mw <= weakestMW) return -50; // 不值得替換
+      // 換上的機組仍是備戰身分（新規則下只有主力計分），套用備戰折價
+      const upgrade = (mw - weakestMW) * windCoeff * strategy.roundsLeft;
+      score = upgrade * 1.5 * BENCH_RESERVE_DISCOUNT - card.cost * 4;
+    } else {
+      // 有主力、備戰區未滿：新機組進備戰區，暫不計分，套用備戰折價（見 BENCH_RESERVE_DISCOUNT 說明）
+      score *= Math.pow(0.75, me.turbines.length) * BENCH_RESERVE_DISCOUNT;
+    }
   }
 
-  // M07 aura-mw：場上每台機組 +1 MW bonus——計入全艦隊增益
+  // M07 aura-mw：場上任一機組即可提供全隊 +1 MW 光環；
+  // 但寶可夢式規則下只有主力機組會結算計分，光環價值只會反映在主力那一次結算裡（不隨機組數疊加）。
   if (card.abilities.some((a) => a.tag === 'aura-mw' && a.value !== undefined)) {
     const auraMw = card.abilities.find((a) => a.tag === 'aura-mw')!.value ?? 1;
-    const auraBonus = me.turbines.length * auraMw * AI_AVG_WIND_COEFF * strategy.roundsLeft * 1.5;
+    const auraBonus = auraMw * AI_AVG_WIND_COEFF * strategy.roundsLeft * 1.5;
     score += auraBonus;
   }
   // M07 card-draw-trigger：打出時抽一張牌，估算為 ~8 分
@@ -186,6 +216,10 @@ export function evaluateTechPlay(
 }
 
 // ---------------- evaluateFaultPlay ----------------
+/**
+ * 寶可夢式主力/備戰區規則：故障卡唯一合法目標＝對手主力機組（呼叫端 generateActions 已只會
+ * 傳入對手主力當 target，這裡不需要再比較「哪台最強」——備戰區機組已不是候選）。
+ */
 export function evaluateFaultPlay(
   card: Card,
   target: DeployedTurbine,
@@ -194,7 +228,7 @@ export function evaluateFaultPlay(
   strategy: Strategy,
   difficulty: Difficulty = 'hard',
 ): number {
-  const { attackMult, targetHighestMW } = getDifficultyMultipliers(difficulty);
+  const { attackMult } = getDifficultyMultipliers(difficulty);
   const opp = state.players[1 - player];
   const targetCard = CARDS[target.cardId];
   let score = 0;
@@ -220,14 +254,7 @@ export function evaluateFaultPlay(
   const totalDamage = damagePerRound * rounds;
   score += totalDamage * 2.5;
 
-  if (card.cascade && opp.turbines.length > 1) {
-    const others = opp.turbines.filter((t) => t !== target);
-    if (others.length > 0) {
-      const avgOtherMW = others.reduce((s, t) => s + turbineMW(t), 0) / others.length;
-      const cascadeDamage = avgOtherMW * AI_AVG_WIND_COEFF * (drop / 200) * rounds;
-      score += cascadeDamage * card.cascade * 1.5;
-    }
-  }
+  // 寶可夢式規則：備戰區免疫故障，cascade 命中的「另一台機組」不存在，連鎖傷害估算已無意義（移除）。
 
   if (card.spreading) score += 6;
   if (target.faults.length > 0) score *= Math.pow(0.6, target.faults.length); // 同目標疊故障邊際遞減
@@ -236,11 +263,8 @@ export function evaluateFaultPlay(
   if (strategy.phase === 'late') score *= 1.3;
   if (strategy.position === 'losing') score *= 1.4;
   if (strategy.position === 'winning') score *= 0.85;
-  // Hard 專屬：目標是對手最高 MW 機組時額外加分（讓 Hard AI 更有针對性）
-  if (targetHighestMW && opp.turbines.length > 0) {
-    const maxMW = Math.max(...opp.turbines.map(turbineMW));
-    if (turbineMW(target) === maxMW) score += 10;
-  }
+  // 舊版 Hard「targetHighestMW」加分邏輯已移除：新規則下對手只有 1 台合法目標（主力），
+  // 「挑最高 MW」的差異化已無意義（getDifficultyMultipliers 仍保留該欄位供難度資訊查詢/測試使用）。
   score *= attackMult; // 難度攻擊係數
 
   // T08 peek-hand 感知：場上有 T08（peek-hand tag）時，AI 已知道對手手牌，攻擊評分 +5（更有信心出故障）
@@ -352,14 +376,19 @@ export function evaluateFuncPlay(card: Card, state: GameState, player: 0 | 1, st
 
   switch (card.effect) {
     case 'returnTurbine': {
-      if (me.turbines.length === 0) return -1000;
+      // 寶可夢式規則：主力受保護，FN01 只能收回備戰區機組；備戰區為空時無合法目標。
       const weakest = findWeakestTurbine(me);
+      if (!weakest) return -1000;
       const weakestMW = turbineMW(weakest);
       const biggerInHand = me.hand.some((cId) => {
         const c = CARDS[cId];
         return c.type === 'turbine' && (c.stats?.mw ?? 0) > weakestMW;
       });
-      if (me.turbines.length >= 3 && biggerInHand) score = 25 + (8 - weakestMW) * 2;
+      const benchFull = me.turbines.reduce(
+        (n, t, i) => (i !== me.activeTurbineIdx && !hasNoSlot(t.cardId) ? n + 1 : n),
+        0,
+      ) >= 3;
+      if (benchFull && biggerInHand) score = 25 + (8 - weakestMW) * 2;
       else if (biggerInHand) score = 10;
       else score = -5;
       break;
@@ -446,6 +475,38 @@ export function evaluateFuncPlay(card: Card, state: GameState, player: 0 | 1, st
       score += 8;
     }
   }
+
+  return score;
+}
+
+// ---------------- evaluateRetreatPlay（寶可夢式撤退）----------------
+/**
+ * 評估「把主力換成 benchIdx 指定備戰區機組」的價值。
+ * 核心邏輯：主力越不健康（有效可用率低、甚至停機）、備戰候選越健康，換血分數越高；
+ * 換血本身花 1 動作（與其他動作一致，扣 cost×4＝4 分），終局（roundsLeft≤1）換血意義不大要打折。
+ */
+export function evaluateRetreatPlay(
+  state: GameState,
+  player: 0 | 1,
+  benchIdx: number,
+  strategy: Strategy,
+): number {
+  const me = state.players[player];
+  const activeIdx = me.activeTurbineIdx;
+  if (activeIdx === null) return -1000;
+  const active = me.turbines[activeIdx];
+  const bench = me.turbines[benchIdx];
+  if (!active || !bench) return -1000;
+
+  const activeEff = effectiveAvailPct(active);
+  const benchEff = effectiveAvailPct(bench);
+
+  let score = 0;
+  if (active.shutdown) score += 20; // 主力停機 → 強烈建議換血
+  if (activeEff < RETREAT_AVAIL_THRESHOLD) score += (RETREAT_AVAIL_THRESHOLD - activeEff) * 0.5;
+  score += (benchEff - activeEff) * 0.2; // 換上更健康的機組加分；換更差的會倒扣
+  score -= 4; // 1 動作成本，與其他動作估值一致（cost×4）
+  if (strategy.roundsLeft <= 1) score *= 0.3; // 終局換血來不及回本
 
   return score;
 }

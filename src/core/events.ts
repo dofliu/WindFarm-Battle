@@ -15,6 +15,8 @@ export type GameEvent =
   | { kind: 'turbine-replaced'; player: 0 | 1; oldCardId: string; newCardId: string }
   | { kind: 'turbine-returned'; player: 0 | 1; cardId: string }
   | { kind: 'turbine-upgraded'; player: 0 | 1; cardId: string; bonus: number }
+  /** 寶可夢式撤退：把主力換成備戰區某台機組（fromIdx→toIdx 皆為 turbines[] 陣列索引） */
+  | { kind: 'retreat'; player: 0 | 1; fromIdx: number; toIdx: number }
   | { kind: 'turbine-evolved'; player: 0 | 1; fromCardId: string; toCardId: string; turbineIdx: number }
   | { kind: 'tech-deployed'; player: 0 | 1; cardId: string }
   | { kind: 'fault-applied'; player: 0 | 1; targetIdx: number; cardId: string; drop: number }

@@ -11,7 +11,7 @@ import type { GameState, Difficulty } from '../types';
 import type { Rng } from '../rng';
 import type { GameEvent } from '../events';
 import { CARDS } from '../cards';
-import { canPlayCard, _applyActionMutate } from '../actions';
+import { canPlayCard, canRetreat, _applyActionMutate, RETREAT_ACTION_COST } from '../actions';
 import { type RulesConfig, DEFAULT_CONFIG, type TakeTurn, techSkills } from '../rules-engine';
 import { getStrategy, type Strategy } from './strategy';
 import {
@@ -21,6 +21,7 @@ import {
   evaluateFuncPlay,
   evaluateSkillPlay,
   evaluateResourceGrab,
+  evaluateRetreatPlay,
   RESERVE_THRESHOLD,
 } from './evaluator';
 import {
@@ -57,13 +58,13 @@ export function generateActions(
         desc: `派遣 ${cardId}`,
       });
     } else if (card.type === 'fault') {
-      for (let t = 0; t < opp.turbines.length; t++) {
-        actions.push({
-          action: { kind: 'play-card', player, handIdx: i, target: t },
-          score: evaluateFaultPlay(card, opp.turbines[t], state, player, strategy, difficulty),
-          desc: `${cardId} → 對手機組#${t}`,
-        });
-      }
+      // 寶可夢式規則：故障卡唯一合法目標＝對手主力機組（canPlayCard 已保證主力存在且非停機）。
+      const activeIdx = opp.activeTurbineIdx as number;
+      actions.push({
+        action: { kind: 'play-card', player, handIdx: i, target: activeIdx },
+        score: evaluateFaultPlay(card, opp.turbines[activeIdx], state, player, strategy, difficulty),
+        desc: `${cardId} → 對手主力機組#${activeIdx}`,
+      });
     } else if (card.type === 'func') {
       actions.push({
         action: { kind: 'play-card', player, handIdx: i },
@@ -142,6 +143,19 @@ export function generateActions(
           });
         }
       }
+    }
+  }
+
+  // 寶可夢式撤退候選（花 1 動作，把主力換成某台備戰區機組）
+  if (state.actionsLeft >= RETREAT_ACTION_COST && me.activeTurbineIdx !== null) {
+    for (let bi = 0; bi < me.turbines.length; bi++) {
+      if (bi === me.activeTurbineIdx) continue;
+      if (!canRetreat(state, player, bi)) continue;
+      actions.push({
+        action: { kind: 'retreat', player, benchIdx: bi },
+        score: evaluateRetreatPlay(state, player, bi, strategy),
+        desc: `撤退 → 換上機組#${bi}`,
+      });
     }
   }
 
