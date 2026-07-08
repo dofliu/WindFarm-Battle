@@ -53,24 +53,23 @@ describe('S3.1 abilities：純查詢函式', () => {
   });
 });
 
-describe('S3.1 aura-mw 結算：自家所有機組 +1（含自身；寶可夢式規則下只有主力計分）', () => {
-  it('M07 在備戰區、M01 為主力 → 主力仍拿到 aura +1MW；備戰區的 M07 自己不計分', () => {
-    // 寶可夢式規則：只有主力計分。M07 即使在備戰區，getAuraMwBonus 仍掃描全場（不分主力/備戰），
-    // 所以主力 M01 依然拿得到 +1MW 光環；但 M07 自己那 12MW 因為在備戰區、不計分。
+describe('S3.1 aura-mw 結算：自家所有機組 +1（含自身；全艦隊都計分）', () => {
+  it('M07 在備戰區、M01 為主力 → 兩台都計分，都拿到 aura +1MW', () => {
+    // 光環 getAuraMwBonus 掃描全場（不分主力/備戰）；全艦隊都計分（見 rules-engine._scoreRound）。
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[0].turbines = [
       { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }, // 主力：2MW → 3MW（aura）
-      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 備戰區：不計分，但仍提供 aura
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 備戰區：仍計分，12MW → 13MW（aura）
     ];
     s.players[0].activeTurbineIdx = 0;
-    // (2+1) × 1.0 × 0.95 = 2.85 → 3
-    expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(3);
+    // M01:(2+1)×1.0×0.95=2.85；M07:(12+1)×1.0×0.88=11.44 → 合計 14.29 → round(14.29)=14
+    expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(14);
   });
 
-  it('沒有 M07 時 aura-mw 不生效（開局艦隊主力 OS8 按原 MW 計算，備戰區 OS10/OS12 不計分）', () => {
+  it('沒有 M07 時 aura-mw 不生效（開局艦隊 OS8/OS10/OS12 全艦隊按原 MW 計算）', () => {
     const s = createInitialState(createRng(1));
-    // 只有主力 OS8 計分：8×1.0×0.90=7.2 → 7
-    expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(7);
+    // OS8: 8×1.0×0.90=7.2；OS10: 10×1.0×0.88=8.8；OS12: 12×1.0×0.86=10.32 → round(26.32)=26
+    expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(26);
   });
 });
 
@@ -82,15 +81,16 @@ describe('S3.1 weather-immune：M07 對低風/颱風免疫', () => {
     expect(scoreRound(withWind(s, 0)).state.players[0].score).toBe(11);
   });
 
-  it('低風 coeff=0.4 → 主力 M01 仍受 0.4 影響（備戰區 M07 的 weather-immune 不會保護未計分的自己，只提供 aura）', () => {
+  it('低風 coeff=0.4 → M01 受影響、M07 因 weather-immune 不受影響（全艦隊都計分）', () => {
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[0].turbines = [
       { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }, // 主力，無 weather-immune
-      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 備戰區：weather-immune 對它自己已無意義（不計分），但仍提供 aura
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 備戰區，仍正常計分；weather-immune 保護它自己不受低風影響，同時提供 aura
     ];
     s.players[0].activeTurbineIdx = 0;
-    // M01（主力）:(2+1)×0.4×0.95 = 1.14 → 1
-    expect(scoreRound(withWind(s, 0.4)).state.players[0].score).toBe(1);
+    // M01:(2+1 aura)×0.4×0.95=1.14；M07（weather-immune → coeff 視為 1.0）:(12+1 aura)×1.0×0.88=11.44
+    // 合計 12.58 → round(12.58) = 13
+    expect(scoreRound(withWind(s, 0.4)).state.players[0].score).toBe(13);
   });
 
   it('額定 coeff=1.0 → max(1.0, 1.0)=1.0 不變', () => {
@@ -159,10 +159,10 @@ describe('S3.2 M03 lowwind-resist：低風 0.4 → 0.7（估計值）', () => {
     expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(4);
   });
 
-  it('開局艦隊無 lowwind-resist：主力 OS8 正常受 0.4 影響（備戰區 OS10/OS12 不計分）', () => {
-    // 只有主力 OS8 計分：8×0.4×0.90=2.88 → 3
+  it('開局艦隊無 lowwind-resist：全艦隊正常受 0.4 影響（OS8/OS10/OS12 皆計分）', () => {
+    // OS8: 8×0.4×0.90=2.88；OS10: 10×0.4×0.88=3.52；OS12: 12×0.4×0.86=4.128 → round(10.528)=11
     const s = createInitialState(createRng(1));
-    expect(scoreRound(withWind(s, 0.4)).state.players[0].score).toBe(3);
+    expect(scoreRound(withWind(s, 0.4)).state.players[0].score).toBe(11);
   });
 });
 
@@ -185,10 +185,11 @@ describe('S3.2 M05 offshore-delay：部署當回合不結算', () => {
     expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(5);
   });
 
-  it('開局艦隊（deployedRound=0）無 offshore-delay tag → 主力第 1 回合正常結算', () => {
-    // OS8 無 offshore-delay，deployedRound=0 不觸發延遲；只有主力 OS8 計分（備戰區 OS10/OS12 不計分）
+  it('開局艦隊（deployedRound=0）無 offshore-delay tag → 第 1 回合正常結算，全艦隊計分', () => {
+    // OS8 無 offshore-delay，deployedRound=0 不觸發延遲；全艦隊（OS8+OS10+OS12）計分
+    // OS8: 8×1.0×0.90=7.2；OS10: 10×1.0×0.88=8.8；OS12: 12×1.0×0.86=10.32 → round(26.32)=26
     const s = createInitialState(createRng(1));
-    expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(7);
+    expect(scoreRound(withWind(s, 1.0)).state.players[0].score).toBe(26);
   });
 });
 
@@ -275,19 +276,19 @@ describe('S3.3 M09 immune-hydraulic：免疫 F03 液壓漏油', () => {
 });
 
 describe('S3.3 M08 fragile：被攻擊時 drop ×1.5', () => {
-  it('F02 drop=10 → M08 受到 floor(10×1.5)=15', async () => {
+  it('F02 drop=6 → M08 受到 floor(6×1.5)=9', async () => {
     const { applyFault } = await import('../src/core/rules-engine');
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[1].turbines = [{ cardId: 'M08', avail: 85, mwBonus: 0, faults: [] }];
     const r = applyFault(s, 0, 'F02', fixedRng([]), 0);
-    expect(r.state.players[1].turbines[0].faults[0].drop).toBe(15);
+    expect(r.state.players[1].turbines[0].faults[0].drop).toBe(9);
   });
-  it('F02 對 M01（非 fragile）→ drop=10 不變', async () => {
+  it('F02 對 M01（非 fragile）→ drop=6 不變', async () => {
     const { applyFault } = await import('../src/core/rules-engine');
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[1].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }];
     const r = applyFault(s, 0, 'F02', fixedRng([]), 0);
-    expect(r.state.players[1].turbines[0].faults[0].drop).toBe(10);
+    expect(r.state.players[1].turbines[0].faults[0].drop).toBe(6);
   });
 });
 

@@ -9,20 +9,23 @@ function withWind(s: GameState, coeff: number): GameState {
 }
 
 describe('S2.1 結算公式（對齊 v3）', () => {
-  it('Route B 開局艦隊：主力 OS8 × 額定(×1.0) = round(7.2) = 7（寶可夢式規則：備戰區 OS10/OS12 不計分）', () => {
-    // 只有主力（開局艦隊第一台 OS8）計分：8×1.0×0.90=7.2 → 7
+  it('Route B 開局艦隊 × 額定(×1.0)：全艦隊計分（OS8+OS10+OS12），非只有主力', () => {
+    // 全艦隊都計分（見 rules-engine._scoreRound 說明：分數＝整個風場的營運產出）：
+    // OS8: 8×1.0×0.90=7.2；OS10: 10×1.0×0.88=8.8；OS12: 12×1.0×0.86=10.32
+    // 合計 26.32 → round(26.32) = 26
     const s = createInitialState(createRng(1));
     const r = scoreRound(withWind(s, 1.0));
-    expect(r.state.players[0].score).toBe(7);
-    expect(r.state.players[1].score).toBe(7);
+    expect(r.state.players[0].score).toBe(26);
+    expect(r.state.players[1].score).toBe(26);
   });
 
-  it('故障扣可用率會降低發電（主力機組）', () => {
+  it('故障扣可用率會降低發電（只影響受故障那台，其餘機組正常計分）', () => {
     const s2 = structuredClone(createInitialState(createRng(1)));
     // 對主力機組 turbines[0]（OS8, 8MW, avail=90）施加 drop=30 → effectiveAvail=60
-    // OS8: 8×1.0×0.60=4.8 → 5（備戰區 OS10/OS12 本來就不計分，不受影響）
+    // OS8: 8×1.0×0.60=4.8；OS10: 10×1.0×0.88=8.8；OS12: 12×1.0×0.86=10.32
+    // 合計 23.92 → round(23.92) = 24（備戰區 OS10/OS12 不受影響，仍正常計分）
     s2.players[0].turbines[0].faults.push({ cardId: 'F06', roundsLeft: 3, sev: 4, drop: 30 });
-    expect(scoreRound(withWind(s2, 1.0)).state.players[0].score).toBe(5);
+    expect(scoreRound(withWind(s2, 1.0)).state.players[0].score).toBe(24);
   });
 
   it('mwhBoost ×1.5（M07 12MW,88% + S3.1 aura-mw 自帶 +1）', () => {

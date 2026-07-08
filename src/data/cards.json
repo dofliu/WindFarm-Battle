@@ -538,7 +538,7 @@
       "faultCategory": "sensor",
       "stats": {
         "sev": 1,
-        "drop": 5,
+        "drop": 3,
         "rounds": 1
       },
       "counters": [
@@ -562,7 +562,7 @@
       "faultCategory": "mechanical",
       "stats": {
         "sev": 1,
-        "drop": 10,
+        "drop": 6,
         "rounds": 1
       },
       "counters": [
@@ -585,7 +585,7 @@
       "faultCategory": "hydraulic",
       "stats": {
         "sev": 2,
-        "drop": 10,
+        "drop": 6,
         "rounds": 2
       },
       "counters": [
@@ -610,7 +610,7 @@
       "faultCategory": "blade",
       "stats": {
         "sev": 3,
-        "drop": 20,
+        "drop": 12,
         "rounds": 2
       },
       "counters": [
@@ -638,7 +638,7 @@
       "faultCategory": "electrical",
       "stats": {
         "sev": 3,
-        "drop": 25,
+        "drop": 15,
         "rounds": 2
       },
       "counters": [
@@ -662,7 +662,7 @@
       "faultCategory": "mechanical",
       "stats": {
         "sev": 4,
-        "drop": 30,
+        "drop": 18,
         "rounds": 3
       },
       "counters": [
@@ -693,7 +693,7 @@
       "faultCategory": "mechanical",
       "stats": {
         "sev": 5,
-        "drop": 50,
+        "drop": 30,
         "rounds": 3
       },
       "counters": [
@@ -720,7 +720,7 @@
       "faultCategory": "blade",
       "stats": {
         "sev": 3,
-        "drop": 25,
+        "drop": 15,
         "rounds": 1
       },
       "counters": [
@@ -748,7 +748,7 @@
       "faultCategory": "sensor",
       "stats": {
         "sev": 3,
-        "drop": 20,
+        "drop": 12,
         "rounds": 2
       },
       "counters": [

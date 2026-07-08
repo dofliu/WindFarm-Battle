@@ -1,12 +1,13 @@
 // ============================================================
-// FarmPanel — 右側「風場狀態」資訊面板（寶可夢式主力/備戰區版面）。
-// 每位玩家一塊：標題(可用率/故障數/發電/累計) + 主力大格 + 備戰區 3 小格。
-// 主力/備戰格改用真正的視覺卡片（重用 <Card>，不再是純圖示+文字列），
-// 上面疊一層即時戰況數值（有效可用率 / 故障數 / 停機標籤）——這些是動態數值，
-// 不能只顯示靜態的手牌卡片，所以用 overlay 疊加而非直接改 Card 元件本身。
+// FarmPanel — 拆成兩塊：
+//   1. FarmStatsPanel：窄側欄，顯示身分/手牌牌庫/累計分數/可用率故障裝置量統計。
+//      我方放在我方戰鬥卡「左邊」、對方放在對方戰鬥卡「右邊」（寶可夢式版面，見 BattleScreen renderHalf）。
+//   2. TurbineStage：真正的戰場——主力（大）+ 備戰區 3 台（小），佔滿版面中央大塊空間，
+//      不再塞在窄側欄裡看不清楚。主力/備戰格重用 <Card>（手牌同一套視覺），疊上一層即時戰況
+//      overlay（有效可用率條 / 故障數 / 停機標籤）——這些是動態數值，不能只顯示靜態手牌卡片。
 // data-slot 一律採用「真實 turbines[] 陣列索引」（不是固定 0=主力/1-3=備戰的位置編號），
 // 因為 retreat 只 repoint activeTurbineIdx、不搬動陣列，主力的陣列索引撤退後可能改變。
-// 外層帶 data-zone（play-mine / play-opp）供 Hand 拖曳落點判定沿用。
+// data-zone（play-mine / play-opp）放在 TurbineStage 根節點供 Hand 拖曳落點判定沿用。
 // ============================================================
 import { CARDS } from '../../core/cards';
 import { cardName, t } from '../../i18n';
@@ -27,30 +28,21 @@ function availColor(v: number): string {
   return v > 70 ? '#3a8a5e' : v > 40 ? '#a87a2a' : '#a8453a';
 }
 
-interface Props {
+// ============================================================
+// FarmStatsPanel — 窄側欄（身分 + 累計分數 + 可用率/故障/裝置量）
+// ============================================================
+interface FarmStatsPanelProps {
   readonly side: 'me' | 'opp';
   readonly player: PlayerState;
   readonly score: number;
   /** 本回合發電預覽（通常只給玩家自己；只反映主力機組，與 _scoreRound 口徑一致） */
   readonly previewMwh?: number;
   readonly active?: boolean;
-  /** 某機組是否為目前可點的目標（故障目標 / 快修目標 / 資源目標）；索引為 turbines[] 真實陣列索引 */
-  readonly isSlotTargetable?: (slot: number) => boolean;
-  readonly onSlotClick?: (slot: number) => void;
-  /** 直向時佔滿寬度（否則固定 288） */
-  readonly fullWidth?: boolean;
-  /** 拖曳落點提示（整塊面板高亮） */
-  readonly dropActive?: boolean;
-  /** 寶可夢式撤退：點擊備戰區機組換上主力時呼叫（傳入該機組在 turbines[] 的真實索引） */
-  readonly onRetreatClick?: (benchIdx: number) => void;
-  /** 該備戰區機組目前是否可撤退換上（由 core canRetreat 查詢結果決定） */
-  readonly canRetreatSlot?: (benchIdx: number) => boolean;
+  /** 直向手機時縮小字級/間距 */
+  readonly compact?: boolean;
 }
 
-export function FarmPanel({
-  side, player, score, previewMwh, active, isSlotTargetable, onSlotClick, fullWidth, dropActive,
-  onRetreatClick, canRetreatSlot,
-}: Props) {
+export function FarmStatsPanel({ side, player, score, previewMwh, active, compact }: FarmStatsPanelProps) {
   const { theme, themeKey } = useTheme();
   useLocale();
   const isTide = themeKey === 'tideboard';
@@ -66,6 +58,115 @@ export function FarmPanel({
   const panelBg = isTide ? 'rgba(40,25,15,0.55)' : 'rgba(255,255,255,0.55)';
   const rowBg = isTide ? 'rgba(60,40,25,0.5)' : 'rgba(255,255,255,0.7)';
 
+  return (
+    <div
+      style={{
+        width: '100%',
+        flexShrink: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        padding: compact ? 8 : 10,
+        borderRadius: isTide ? 6 : 16,
+        background: panelBg,
+        border: `1px solid ${active ? theme.borderStrong : theme.border}`,
+        boxShadow: active ? '0 0 16px rgba(58,167,200,0.18)' : '0 2px 10px rgba(28,42,58,0.06)',
+        backdropFilter: 'blur(8px)',
+        transition: 'all 0.2s',
+      }}
+    >
+      {/* 標題列 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div
+          style={{
+            width: 26,
+            height: 26,
+            borderRadius: isTide ? 6 : 10,
+            background: side === 'me' ? (isTide ? '#6e4a18' : '#1c2a3a') : '#a85b4a',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <TurbineFloat size={16} stroke="#fff" />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: theme.textPrimary, fontFamily: theme.fontUI }}>
+            {side === 'me' ? t('farm.mine') : t('farm.opp')}
+          </div>
+          <div style={{ fontSize: 9, color: theme.textSecondary, fontFamily: theme.fontUI }}>
+            {t('farm.hand')} {player.hand.length} · {t('farm.deck')} {player.deck.length}
+          </div>
+        </div>
+      </div>
+
+      {/* 累計分數 */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+        <span style={{ fontSize: 20, fontWeight: 800, color: theme.textPrimary, fontVariantNumeric: 'tabular-nums' }}>{score}</span>
+        <span style={{ fontSize: 9, color: theme.textSecondary }}>MWh</span>
+        {previewMwh !== undefined && previewMwh > 0 && (
+          <span style={{ fontSize: 10, color: '#3a8a5e', fontWeight: 700, marginLeft: 'auto' }}>+{previewMwh}</span>
+        )}
+      </div>
+
+      {/* 統計三格：可用率 / 故障數 / 裝置量（涵蓋主力＋備戰區全艦隊概況） */}
+      <div style={{ display: 'flex', gap: 5 }}>
+        <Stat label={t('farm.availability')} value={`${avgAvail}%`} color={availColor(avgAvail)} theme={theme} bg={rowBg} />
+        <Stat label={t('farm.faults')} value={String(faultCount)} color={faultCount > 0 ? '#a8453a' : theme.textSecondary} theme={theme} bg={rowBg} />
+        <Stat label={t('farm.capacity')} value={`${totalMw}MW`} color={theme.textPrimary} theme={theme} bg={rowBg} />
+      </div>
+    </div>
+  );
+}
+
+function Stat({
+  label, value, color, theme, bg,
+}: {
+  readonly label: string; readonly value: string; readonly color: string;
+  readonly theme: ReturnType<typeof useTheme>['theme']; readonly bg: string;
+}) {
+  return (
+    <div style={{ flex: 1, padding: '3px 2px', borderRadius: 8, background: bg, textAlign: 'center', minWidth: 0 }}>
+      <div style={{ fontSize: 7, color: theme.textSecondary, letterSpacing: '0.04em', fontFamily: theme.fontUI }}>{label}</div>
+      <div style={{ fontSize: 12, fontWeight: 800, color, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+    </div>
+  );
+}
+
+// ============================================================
+// TurbineStage — 戰場中央大區塊：主力（大）+ 備戰區（小 ×3）
+// ============================================================
+interface TurbineStageProps {
+  readonly side: 'me' | 'opp';
+  readonly player: PlayerState;
+  /** 某機組是否為目前可點的目標（故障目標 / 快修目標 / 資源目標）；索引為 turbines[] 真實陣列索引 */
+  readonly isSlotTargetable?: (slot: number) => boolean;
+  readonly onSlotClick?: (slot: number) => void;
+  /** 寶可夢式撤退：點擊備戰區機組換上主力時呼叫（傳入該機組在 turbines[] 的真實索引） */
+  readonly onRetreatClick?: (benchIdx: number) => void;
+  /** 該備戰區機組目前是否可撤退換上（由 core canRetreat 查詢結果決定） */
+  readonly canRetreatSlot?: (benchIdx: number) => boolean;
+  /** 拖曳落點提示（整個戰場高亮） */
+  readonly dropActive?: boolean;
+  /**
+   * true＝主力貼齊右緣（給對手半場用：我方風場資訊在對手戰鬥卡右邊，
+   * 所以對手的主力要排在戰場區塊最靠近右側欄的那一端）。
+   */
+  readonly reverseOrder?: boolean;
+  readonly activeSize?: number;
+  readonly benchSize?: number;
+}
+
+export function TurbineStage({
+  side, player, isSlotTargetable, onSlotClick, onRetreatClick, canRetreatSlot, dropActive,
+  reverseOrder, activeSize = 150, benchSize = 92,
+}: TurbineStageProps) {
+  const { theme, themeKey } = useTheme();
+  useLocale();
+  const isTide = themeKey === 'tideboard';
+
+  const turbines = player.turbines;
   const activeIdx = player.activeTurbineIdx;
   const activeTurbine = activeIdx !== null ? turbines[activeIdx] : undefined;
   // 備戰區＝所有非主力索引（含理論上超額的 no-slot 疊加機組，一併顯示，不硬性裁切）
@@ -76,113 +177,69 @@ export function FarmPanel({
     <div
       data-zone={side === 'me' ? 'play-mine' : 'play-opp'}
       style={{
-        width: fullWidth ? '100%' : 288,
-        flexShrink: 0,
+        flex: 1,
+        minWidth: 0,
         minHeight: 0,
         display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
-        padding: 10,
+        flexWrap: 'wrap',
+        flexDirection: reverseOrder ? 'row-reverse' : 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 18,
+        padding: '10px 14px',
         borderRadius: isTide ? 6 : 16,
-        background: dropActive ? 'rgba(217,108,90,0.1)' : panelBg,
-        border: `${dropActive ? 2 : 1}px solid ${dropActive ? 'rgba(217,108,90,0.55)' : active ? theme.borderStrong : theme.border}`,
-        boxShadow: active ? '0 0 16px rgba(58,167,200,0.18)' : '0 2px 10px rgba(28,42,58,0.06)',
-        backdropFilter: 'blur(8px)',
+        background: dropActive ? 'rgba(217,108,90,0.1)' : 'transparent',
+        border: `2px dashed ${dropActive ? 'rgba(217,108,90,0.55)' : 'transparent'}`,
         transition: 'all 0.2s',
       }}
     >
-      {/* 標題列 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: isTide ? 6 : 10,
-            background: side === 'me' ? (isTide ? '#6e4a18' : '#1c2a3a') : '#a85b4a',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <TurbineFloat size={20} stroke="#fff" />
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: theme.textPrimary, fontFamily: theme.fontUI }}>
-            {side === 'me' ? t('farm.mine') : t('farm.opp')}
-          </div>
-          <div style={{ fontSize: 10, color: theme.textSecondary, fontFamily: theme.fontUI }}>
-            {t('farm.hand')} {player.hand.length} · {t('farm.deck')} {player.deck.length}
-          </div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, justifyContent: 'flex-end' }}>
-            <span style={{ fontSize: 20, fontWeight: 800, color: theme.textPrimary, fontVariantNumeric: 'tabular-nums' }}>{score}</span>
-            <span style={{ fontSize: 9, color: theme.textSecondary }}>MWh</span>
-          </div>
-          {previewMwh !== undefined && previewMwh > 0 && (
-            <div style={{ fontSize: 10, color: '#3a8a5e', fontWeight: 700 }}>+{previewMwh}</div>
-          )}
+      {/* 主力（大格） */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <SectionLabel text={t('farm.active')} theme={theme} />
+        <div data-slot={activeIdx ?? undefined}>
+          <BattleTurbineCard
+            turbine={activeTurbine}
+            size={activeSize}
+            emptyText={t('farm.emptyActive')}
+            targetable={!!isSlotTargetable && activeIdx !== null && isSlotTargetable(activeIdx)}
+            onClick={
+              activeIdx !== null && isSlotTargetable?.(activeIdx) && onSlotClick
+                ? () => onSlotClick(activeIdx)
+                : undefined
+            }
+          />
         </div>
       </div>
 
-      {/* 統計三格：可用率 / 故障數 / 出力（涵蓋主力＋備戰區全艦隊概況） */}
-      <div style={{ display: 'flex', gap: 6 }}>
-        <Stat label={t('farm.availability')} value={`${avgAvail}%`} color={availColor(avgAvail)} theme={theme} bg={rowBg} />
-        <Stat label={t('farm.faults')} value={String(faultCount)} color={faultCount > 0 ? '#a8453a' : theme.textSecondary} theme={theme} bg={rowBg} />
-        <Stat label={t('farm.capacity')} value={`${totalMw}MW`} color={theme.textPrimary} theme={theme} bg={rowBg} />
-      </div>
-
-      {/* 主力 + 備戰區：面板高度不足時內部捲動，避免裁切 */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0, overflowY: 'auto' }}>
-        {/* 主力（大格） */}
-        <div>
-          <SectionLabel text={t('farm.active')} theme={theme} />
-          <div data-slot={activeIdx ?? undefined}>
-            <BattleTurbineCard
-              turbine={activeTurbine}
-              size={104}
-              emptyText={t('farm.emptyActive')}
-              targetable={!!isSlotTargetable && activeIdx !== null && isSlotTargetable(activeIdx)}
-              onClick={
-                activeIdx !== null && isSlotTargetable?.(activeIdx) && onSlotClick
-                  ? () => onSlotClick(activeIdx)
-                  : undefined
-              }
-            />
-          </div>
-        </div>
-
-        {/* 備戰區（小格 × 最多 3；no-slot 疊加卡超額時一併顯示） */}
-        <div>
-          <SectionLabel text={t('farm.bench')} theme={theme} />
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {Array.from({ length: benchDisplayCount }, (_, j) => {
-              const slot = benchIndices[j];
-              const tu = slot !== undefined ? turbines[slot] : undefined;
-              const targetable = slot !== undefined && !!isSlotTargetable && isSlotTargetable(slot);
-              const retreatable = slot !== undefined && !!canRetreatSlot && canRetreatSlot(slot);
-              const onClick = slot === undefined
-                ? undefined
-                : targetable && onSlotClick
-                  ? () => onSlotClick(slot)
-                  : retreatable && onRetreatClick
-                    ? () => onRetreatClick(slot)
-                    : undefined;
-              return (
-                <div key={slot ?? `bench-empty-${j}`} data-slot={slot ?? undefined} style={{ flex: '1 1 0', minWidth: 64 }}>
-                  <BattleTurbineCard
-                    turbine={tu}
-                    size={64}
-                    emptyText={t('farm.emptySlot')}
-                    targetable={targetable}
-                    retreatable={retreatable}
-                    onClick={onClick}
-                  />
-                </div>
-              );
-            })}
-          </div>
+      {/* 備戰區（小格 × 最多 3；no-slot 疊加卡超額時一併顯示） */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <SectionLabel text={t('farm.bench')} theme={theme} />
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+          {Array.from({ length: benchDisplayCount }, (_, j) => {
+            const slot = benchIndices[j];
+            const tu = slot !== undefined ? turbines[slot] : undefined;
+            const targetable = slot !== undefined && !!isSlotTargetable && isSlotTargetable(slot);
+            const retreatable = slot !== undefined && !!canRetreatSlot && canRetreatSlot(slot);
+            const onClick = slot === undefined
+              ? undefined
+              : targetable && onSlotClick
+                ? () => onSlotClick(slot)
+                : retreatable && onRetreatClick
+                  ? () => onRetreatClick(slot)
+                  : undefined;
+            return (
+              <div key={slot ?? `bench-empty-${j}`} data-slot={slot ?? undefined} style={{ width: benchSize }}>
+                <BattleTurbineCard
+                  turbine={tu}
+                  size={benchSize}
+                  emptyText={t('farm.emptySlot')}
+                  targetable={targetable}
+                  retreatable={retreatable}
+                  onClick={onClick}
+                />
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -198,25 +255,10 @@ function SectionLabel({ text, theme }: { readonly text: string; readonly theme: 
         letterSpacing: '0.14em',
         textTransform: 'uppercase',
         color: theme.textSecondary,
-        marginBottom: 4,
         fontFamily: theme.fontUI,
       }}
     >
       {text}
-    </div>
-  );
-}
-
-function Stat({
-  label, value, color, theme, bg,
-}: {
-  readonly label: string; readonly value: string; readonly color: string;
-  readonly theme: ReturnType<typeof useTheme>['theme']; readonly bg: string;
-}) {
-  return (
-    <div style={{ flex: 1, padding: '3px 3px', borderRadius: 8, background: bg, textAlign: 'center' }}>
-      <div style={{ fontSize: 8, color: theme.textSecondary, letterSpacing: '0.06em', fontFamily: theme.fontUI }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: 800, color, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
     </div>
   );
 }

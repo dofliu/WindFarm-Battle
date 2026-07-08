@@ -54,13 +54,12 @@ export const AI_AVG_WIND_COEFF = 0.65;
 /** v3 doAITurn：若選到的最佳動作 score < RESERVE_THRESHOLD → 保留行動，跳過剩餘出牌。 */
 export const RESERVE_THRESHOLD = -10;
 /**
- * 寶可夢式主力/備戰區規則（設計決定）：部署到備戰區的機組不會立即計分（只有主力計分），
- * 要等之後 retreat 換上場才生效，因此部署評分要打折反映「日後才可能兌現」的不確定性。
- * 折價係數為估計值，非對齊任何 v3 基準；如平衡性模擬顯示 AI 過度囤積備戰區可再調整。
+ * 撤退門檻（設計決定）：主力有效可用率低於此值時，AI 傾向撤退換血。
+ * 計分口徑修正後（見 rules-engine._scoreRound 說明：全艦隊計分，主力只是「暴露在故障
+ * 攻擊範圍內」的那一台），撤退的價值變成純防禦——把已經傷得重的機組換下火線，讓它
+ * 不再被繼續疊加故障，同時技師修復仍可對其施術；不再是「維持誰在計分」的問題。
  */
-export const BENCH_RESERVE_DISCOUNT = 0.4;
-/** 撤退門檻（設計決定）：主力有效可用率低於此值時，AI 傾向撤退換血；與其他門檻常數同風格命名。 */
-export const RETREAT_AVAIL_THRESHOLD = 30;
+export const RETREAT_AVAIL_THRESHOLD = 55;
 
 function turbineMW(t: DeployedTurbine): number {
   return (CARDS[t.cardId].stats?.mw ?? 0) + t.mwBonus;
@@ -114,8 +113,11 @@ export function evaluateTurbinePlay(
     // 純增加 1 MW 的價值（不替換），邊際係數仍適用
     score *= Math.pow(0.75, me.turbines.length);
   } else if (me.activeTurbineIdx === null) {
-    // 尚無主力：這張立即成為主力、全額計分，維持 expectedMWh 原值，不用比較「最弱」
+    // 尚無主力：這張立即成為主力（其實部署到哪一格都全額計分——見 rules-engine._scoreRound
+    // 說明；主力/備戰的差別只在「誰暴露在故障攻擊範圍內」），維持 expectedMWh 原值
   } else {
+    // 主力+備戰區共上限 4 台（1 主力＋3 備戰）；滿了才需要比較「值不值得替換最弱備戰」。
+    // 計分口徑修正後全艦隊都計分，這裡不再套用備戰折價。
     const benchFull = me.turbines.reduce(
       (n, t, i) => (i !== me.activeTurbineIdx && !hasNoSlot(t.cardId) ? n + 1 : n),
       0,
@@ -124,20 +126,18 @@ export function evaluateTurbinePlay(
       const weakest = findWeakestTurbine(me);
       const weakestMW = weakest ? turbineMW(weakest) : 0;
       if (mw <= weakestMW) return -50; // 不值得替換
-      // 換上的機組仍是備戰身分（新規則下只有主力計分），套用備戰折價
       const upgrade = (mw - weakestMW) * windCoeff * strategy.roundsLeft;
-      score = upgrade * 1.5 * BENCH_RESERVE_DISCOUNT - card.cost * 4;
+      score = upgrade * 1.5 - card.cost * 4;
     } else {
-      // 有主力、備戰區未滿：新機組進備戰區，暫不計分，套用備戰折價（見 BENCH_RESERVE_DISCOUNT 說明）
-      score *= Math.pow(0.75, me.turbines.length) * BENCH_RESERVE_DISCOUNT;
+      score *= Math.pow(0.75, me.turbines.length); // 邊際遞減（多一台機組的邊際價值遞減，非備戰折價）
     }
   }
 
-  // M07 aura-mw：場上任一機組即可提供全隊 +1 MW 光環；
-  // 但寶可夢式規則下只有主力機組會結算計分，光環價值只會反映在主力那一次結算裡（不隨機組數疊加）。
+  // M07 aura-mw：場上每台機組都 +auraMw MW（player-level 光環，見 rules-engine.getAuraMwBonus）
+  // ——全艦隊計分下，光環價值會隨在場機組數量疊加。
   if (card.abilities.some((a) => a.tag === 'aura-mw' && a.value !== undefined)) {
     const auraMw = card.abilities.find((a) => a.tag === 'aura-mw')!.value ?? 1;
-    const auraBonus = auraMw * AI_AVG_WIND_COEFF * strategy.roundsLeft * 1.5;
+    const auraBonus = me.turbines.length * auraMw * AI_AVG_WIND_COEFF * strategy.roundsLeft * 1.5;
     score += auraBonus;
   }
   // M07 card-draw-trigger：打出時抽一張牌，估算為 ~8 分
@@ -482,8 +482,11 @@ export function evaluateFuncPlay(card: Card, state: GameState, player: 0 | 1, st
 // ---------------- evaluateRetreatPlay（寶可夢式撤退）----------------
 /**
  * 評估「把主力換成 benchIdx 指定備戰區機組」的價值。
- * 核心邏輯：主力越不健康（有效可用率低、甚至停機）、備戰候選越健康，換血分數越高；
- * 換血本身花 1 動作（與其他動作一致，扣 cost×4＝4 分），終局（roundsLeft≤1）換血意義不大要打折。
+ * 計分口徑修正後（見 rules-engine._scoreRound）：全艦隊都計分，主力/備戰的差別只在
+ * 「誰暴露在故障卡攻擊範圍內」——retreat 不再是「維持誰在計分」，是純防禦：
+ * 主力越不健康（有效可用率低、甚至停機），越該把它換下火線，避免對手繼續疊加故障；
+ * 換上健康的候選能立刻降低下一波攻擊的風險。換血本身花 1 動作（與其他動作一致，
+ * 扣 cost×4＝4 分），終局（roundsLeft≤1）換血意義不大要打折。
  */
 export function evaluateRetreatPlay(
   state: GameState,
@@ -502,9 +505,9 @@ export function evaluateRetreatPlay(
   const benchEff = effectiveAvailPct(bench);
 
   let score = 0;
-  if (active.shutdown) score += 20; // 主力停機 → 強烈建議換血
-  if (activeEff < RETREAT_AVAIL_THRESHOLD) score += (RETREAT_AVAIL_THRESHOLD - activeEff) * 0.5;
-  score += (benchEff - activeEff) * 0.2; // 換上更健康的機組加分；換更差的會倒扣
+  if (active.shutdown) score += 20; // 主力停機 → 強烈建議換下火線，避免繼續被疊加故障
+  if (activeEff < RETREAT_AVAIL_THRESHOLD) score += (RETREAT_AVAIL_THRESHOLD - activeEff) * 0.8;
+  score += (benchEff - activeEff) * 0.35; // 換上更健康的機組加分；換更差的會倒扣
   score -= 4; // 1 動作成本，與其他動作估值一致（cost×4）
   if (strategy.roundsLeft <= 1) score *= 0.3; // 終局換血來不及回本
 

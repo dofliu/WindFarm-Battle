@@ -645,17 +645,17 @@ export function uiEffectiveCost(state: GameState, player: 0 | 1, cardId: string)
  */
 export function uiPreviewMwh(state: GameState, player: 0 | 1): number {
   const p = state.players[player];
-  // 寶可夢式主力/備戰區規則：只有主力機組計分，預覽值需與 _scoreRound 的口徑一致，
-  // 否則玩家會看到「預覽 3 台加總」但結算只拿到「1 台」的錯覺落差。
-  if (p.activeTurbineIdx === null) return 0;
-  const t = p.turbines[p.activeTurbineIdx];
-  if (!t) return 0;
+  // 計分＝整個風場（所有已部署機組）的營運產出，不是只有主力——
+  // 主力/備戰區的意義是「誰暴露在故障卡攻擊範圍內」，不是計分開關（見 _scoreRound 說明）。
   const coeff = state.wind.coeff;
-  const card = CARDS[t.cardId];
-  const mw = (card.stats?.mw ?? 0) + t.mwBonus;
-  const drop = t.faults.reduce((s, f) => s + f.drop, 0);
-  const avail = Math.max(0, t.avail - drop);
-  const mwh = mw * coeff * (avail / 100);
+  let mwh = 0;
+  for (const t of p.turbines) {
+    const card = CARDS[t.cardId];
+    const mw = (card.stats?.mw ?? 0) + t.mwBonus;
+    const drop = t.faults.reduce((s, f) => s + f.drop, 0);
+    const avail = Math.max(0, t.avail - drop);
+    mwh += mw * coeff * (avail / 100);
+  }
   const boost = p.mwhBoostActive ? 1.5 : 1.0;
   return Math.round(mwh * boost);
 }
