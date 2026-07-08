@@ -275,19 +275,19 @@ describe('S3.3 M09 immune-hydraulic：免疫 F03 液壓漏油', () => {
 });
 
 describe('S3.3 M08 fragile：被攻擊時 drop ×1.5', () => {
-  it('F02 drop=10 → M08 受到 floor(10×1.5)=15', async () => {
+  it('F02 drop=6 → M08 受到 floor(6×1.5)=9', async () => {
     const { applyFault } = await import('../src/core/rules-engine');
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[1].turbines = [{ cardId: 'M08', avail: 85, mwBonus: 0, faults: [] }];
     const r = applyFault(s, 0, 'F02', fixedRng([]), 0);
-    expect(r.state.players[1].turbines[0].faults[0].drop).toBe(15);
+    expect(r.state.players[1].turbines[0].faults[0].drop).toBe(9);
   });
-  it('F02 對 M01（非 fragile）→ drop=10 不變', async () => {
+  it('F02 對 M01（非 fragile）→ drop=6 不變', async () => {
     const { applyFault } = await import('../src/core/rules-engine');
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[1].turbines = [{ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }];
     const r = applyFault(s, 0, 'F02', fixedRng([]), 0);
-    expect(r.state.players[1].turbines[0].faults[0].drop).toBe(10);
+    expect(r.state.players[1].turbines[0].faults[0].drop).toBe(6);
   });
 });
 

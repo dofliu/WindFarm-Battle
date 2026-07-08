@@ -56,11 +56,18 @@ export const RESERVE_THRESHOLD = -10;
 /**
  * 寶可夢式主力/備戰區規則（設計決定）：部署到備戰區的機組不會立即計分（只有主力計分），
  * 要等之後 retreat 換上場才生效，因此部署評分要打折反映「日後才可能兌現」的不確定性。
- * 折價係數為估計值，非對齊任何 v3 基準；如平衡性模擬顯示 AI 過度囤積備戰區可再調整。
+ * 折價係數為估計值，非對齊任何 v3 基準。
+ * 平衡調整（見 1000 場模擬 PR #7 附註）：0.4 → 0.55——太低會讓 AI 忽略備戰區，
+ * 需要換血時手上沒有健康機組可換，加劇單一主力被打到停機後長期掛零分的一面倒局面。
  */
-export const BENCH_RESERVE_DISCOUNT = 0.4;
-/** 撤退門檻（設計決定）：主力有效可用率低於此值時，AI 傾向撤退換血；與其他門檻常數同風格命名。 */
-export const RETREAT_AVAIL_THRESHOLD = 30;
+export const BENCH_RESERVE_DISCOUNT = 0.55;
+/**
+ * 撤退門檻（設計決定）：主力有效可用率低於此值時，AI 傾向撤退換血。
+ * 平衡調整：30 → 55——寶可夢式規則下故障火力全部集中在單一主力（不像舊版分攤在 3 台），
+ * 30 太低等於「打到快停機才換」，故障疊加期間持續掛零分是模擬中一面倒率過高的主因；
+ * 提高門檻讓 AI 在主力還沒被打殘前就先換血止損。
+ */
+export const RETREAT_AVAIL_THRESHOLD = 55;
 
 function turbineMW(t: DeployedTurbine): number {
   return (CARDS[t.cardId].stats?.mw ?? 0) + t.mwBonus;
@@ -503,8 +510,15 @@ export function evaluateRetreatPlay(
 
   let score = 0;
   if (active.shutdown) score += 20; // 主力停機 → 強烈建議換血
-  if (activeEff < RETREAT_AVAIL_THRESHOLD) score += (RETREAT_AVAIL_THRESHOLD - activeEff) * 0.5;
-  score += (benchEff - activeEff) * 0.2; // 換上更健康的機組加分；換更差的會倒扣
+  // 平衡調整：0.5 → 0.8——拉高權重讓「主力還沒停機、但已經傷得不輕」時撤退分數
+  // 也能贏過其他出牌選項，不要拖到接近停機才反應（見 RETREAT_AVAIL_THRESHOLD 說明）。
+  if (activeEff < RETREAT_AVAIL_THRESHOLD) score += (RETREAT_AVAIL_THRESHOLD - activeEff) * 0.8;
+  score += (benchEff - activeEff) * 0.35; // 換上更健康的機組加分；換更差的會倒扣（0.2 → 0.35 同步強化）
+  // 平衡調整（1000 場模擬發現）：光調健康權重對緊湊度幾乎沒影響——真正主因是「只有主力計分」
+  // 放大了「誰恰好抽到/派到大 MW 機組當主力」的運氣落差（舊版 3 台加總會把這差距稀釋掉 2/3）。
+  // 原本的評分完全沒比較 MW，健康的備戰區大機組會被晾著不用。這裡補上：備戰區機組 MW 明顯
+  // 更高時，就算主力健康也值得換上，讓 AI 穩定跑「手上最強的那台」，減少純粹運氣造成的分數落差。
+  score += (turbineMW(bench) - turbineMW(active)) * AI_AVG_WIND_COEFF * strategy.roundsLeft * 0.7;
   score -= 4; // 1 動作成本，與其他動作估值一致（cost×4）
   if (strategy.roundsLeft <= 1) score *= 0.3; // 終局換血來不及回本
 
