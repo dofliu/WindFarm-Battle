@@ -79,15 +79,17 @@ describe('S2.4 evaluateBoard：使用 AI_AVG_WIND_COEFF=0.65', () => {
 });
 
 describe('S2.4 evaluateTurbinePlay：替換規則', () => {
-  it('滿 3 台 + 新卡 MW ≤ 最弱 → -50', () => {
+  it('主力 + 備戰區滿 3 台 + 新卡 MW ≤ 最弱 → -50', () => {
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[0].turbines = [
-      { cardId: 'M03', avail: 92, mwBonus: 0, faults: [] }, // 4MW
-      { cardId: 'M03', avail: 92, mwBonus: 0, faults: [] },
-      { cardId: 'M03', avail: 92, mwBonus: 0, faults: [] },
+      { cardId: 'M03', avail: 92, mwBonus: 0, faults: [] }, // 主力：4MW
+      { cardId: 'M03', avail: 92, mwBonus: 0, faults: [] }, // 備戰
+      { cardId: 'M03', avail: 92, mwBonus: 0, faults: [] }, // 備戰
+      { cardId: 'M03', avail: 92, mwBonus: 0, faults: [] }, // 備戰（湊滿 3 台備戰區）
     ];
+    s.players[0].activeTurbineIdx = 0;
     const strategy = getStrategy(s, 0);
-    expect(evaluateTurbinePlay(CARDS['M01'], s, 0, strategy)).toBe(-50); // 2MW ≤ 4MW
+    expect(evaluateTurbinePlay(CARDS['M01'], s, 0, strategy)).toBe(-50); // 2MW ≤ 4MW（備戰區最弱）
   });
 });
 
@@ -111,16 +113,19 @@ describe('S2.4 evaluateTurbinePlay：M07/M10/M12 特殊能力修正', () => {
     expect(score).toBeGreaterThan(0);
   });
 
-  it('M12（no-wind-power）2 台時使用 coeff=1.0 而非 0.65（分數 > 50）', () => {
-    // 若誤用 AI_AVG_WIND_COEFF=0.65，得分約 43；使用 NO_WIND_POWER_COEFF=1.0 則約 71
+  it('M12（no-wind-power）2 台時使用 coeff=1.0 而非 0.65（分數 > 20）', () => {
+    // 備戰區未滿（只有 1 台備戰）時會套用 BENCH_RESERVE_DISCOUNT 折價，絕對值比舊版低很多；
+    // 若誤用 AI_AVG_WIND_COEFF=0.65，得分約 14.5；使用 NO_WIND_POWER_COEFF=1.0 則約 24.5，
+    // 兩者相對差異仍成立，門檻改用兩者之間的值來驗證方向正確。
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[0].turbines = [
       { cardId: 'OS8', avail: 95, mwBonus: 0, faults: [] },
       { cardId: 'OS10', avail: 95, mwBonus: 0, faults: [] },
     ];
+    s.players[0].activeTurbineIdx = 0;
     const strategy = getStrategy(s, 0);
     const score = evaluateTurbinePlay(CARDS['M12'], s, 0, strategy);
-    expect(score).toBeGreaterThan(50); // coeff=0.65 時約 43，coeff=1.0 時約 71
+    expect(score).toBeGreaterThan(20); // coeff=0.65 時約 14.5，coeff=1.0 時約 24.5
   });
 });
 
@@ -213,19 +218,21 @@ describe('S2.4 pickByDifficulty（RNG 順序固定）', () => {
 });
 
 describe('S2.4 generateActions / aiChoose', () => {
-  it('canPlay 過濾後產生候選；fault 對每個對手機組產生一個', () => {
+  it('canPlay 過濾後產生候選；fault 只對對手主力產生一個候選（寶可夢式規則）', () => {
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[0].hand = ['F02']; // F02 cost 1
     s.actionsLeft = 2;
     s.currentPlayer = 0;
     s.players[1].turbines = [
-      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] },
-      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] },
+      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }, // 主力
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 備戰區，免疫，不產生候選
     ];
+    s.players[1].activeTurbineIdx = 0;
     const { actions } = generateActions(s, 0);
-    // F02 對兩台機組各產一個候選
     const faultCandidates = actions.filter((a) => a.action.kind === 'play-card');
-    expect(faultCandidates).toHaveLength(2);
+    expect(faultCandidates).toHaveLength(1);
+    const only = faultCandidates[0];
+    expect(only.action.kind === 'play-card' && only.action.target).toBe(0);
   });
 
   it('aiChoose hard 對 M07 vs M09 兩張手牌 → 偏好 M07（MW 較大，是有效升級）', () => {

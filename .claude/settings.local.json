@@ -10,7 +10,8 @@
       "Bash(npx vitest *)",
       "Bash(npx tsc *)",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(f['testFilePath'].split\\('tests\\\\\\\\\\\\\\\\'\\)[-1], len\\([t for t in f['assertionResults'] if t['status']=='passed']\\)\\) for f in d['testResults']]\")",
-      "Bash(powershell -Command \"\\(Get-Content STATUS.yaml\\) -replace '206 tests passing', '209 tests passing' | Set-Content STATUS.yaml -Encoding utf8\")"
+      "Bash(powershell -Command \"\\(Get-Content STATUS.yaml\\) -replace '206 tests passing', '209 tests passing' | Set-Content STATUS.yaml -Encoding utf8\")",
+      "mcp__Claude_Code_Remote__send_later"
     ]
   }
 }

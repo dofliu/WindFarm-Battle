@@ -21,6 +21,7 @@ import { LibraryModal } from '../components/LibraryModal';
 import { ThemeSwitcher } from '../components/ThemeSwitcher';
 import { Hourglass, Crosshair } from '../icons';
 import { uiPreviewMwh } from '../../store/game-store';
+import { canRetreat } from '../../core/actions';
 import { comboTier, MAX_TECHS, techSkills, techSkillDef, techAbilityTag } from '../../core/rules-engine';
 import { t, cardName, abilityName } from '../../i18n';
 import { useLocale } from '../locale/LocaleContext';
@@ -52,6 +53,7 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
   const pendingSkillTag = useGameStore((s) => s.pendingSkillTag);
   const selectSkillTarget = useGameStore((s) => s.selectSkillTarget);
   const grabResource = useGameStore((s) => s.grabResource);
+  const retreat = useGameStore((s) => s.retreat);
   const pendingResourceId = useGameStore((s) => s.pendingResourceId);
   const selectResourceTarget = useGameStore((s) => s.selectResourceTarget);
   const cancelPending = useGameStore((s) => s.cancelPending);
@@ -118,11 +120,18 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
       if (!card) return;
       if (!isMyTurn) return;
       if (card.type === 'fault') {
-        // 拖到對手機組格 → 直接出牌
-        if (drop.zone === 'opp' && drop.slot != null && opp.turbines[drop.slot] && !opp.turbines[drop.slot].shutdown) {
+        // 寶可夢式規則：唯一合法目標＝對手主力機組。拖到對手主力格才帶明確 target；
+        // 拖到對手場地其他位置（含備戰區）一律落回自動解析（playCard 會鎖定對手主力，
+        // 備戰區免疫故障目標，不可把 target 設成備戰區索引，否則會白白浪費手牌與動作）。
+        if (
+          drop.zone === 'opp' &&
+          drop.slot != null &&
+          drop.slot === opp.activeTurbineIdx &&
+          opp.turbines[drop.slot] &&
+          !opp.turbines[drop.slot].shutdown
+        ) {
           playCard(info.handIdx, { target: drop.slot });
-        } else {
-          // 否則進入點擊式選擇模式（playCard 內部會處理 pendingFaultHandIdx）
+        } else if (drop.zone === 'opp') {
           playCard(info.handIdx);
         }
         return;
@@ -133,7 +142,7 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
       }
       // 落點不對 → 不做事，等同回原位
     },
-    [isMyTurn, playCard, opp.turbines],
+    [isMyTurn, playCard, opp.turbines, opp.activeTurbineIdx],
   );
 
   // 玩家點擊（不拖曳）— 點手牌時也試出
@@ -274,9 +283,11 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
         isSlotTargetable={(slot) => {
           const tu = p.turbines[slot];
           if (!tu) return false;
-          if (faultTargeting) return !tu.shutdown;
+          // 寶可夢式規則：故障卡唯一合法目標＝主力機組，備戰區免疫（即使 pending 模式理論上不會
+          // 再被觸發——playCard 已自動解析目標——這裡仍保留正確判斷以防禦性程式碼一致）。
+          if (faultTargeting) return slot === p.activeTurbineIdx && !tu.shutdown;
           if (skillTargeting) {
-            // 依 pending 招式的目標種類：ownFault 需故障；ownTurbine 任一機組
+            // 依 pending 招式的目標種類：ownFault 需故障；ownTurbine 任一機組（含備戰區，修復不受限）
             const def = pendingSkillTag ? techSkillDef(pendingSkillTechId as string, pendingSkillTag) : undefined;
             return def?.targetKind === 'ownFault' ? tu.faults.length > 0 : true;
           }
@@ -288,6 +299,16 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
           else if (skillTargeting) selectSkillTarget(slot);
           else if (resourceTargeting) selectResourceTarget(slot);
         }}
+        onRetreatClick={
+          sideKey === 'me' && isMyTurn && !faultTargeting && !skillTargeting && !resourceTargeting
+            ? (benchIdx) => retreat(benchIdx)
+            : undefined
+        }
+        canRetreatSlot={
+          sideKey === 'me' && isMyTurn && !faultTargeting && !skillTargeting && !resourceTargeting
+            ? (benchIdx) => canRetreat(state, 0, benchIdx)
+            : undefined
+        }
       />
     );
 

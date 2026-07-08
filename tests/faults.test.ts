@@ -27,40 +27,42 @@ function withTwoTurbines(s: GameState, player: 0 | 1, ids: [string, string]): Ga
   return next;
 }
 
-describe('S2.2 施加故障 / 預設目標 / big-fail / cascade', () => {
-  it('預設目標＝對手最高 MW 機組', () => {
-    // P1 場上 M01(2MW) 與 M07(12MW)；攻擊方為 P0，使用 F02（無 cascade）
+describe('S2.2 施加故障 / 預設目標 / big-fail / cascade（寶可夢式主力/備戰區規則）', () => {
+  it('預設目標＝對手主力機組（不再是「最高 MW」——備戰區免疫故障目標）', () => {
+    // P1 主力 M01(2MW,idx0) 與備戰區 M07(12MW,idx1)；攻擊方為 P0，使用 F02（無 cascade）。
+    // 即使 M07 MW 較高，備戰區免疫，唯一合法目標＝主力 M01。
     const base = withTwoTurbines(createInitialState(createRng(1)), 1, ['M01', 'M07']);
     const r = applyFault(base, 0, 'F02', fixedRng([]));
-    expect(r.state.players[1].turbines[0].faults).toHaveLength(0); // M01 未中
-    expect(r.state.players[1].turbines[1].faults).toHaveLength(1); // M07 中招
+    expect(r.state.players[1].turbines[0].faults).toHaveLength(1); // M01（主力）中招
+    expect(r.state.players[1].turbines[1].faults).toHaveLength(0); // M07（備戰區）免疫
     expect(r.events).toContainEqual({
-      kind: 'fault-applied', player: 1, targetIdx: 1, cardId: 'F02', drop: 10,
+      kind: 'fault-applied', player: 1, targetIdx: 0, cardId: 'F02', drop: 10,
     });
   });
 
-  it('指定 targetIdx 可覆寫預設目標', () => {
+  it('指定 targetIdx＝備戰區索引 → 視為非法目標，故障不生效（備戰區免疫）', () => {
     const base = withTwoTurbines(createInitialState(createRng(1)), 1, ['M01', 'M07']);
-    const r = applyFault(base, 0, 'F02', fixedRng([]), 0);
-    expect(r.state.players[1].turbines[0].faults).toHaveLength(1);
+    const r = applyFault(base, 0, 'F02', fixedRng([]), 1); // 1 = M07，備戰區
+    expect(r.state.players[1].turbines[0].faults).toHaveLength(0);
     expect(r.state.players[1].turbines[1].faults).toHaveLength(0);
+    expect(r.events.some((e) => e.kind === 'fault-applied')).toBe(false);
   });
 
-  it('cascade 命中（rng < cascade）：另一台中招 +floor(drop/2)', () => {
-    // F06 drop=30, cascade=0.2 → 命中 + 另一台 +15
+  it('cascade 機率骰命中（rng < cascade）：仍只消耗 RNG，不再造成連鎖傷害（備戰區免疫）', () => {
+    // F06 drop=30, cascade=0.2 → rng<0.2 命中；但備戰區免疫故障目標，連鎖已無「另一台合法機組」可命中。
     const base = withTwoTurbines(createInitialState(createRng(1)), 1, ['M01', 'M07']);
     const r = applyFault(base, 0, 'F06', fixedRng([0.1]));
-    // 主目標：M07（idx=1）drop=30；連鎖目標：M01（idx=0）drop=15
-    expect(r.state.players[1].turbines[1].faults[0].drop).toBe(30);
-    expect(r.state.players[1].turbines[0].faults[0].drop).toBe(15);
-    expect(r.events.some((e) => e.kind === 'fault-cascaded')).toBe(true);
+    // 主目標：M01（主力，idx=0）drop=30；備戰區 M07 不受影響
+    expect(r.state.players[1].turbines[0].faults[0].drop).toBe(30);
+    expect(r.state.players[1].turbines[1].faults).toHaveLength(0);
+    expect(r.events.some((e) => e.kind === 'fault-cascaded')).toBe(false);
   });
 
-  it('cascade 未命中（rng ≥ cascade）：只有主目標中招', () => {
+  it('cascade 機率骰未命中（rng ≥ cascade）：結果與命中時相同（連鎖已不生效）', () => {
     const base = withTwoTurbines(createInitialState(createRng(1)), 1, ['M01', 'M07']);
     const r = applyFault(base, 0, 'F06', fixedRng([0.99]));
-    expect(r.state.players[1].turbines[1].faults).toHaveLength(1);
-    expect(r.state.players[1].turbines[0].faults).toHaveLength(0);
+    expect(r.state.players[1].turbines[0].faults).toHaveLength(1);
+    expect(r.state.players[1].turbines[1].faults).toHaveLength(0);
     expect(r.events.some((e) => e.kind === 'fault-cascaded')).toBe(false);
   });
 

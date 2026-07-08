@@ -90,40 +90,48 @@ describe('S2.3 canPlayCard / legalActions', () => {
 });
 
 describe('S2.3 applyAction：turbine 部署 / 替換 / fault', () => {
-  it('turbine 部署（Route B：艦隊已滿 3 台 → 替換最弱）', () => {
-    // Route B：開局已有 OS8(8MW)+OS10(10MW)+OS12(12MW)，槽位已滿
-    // 部署 M03(4MW) → 替換最弱 OS8(8MW)，保持 3 台；cost=2 → actionsLeft 0
-    const s = withHand(createInitialState(createRng(1)), 0, ['M03'], 2); // M03 cost 2
+  it('turbine 部署（Route B：主力 + 備戰區已滿 3 台 → 替換備戰區最弱）', () => {
+    // Route B：開局已有 OS8(主力,8MW)+OS10(10MW)+OS12(12MW)（備戰區 2 台），
+    // 先補一台最弱的機組湊滿備戰區 3 台，才符合「艦隊已滿」的新規則定義。
+    const s = withHand(createInitialState(createRng(1)), 0, ['M03'], 2); // M03 cost 2, 4MW
+    s.players[0].turbines.push({ cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }); // 備戰區第 3 台，2MW（最弱）
     const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
-    expect(r.state.players[0].turbines).toHaveLength(3);
+    expect(r.state.players[0].turbines).toHaveLength(4); // 主力 1 + 備戰區上限 3
     expect(r.state.players[0].turbines.some((t) => t.cardId === 'M03')).toBe(true);
+    expect(r.state.players[0].turbines.some((t) => t.cardId === 'M01')).toBe(false); // 備戰區最弱被替換
+    expect(r.state.players[0].turbines.some((t) => t.cardId === 'OS8')).toBe(true); // 主力不受影響
     expect(r.state.actionsLeft).toBe(0);
     expect(r.events.some((e) => e.kind === 'turbine-deployed')).toBe(true);
     expect(r.events.some((e) => e.kind === 'turbine-replaced')).toBe(true);
   });
 
-  it('滿 3 台 + 未指定 replaceIdx → 替換最弱', () => {
+  it('主力 + 備戰區滿 3 台 + 未指定 replaceIdx → 替換備戰區最弱（不動主力）', () => {
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[0].turbines = [
-      { cardId: 'M02', avail: 93, mwBonus: 0, faults: [] }, // 3MW
-      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }, // 2MW（最弱）
-      { cardId: 'M03', avail: 92, mwBonus: 0, faults: [] }, // 4MW
+      { cardId: 'M02', avail: 93, mwBonus: 0, faults: [] }, // 主力：3MW
+      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }, // 備戰：2MW（最弱）
+      { cardId: 'M03', avail: 92, mwBonus: 0, faults: [] }, // 備戰：4MW
+      { cardId: 'OS8', avail: 90, mwBonus: 0, faults: [] }, // 備戰：8MW（湊滿備戰區 3 台）
     ];
+    s.players[0].activeTurbineIdx = 0;
     s.players[0].hand = ['M07']; // 12MW
     s.actionsLeft = 5;
     const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
-    expect(r.state.players[0].turbines).toHaveLength(3);
+    expect(r.state.players[0].turbines).toHaveLength(4);
     expect(r.state.players[0].turbines.map((t) => t.cardId).includes('M01')).toBe(false);
+    expect(r.state.players[0].turbines.map((t) => t.cardId).includes('M02')).toBe(true); // 主力不受影響
     expect(r.events.some((e) => e.kind === 'turbine-replaced')).toBe(true);
   });
 
-  it('滿 3 台 + 指定 replaceIdx → 替換指定那台', () => {
+  it('主力 + 備戰區滿 3 台 + 指定 replaceIdx → 替換指定的備戰區那台', () => {
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[0].turbines = [
-      { cardId: 'M02', avail: 93, mwBonus: 0, faults: [] },
-      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] },
-      { cardId: 'M03', avail: 92, mwBonus: 0, faults: [] },
+      { cardId: 'M02', avail: 93, mwBonus: 0, faults: [] }, // 主力
+      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }, // 備戰 idx1
+      { cardId: 'M03', avail: 92, mwBonus: 0, faults: [] }, // 備戰 idx2（指定替換這台）
+      { cardId: 'OS8', avail: 90, mwBonus: 0, faults: [] }, // 備戰 idx3
     ];
+    s.players[0].activeTurbineIdx = 0;
     s.players[0].hand = ['M07'];
     s.actionsLeft = 5;
     const r = applyAction(
@@ -134,17 +142,39 @@ describe('S2.3 applyAction：turbine 部署 / 替換 / fault', () => {
     expect(r.state.players[0].turbines.map((t) => t.cardId).includes('M03')).toBe(false);
   });
 
-  it('fault 經 applyAction → 目標對手最高 MW（與 S2.2 applyFault 行為一致）', () => {
+  it('指定 replaceIdx＝主力索引 → 視為非法，改自動替換備戰區最弱（主力受保護）', () => {
+    const s = structuredClone(createInitialState(createRng(1)));
+    s.players[0].turbines = [
+      { cardId: 'M02', avail: 93, mwBonus: 0, faults: [] }, // 主力 idx0（企圖指定被替換，應被忽略）
+      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }, // 備戰 idx1，2MW（最弱，改自動選中）
+      { cardId: 'M03', avail: 92, mwBonus: 0, faults: [] }, // 備戰 idx2
+      { cardId: 'OS8', avail: 90, mwBonus: 0, faults: [] }, // 備戰 idx3
+    ];
+    s.players[0].activeTurbineIdx = 0;
+    s.players[0].hand = ['M07'];
+    s.actionsLeft = 5;
+    const r = applyAction(
+      s,
+      { kind: 'play-card', player: 0, handIdx: 0, replaceIdx: 0 },
+      fixedRng([]),
+    );
+    expect(r.state.players[0].turbines.map((t) => t.cardId).includes('M02')).toBe(true); // 主力保留
+    expect(r.state.players[0].turbines.map((t) => t.cardId).includes('M01')).toBe(false); // 改替換備戰區最弱
+  });
+
+  it('fault 經 applyAction → 預設目標為對手主力（寶可夢式規則；與 S2.2 applyFault 行為一致）', () => {
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[0].hand = ['F02'];
     s.actionsLeft = 2;
     s.currentPlayer = 0;
     s.players[1].turbines = [
-      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] },
-      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] },
+      { cardId: 'M01', avail: 95, mwBonus: 0, faults: [] }, // 主力 idx0
+      { cardId: 'M07', avail: 88, mwBonus: 0, faults: [] }, // 備戰區 idx1，免疫故障目標
     ];
+    s.players[1].activeTurbineIdx = 0;
     const r = applyAction(s, { kind: 'play-card', player: 0, handIdx: 0 }, fixedRng([]));
-    expect(r.state.players[1].turbines[1].faults).toHaveLength(1); // M07 中招
+    expect(r.state.players[1].turbines[0].faults).toHaveLength(1); // M01（主力）中招
+    expect(r.state.players[1].turbines[1].faults).toHaveLength(0); // M07（備戰區）免疫
   });
 });
 
@@ -710,7 +740,7 @@ describe('T09 研發總監 func-bonus（出功能卡 +1 動作，最多 +2）', 
     const s = structuredClone(createInitialState(createRng(1)));
     s.players[0].techs = ['T09'];
     s.players[0].turbines = [{ cardId: 'OS8', avail: 90, mwBonus: 0, faults: [] }];
-    s.players[0].hand = ['FN01'];
+    s.players[0].hand = ['FN04']; // 用不需要備戰區前置條件的 func 卡（FN01 現在需要備戰區機組才能出）
     s.actionsLeft = 3;
     s.currentPlayer = 0;
     // 出 1 張 func 卡，funcBonusThisRound = 1

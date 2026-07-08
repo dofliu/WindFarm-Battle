@@ -25,6 +25,8 @@ import {
 
 /** R3：搶資源消耗的動作點 */
 export const RESOURCE_ACTION_COST = 1;
+/** 寶可夢式撤退：把主力換成一台備戰區機組所需的動作點。 */
+export const RETREAT_ACTION_COST = 1;
 import { hasCardDrawTrigger, hasNoSlot } from './abilities';
 
 // ---------- Action 型別 ----------
@@ -33,9 +35,9 @@ export type Action =
       readonly kind: 'play-card';
       readonly player: 0 | 1;
       readonly handIdx: number;
-      /** fault：對手機組索引；func returnTurbine / upgradeMW：自己機組索引 */
+      /** fault：對手機組索引（唯一合法值＝對手 activeTurbineIdx）；func returnTurbine / upgradeMW：自己機組索引 */
       readonly target?: number;
-      /** turbine：3 台已滿時的替換索引（不指定預設替換最弱） */
+      /** turbine：備戰區 3 台已滿時的替換索引（不指定預設替換備戰區最弱一台；不可指定主力索引） */
       readonly replaceIdx?: number;
     }
   | {
@@ -55,6 +57,12 @@ export type Action =
       readonly resourceId: string;
       readonly turbineIdx?: number;
     }
+  | {
+      // 寶可夢式撤退：花 1 動作，把主力換成 benchIdx 指定的備戰區機組（repoint activeTurbineIdx，不搬動陣列）。
+      readonly kind: 'retreat';
+      readonly player: 0 | 1;
+      readonly benchIdx: number;
+    }
   | { readonly kind: 'end-turn'; readonly player: 0 | 1 };
 
 // ---------- 純查詢輔助 ----------
@@ -72,11 +80,18 @@ function turbineMW(t: { cardId: string; mwBonus: number }): number {
   return (CARDS[t.cardId].stats?.mw ?? 0) + t.mwBonus;
 }
 
+/**
+ * 找備戰區中最弱（MW 最低）的可替換機組索引；找不到回 -1。
+ * 排除規則：
+ *   - 主力機組（p.activeTurbineIdx）永不在此邏輯中被選中——主力受保護，
+ *     只能透過 retreat 動作換下場，不會被部署動作悄悄頂替。
+ *   - S3.3：M10 no-slot 不算入「可被替換」的對象（不佔格的卡不能被擠掉）。
+ */
 function findWeakestTurbineIdx(p: PlayerState): number {
-  // S3.3：M10 no-slot 不算入「可被替換」的對象（不佔格的卡不能被擠掉）
   let weakestIdx = -1;
   let weakestMW = Infinity;
   for (let i = 0; i < p.turbines.length; i++) {
+    if (i === p.activeTurbineIdx) continue;
     if (hasNoSlot(p.turbines[i].cardId)) continue;
     const mw = turbineMW(p.turbines[i]);
     if (mw < weakestMW) {
@@ -84,13 +99,20 @@ function findWeakestTurbineIdx(p: PlayerState): number {
       weakestIdx = i;
     }
   }
-  // fallback：若全是 no-slot（罕見邊界）→ 退回 0
-  return weakestIdx === -1 ? 0 : weakestIdx;
+  return weakestIdx;
 }
 
-/** S3.3：場上「佔格」機組數（M10 no-slot 不算）。用於 3 台上限判定。 */
-function slottedCount(p: PlayerState): number {
-  return p.turbines.reduce((n, t) => (hasNoSlot(t.cardId) ? n : n + 1), 0);
+/** 備戰區目前佔用數（排除主力與 no-slot 機組）。上限 3，用於部署時判斷是否需要替換。 */
+function benchCount(p: PlayerState): number {
+  return p.turbines.reduce(
+    (n, t, i) => (i !== p.activeTurbineIdx && !hasNoSlot(t.cardId) ? n + 1 : n),
+    0,
+  );
+}
+
+/** 玩家是否有至少一台備戰區機組（供 FN01 returnTurbine 等前置條件使用）。 */
+function hasBenchTurbine(p: PlayerState): boolean {
+  return p.turbines.some((_, i) => i !== p.activeTurbineIdx);
 }
 
 function findStrongestNoBonusIdx(p: PlayerState): number {
@@ -163,13 +185,19 @@ export function canPlayCard(state: GameState, player: 0 | 1, handIdx: number): b
   if (card.type === 'tech' && p.techs.length >= MAX_TECHS) return false; // R4：場上技師上限 3
   // R2 同題模式：故障改為共享環境事件，玩家不可主動施加故障（不打對手風場）
   if (card.type === 'fault' && state.mode === 'weather-challenge') return false;
-  // 故障卡：對手無機組 或 所有機組都在停機中（已無攻擊目標）→ 不可出牌
+  // 故障卡：寶可夢式規則下唯一合法目標＝對手主力機組。
+  // 對手尚無主力（尚未部署）或主力已停機（無法再疊加故障）→ 無合法目標，不可出牌。
+  // 備戰區機組一律免疫故障目標，故不再檢查「是否所有機組都停機」。
   if (card.type === 'fault') {
-    const oppTurbines = state.players[1 - player].turbines;
-    if (oppTurbines.length === 0 || oppTurbines.every((t) => t.shutdown)) return false;
+    const opp = state.players[1 - player];
+    const activeIdx = opp.activeTurbineIdx;
+    if (activeIdx === null) return false;
+    const activeTurbine = opp.turbines[activeIdx];
+    if (!activeTurbine || activeTurbine.shutdown) return false;
   }
   if (card.type === 'func') {
-    if (card.effect === 'returnTurbine' && p.turbines.length === 0) return false;
+    // 寶可夢式規則：主力受保護，FN01 只能收回備戰區機組；備戰區為空時不可出牌。
+    if (card.effect === 'returnTurbine' && !hasBenchTurbine(p)) return false;
     if (card.effect === 'upgradeMW' && findStrongestNoBonusIdx(p) < 0) return false;
     // S3.6：FN07 searchTurbine 需要牌庫中至少有一張 turbine
     if (card.effect === 'searchTurbine' && !p.deck.some((id) => CARDS[id].type === 'turbine')) return false;
@@ -239,6 +267,25 @@ export function canGrabResource(
   return !!t && t.faults.length > 0;
 }
 
+/**
+ * 寶可夢式撤退：能否把主力換成 benchIdx 指定的備戰區機組（花 1 動作）。
+ * 合法條件：當前玩家、動作點足夠、有主力存在、benchIdx 存在且不等於當前主力索引。
+ * 設計決定：停機中的備戰機組仍可換上場——撤下一台停機/重傷的主力、換上健康的備戰機組，
+ * 正是這個機制存在的意義（換血打時間差，等停機的那台在備戰區慢慢等修復）；
+ * 反之，換上一台本身也停機的備戰機組同樣合法（玩家可能是為了保護主力免於再挨打，
+ * 自行選擇犧牲一輪發電），因此這裡刻意不檢查 benchIdx 機組的 shutdown 狀態。
+ */
+export function canRetreat(state: GameState, player: 0 | 1, benchIdx: number): boolean {
+  if (state.gameOver) return false;
+  if (player !== state.currentPlayer) return false;
+  if (state.actionsLeft < RETREAT_ACTION_COST) return false;
+  const p = state.players[player];
+  if (p.activeTurbineIdx === null) return false;
+  if (benchIdx === p.activeTurbineIdx) return false;
+  if (benchIdx < 0 || benchIdx >= p.turbines.length) return false;
+  return !!p.turbines[benchIdx];
+}
+
 /** 列出當前玩家所有合法動作（含 end-turn）。S2.4 AI 用。 */
 export function legalActions(state: GameState, player: 0 | 1): Action[] {
   const actions: Action[] = [{ kind: 'end-turn', player }];
@@ -278,10 +325,24 @@ export function legalActions(state: GameState, player: 0 | 1): Action[] {
       }
     }
   }
+  // 寶可夢式撤退：每台備戰區機組各產生一個候選
+  for (let bi = 0; bi < p.turbines.length; bi++) {
+    if (bi === p.activeTurbineIdx) continue;
+    if (canRetreat(state, player, bi)) actions.push({ kind: 'retreat', player, benchIdx: bi });
+  }
   return actions;
 }
 
 // ---------- 內部 mutate：play-card 派發 ----------
+/**
+ * 部署機組（寶可夢式主力/備戰區規則）：
+ *   1. 尚無主力（activeTurbineIdx === null）→ 新機組直接成為主力。
+ *   2. 有主力、備戰區未滿（< 3 台，M10 no-slot 不算）→ 直接補進備戰區。
+ *   3. 備戰區已滿 → 替換備戰區最弱一台（絕不替換主力——主力只能靠 retreat 換下場，
+ *      這是「主力保護」的核心設計：對手打故障卡逼你留在場上的機組，不會被自己的部署動作意外洗掉）。
+ *      若呼叫端指定 replaceIdx 卻剛好等於主力索引，視為非法指定 → 忽略、退回自動挑最弱備戰區。
+ * S3.3：M10 no-slot 不佔格，永遠直接 push，不參與主力/備戰區或替換邏輯。
+ */
 function _deployTurbine(
   s: GameState,
   player: 0 | 1,
@@ -292,20 +353,40 @@ function _deployTurbine(
   const p = s.players[player];
   const card = CARDS[cardId];
   const avail = card.stats?.avail ?? 95;
+  const newTurbine = { cardId, avail, originalAvail: avail, mwBonus: 0, faults: [], deployedRound: s.round };
 
-  // S3.3：M10 no-slot 不佔格；其他機組只在「佔格數 ≥ 3」時替換
-  const deployingNoSlot = hasNoSlot(cardId);
-  if (!deployingNoSlot && slottedCount(p) >= 3) {
-    const idx = replaceIdx !== undefined ? replaceIdx : findWeakestTurbineIdx(p);
+  // S3.3：M10 no-slot 不佔格，永遠純疊加，不進主力/備戰區規則
+  if (hasNoSlot(cardId)) {
+    p.turbines.push(newTurbine);
+    events.push({ kind: 'turbine-deployed', player, cardId });
+    return events;
+  }
+
+  if (p.activeTurbineIdx === null) {
+    // 場上尚無主力 → 新機組立即成為主力
+    p.turbines.push(newTurbine);
+    p.activeTurbineIdx = p.turbines.length - 1;
+    events.push({ kind: 'turbine-deployed', player, cardId });
+    return events;
+  }
+
+  if (benchCount(p) >= 3) {
+    // 備戰區已滿：替換備戰區最弱一台（不可替換主力）
+    const requestedIdx = replaceIdx !== undefined && replaceIdx !== p.activeTurbineIdx ? replaceIdx : undefined;
+    const idx = requestedIdx ?? findWeakestTurbineIdx(p);
     if (idx >= 0 && p.turbines[idx]) {
       const old = p.turbines[idx];
       p.turbines.splice(idx, 1);
       events.push({ kind: 'turbine-replaced', player, oldCardId: old.cardId, newCardId: cardId });
+      // splice 後陣列往前搬動；若主力索引落在被移除索引之後，需要 -1 校正
+      if (p.activeTurbineIdx !== null && p.activeTurbineIdx > idx) {
+        p.activeTurbineIdx -= 1;
+      }
     }
   }
   // S3.2：記錄部署回合（供 M05 offshore-delay 判定「當回合不結算」）
   // originalAvail 記錄初始值，用於 Route B 教育 UI：顯示部分修復造成的永久損耗
-  p.turbines.push({ cardId, avail, originalAvail: avail, mwBonus: 0, faults: [], deployedRound: s.round });
+  p.turbines.push(newTurbine);
   events.push({ kind: 'turbine-deployed', player, cardId });
   return events;
 }
@@ -367,12 +448,18 @@ function _executeFunc(
 
   switch (effect) {
     case 'returnTurbine': {
-      // FN01：把指定（或最弱）機組收回手牌（fresh，不保留 avail / faults / mwBonus）
-      const idx = target !== undefined ? target : findWeakestTurbineIdx(p);
+      // FN01：把指定（或備戰區最弱）機組收回手牌（fresh，不保留 avail / faults / mwBonus）。
+      // 寶可夢式規則：主力受保護，即使呼叫端指定 target=主力索引也視為未指定，改用自動挑選備戰區最弱。
+      const requestedIdx = target !== undefined && target !== p.activeTurbineIdx ? target : undefined;
+      const idx = requestedIdx ?? findWeakestTurbineIdx(p);
       if (idx >= 0 && p.turbines[idx]) {
         const removed = p.turbines.splice(idx, 1)[0];
         if (p.hand.length < 7) p.hand.push(removed.cardId);
         events.push({ kind: 'turbine-returned', player, cardId: removed.cardId });
+        // splice 後陣列往前搬動；若主力索引落在被移除索引之後，需要 -1 校正
+        if (p.activeTurbineIdx !== null && p.activeTurbineIdx > idx) {
+          p.activeTurbineIdx -= 1;
+        }
       }
       break;
     }
@@ -551,15 +638,18 @@ function _applyWeather(s: GameState, player: 0 | 1, cardId: string, rng?: Rng): 
   s.activeWeather.push({ cardId, duration, appliedBy: player });
   const events: GameEvent[] = [{ kind: 'weather-applied', player, cardId, duration }];
 
-  // random-blade：打出當下對對手隨機一台非停機機組施加葉片故障（F04 stats）
+  // random-blade：打出當下對對手施加葉片故障（F04 stats）。
+  // 寶可夢式規則：備戰區免疫故障目標，因此「隨機一台」現在唯一合法候選＝對手主力（非停機、故障未滿）。
   // 打出者本人不受影響（self-immune-blade-fault）
   const hasRandomBlade = card.abilities?.some((a) => a.tag === 'random-blade') ?? false;
   if (hasRandomBlade && rng) {
     const oppId = (1 - player) as 0 | 1;
     const opp = s.players[oppId];
-    const eligible = opp.turbines
-      .map((t, i) => ({ t, i }))
-      .filter(({ t }) => !t.shutdown && t.faults.length < 2);
+    const activeIdx = opp.activeTurbineIdx;
+    const activeTurbine = activeIdx !== null ? opp.turbines[activeIdx] : undefined;
+    const eligible = activeTurbine && !activeTurbine.shutdown && activeTurbine.faults.length < 2
+      ? [{ t: activeTurbine, i: activeIdx as number }]
+      : [];
     if (eligible.length > 0) {
       const picked = eligible[rng.int(0, eligible.length - 1)];
       const { t: target, i: tIdx } = picked;
@@ -619,6 +709,17 @@ export function _applyActionMutate(
     if (!canGrabResource(s, action.player, action.resourceId, action.turbineIdx)) return events;
     s.actionsLeft -= RESOURCE_ACTION_COST;
     events.push(..._grabResourceMutate(s, action.player, action.resourceId, action.turbineIdx));
+    return events;
+  }
+
+  // 寶可夢式撤退：把主力換成備戰區某台機組（花 1 動作，不搬動陣列，只 repoint 索引）
+  if (action.kind === 'retreat') {
+    if (!canRetreat(s, action.player, action.benchIdx)) return events;
+    const p2 = s.players[action.player];
+    const fromIdx = p2.activeTurbineIdx as number;
+    s.actionsLeft -= RETREAT_ACTION_COST;
+    p2.activeTurbineIdx = action.benchIdx;
+    events.push({ kind: 'retreat', player: action.player, fromIdx, toIdx: action.benchIdx });
     return events;
   }
 

@@ -126,8 +126,14 @@ export const zhTW = {
   'farm.faults': '故障',
   'farm.capacity': '裝置量',
   'farm.emptySlot': '空缺',
+  'farm.emptyActive': '尚無主力機組',
+  'farm.active': '主力',
+  'farm.bench': '備戰區',
   'farm.noTech': '尚無技師 · 抽牌招募',
   'farm.techsTitle': '技師與招式',
+  // ── 寶可夢式撤退 UI ──────────────────────────────────────────
+  'action.retreat': '撤退',
+  'action.retreatHint': '花費 1 動作，把此機組換上主力位置',
   // ── R4 技師隊伍 / 組合招 UI ──────────────────────────────────
   'combo.label': '組合',
   'combo.duo': '團隊互補',
