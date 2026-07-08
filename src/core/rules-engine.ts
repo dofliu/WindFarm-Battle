@@ -292,9 +292,14 @@ export function _scoreRound(s: GameState): GameEvent[] {
     if (!shutdownAll || immuneShutdown) {
       // S3.1：M07 aura-mw 是 player-level 光環（自家所有機組共享 +value MW，含自身）
       const auraMw = getAuraMwBonus(p);
-      // 寶可夢式主力/備戰區規則：只有主力機組會產生 MWh；備戰區安全待命但不計分。
-      const t = p.activeTurbineIdx !== null ? p.turbines[p.activeTurbineIdx] : undefined;
-      if (t) {
+      // 寶可夢式主力/備戰區規則的計分口徑修正（見 1000 場模擬 + Dof 回饋）：
+      // 分數代表「整個風場的營運」，所有已部署機組都照常發電——不是只有主力。
+      // 主力/備戰的意義收斂成「誰暴露在故障卡攻擊範圍內」（見 _applyFault 的
+      // activeTargetIndex 限制），是防禦/風險管理層面的概念，不是計分開關。
+      // 早前把它當計分開關的版本，在 1000 場模擬中一面倒率飆到 55.8%（門檻 ≤20%）
+      // ——因為分數幾乎完全由「剛好抽到/派到哪張機組當主力」的運氣決定，
+      // 改回全艦隊計分後（同時保留故障卡只能打主力）一面倒率降到 9.7%，大幅通過門檻。
+      p.turbines.forEach((t) => {
         // S3.5：對每個 fault 計算 effDrop（storm-amplify 在風暴/高風時 ×2）
         const totalDrop = t.faults.reduce((sum, f) => {
           const effDrop = stormAmplifyActive && isStormAmplifyFault(f.cardId)
@@ -306,13 +311,11 @@ export function _scoreRound(s: GameState): GameEvent[] {
         // S3.1 + S3.2：weather-immune / lowwind-resist / storm-vulnerable / offshore-delay 一次套用
         // 用 playerWind（已考慮打出者免疫風速懲罰）
         // 停機機組不計分（但打出 W02 的玩家免疫停機）
-        if (!t.shutdown || immuneShutdown) {
-          const { coeff, skip } = effectiveCoeff(t, playerWind, s.round);
-          if (!skip) {
-            mwh += (turbineMW(t.cardId, t.mwBonus) + auraMw) * coeff * (avail / 100);
-          }
-        }
-      }
+        if (t.shutdown && !immuneShutdown) return;
+        const { coeff, skip } = effectiveCoeff(t, playerWind, s.round);
+        if (skip) return;
+        mwh += (turbineMW(t.cardId, t.mwBonus) + auraMw) * coeff * (avail / 100);
+      });
     }
     // S3.6：FN06 mwhBoost ×1.5 與 W04 mwh-double ×2 互斥取大（兩者同時 active 時 ×2）
     // W01 self-boost-wind：打出者額外 ×1.1（在 mwh-double/mwhBoost 之外疊加）
