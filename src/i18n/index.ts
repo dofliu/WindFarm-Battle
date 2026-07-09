@@ -3,13 +3,15 @@ import type { MessageKey } from './zh-TW';
 import { cardsZhTW } from './cards.zh-TW';
 import { en } from './en';
 import { cardsEn } from './cards.en';
+import { knowledgeZhTW } from './knowledge.zh-TW';
+import { knowledgeEn } from './knowledge.en';
 
 // ── 支援的語言 ────────────────────────────────────────────
 export type Locale = 'zh-TW' | 'en';
 
 const MESSAGES: Record<Locale, Record<string, string>> = {
-  'zh-TW': { ...zhTW, ...cardsZhTW },
-  'en':    { ...en,   ...cardsEn   },
+  'zh-TW': { ...zhTW, ...cardsZhTW, ...knowledgeZhTW },
+  'en':    { ...en,   ...cardsEn,   ...knowledgeEn   },
 };
 
 // ── 當前語言（模組級單例，可透過 setLocale 切換）────────────────

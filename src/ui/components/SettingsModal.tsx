@@ -23,8 +23,10 @@ export function SettingsModal({ onClose }: Props) {
   const hapticsOn = useSettingsStore((s) => s.hapticsOn);
   const setSoundOn = useSettingsStore((s) => s.setSoundOn);
   const setVolume = useSettingsStore((s) => s.setVolume);
+  const teachingTips = useSettingsStore((s) => s.teachingTips);
   const setScreenShakeOn = useSettingsStore((s) => s.setScreenShakeOn);
   const setHapticsOn = useSettingsStore((s) => s.setHapticsOn);
+  const setTeachingTips = useSettingsStore((s) => s.setTeachingTips);
 
   const cardBg = isTide ? 'linear-gradient(180deg, #2a1c10, #1e140a)' : '#fff';
   const textColor = isTide ? '#f4e8d0' : '#1c2a3a';
@@ -144,6 +146,17 @@ export function SettingsModal({ onClose }: Props) {
           hint={t('settings.hapticsHint')}
           on={hapticsOn}
           onChange={setHapticsOn}
+          accent={accent}
+          textColor={textColor}
+          subColor={subColor}
+        />
+
+        {/* 教學提示（維修知識即時解說） */}
+        <ToggleRow
+          label={t('settings.teaching')}
+          hint={t('settings.teachingHint')}
+          on={teachingTips}
+          onChange={setTeachingTips}
           accent={accent}
           textColor={textColor}
           subColor={subColor}

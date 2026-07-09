@@ -20,6 +20,8 @@ export interface Settings {
   screenShakeOn: boolean;
   /** 手機震動回饋（navigator.vibrate；桌機無效果，安全略過） */
   hapticsOn: boolean;
+  /** 教學提示：維修時即時解說知識-效益修復模型。教學用，預設開，可關（漸進式揭露）。 */
+  teachingTips: boolean;
 }
 
 interface SettingsStore extends Settings {
@@ -28,6 +30,7 @@ interface SettingsStore extends Settings {
   setVolume: (v: number) => void;
   setScreenShakeOn: (v: boolean) => void;
   setHapticsOn: (v: boolean) => void;
+  setTeachingTips: (v: boolean) => void;
 }
 
 /** 系統是否偏好減少動態效果（無障礙）。用於 screenShakeOn 的預設值。 */
@@ -46,6 +49,8 @@ const DEFAULTS: Settings = {
   // 尊重系統無障礙偏好：使用者若要求減少動態，預設關閉螢幕震動
   screenShakeOn: !prefersReducedMotion(),
   hapticsOn: true,
+  // 教學遊戲：預設開啟教學提示（學生受眾），專家可自行關閉
+  teachingTips: true,
 };
 
 function clamp01(n: number): number {
@@ -66,6 +71,8 @@ function readStored(): Settings {
       screenShakeOn:
         typeof parsed.screenShakeOn === 'boolean' ? parsed.screenShakeOn : DEFAULTS.screenShakeOn,
       hapticsOn: typeof parsed.hapticsOn === 'boolean' ? parsed.hapticsOn : DEFAULTS.hapticsOn,
+      teachingTips:
+        typeof parsed.teachingTips === 'boolean' ? parsed.teachingTips : DEFAULTS.teachingTips,
     };
   } catch {
     return { ...DEFAULTS };
@@ -80,6 +87,7 @@ function persist(s: Settings): void {
       volume: s.volume,
       screenShakeOn: s.screenShakeOn,
       hapticsOn: s.hapticsOn,
+      teachingTips: s.teachingTips,
     };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch {
@@ -110,6 +118,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     set({ hapticsOn: v });
     persist(get());
   },
+  setTeachingTips: (v) => {
+    set({ teachingTips: v });
+    persist(get());
+  },
 }));
 
 /**
@@ -123,6 +135,7 @@ export function getSettings(): Settings {
     volume: s.volume,
     screenShakeOn: s.screenShakeOn,
     hapticsOn: s.hapticsOn,
+    teachingTips: s.teachingTips,
   };
 }
 

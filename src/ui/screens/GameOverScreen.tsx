@@ -1,14 +1,16 @@
 // 遊戲結束畫面（兩主題）
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTheme } from '../theme/ThemeContext';
 import { ThemeBackground } from '../effects/ThemeBackground';
 import { CountUp } from '../effects/CountUp';
+import { LearningDebrief } from '../components/LearningDebrief';
 import { Compass } from '../icons';
 import type { GameState } from '../../core/types';
 import { t } from '../../i18n';
 import { useLocale } from '../locale/LocaleContext';
 import { useGameStore } from '../../store/game-store';
 import { extractGameRecord, downloadGameRecordJson, downloadGameRecordCsv } from '../../core/telemetry';
+import { extractLearningReport } from '../../core/learning';
 
 interface Props {
   readonly state: GameState;
@@ -23,6 +25,10 @@ export function GameOverScreen({ state, onRestart, onTitle }: Props) {
   const difficulty = useGameStore(s => s.difficulty);
   const gameStartedAt = useGameStore(s => s.gameStartedAt);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const [showDebrief, setShowDebrief] = useState(false);
+
+  // 學習複盤報告（教學）：從事件流萃取知識-效益表現
+  const learningReport = useMemo(() => extractLearningReport(events, 0), [events]);
 
   const me = state.players[0];
   const opp = state.players[1];
@@ -288,9 +294,48 @@ export function GameOverScreen({ state, onRestart, onTitle }: Props) {
           </div>
         </div>
 
+        {/* 學習複盤 CTA（教學深度層，按需開啟） */}
+        <div style={{ marginTop: 20, animation: 'wf-fade-in 1.3s ease-out both' }}>
+          <button
+            type="button"
+            onClick={() => setShowDebrief(true)}
+            style={{
+              padding: '10px 22px',
+              background: themeKey === 'tideboard' ? 'rgba(200,152,72,0.14)' : 'rgba(58,167,200,0.12)',
+              color: themeKey === 'tideboard' ? '#e8c878' : '#2a7a9a',
+              border: `1.5px solid ${themeKey === 'tideboard' ? '#c89848' : 'rgba(58,167,200,0.5)'}`,
+              borderRadius: themeKey === 'tideboard' ? 4 : 12,
+              fontFamily: theme.fontUI,
+              fontSize: 13,
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            {t('learning.open')}
+            {learningReport.grade && (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  padding: '1px 8px',
+                  borderRadius: 999,
+                  background: themeKey === 'tideboard' ? '#c89848' : '#3aa7c8',
+                  color: '#fff',
+                }}
+              >
+                {learningReport.grade}
+              </span>
+            )}
+          </button>
+        </div>
+
         <div
           style={{
-            marginTop: 28,
+            marginTop: 16,
             display: 'flex',
             justifyContent: 'center',
             gap: 12,
@@ -343,6 +388,8 @@ export function GameOverScreen({ state, onRestart, onTitle }: Props) {
           </button>
         </div>
       </div>
+
+      {showDebrief && <LearningDebrief report={learningReport} onClose={() => setShowDebrief(false)} />}
     </div>
   );
 }
