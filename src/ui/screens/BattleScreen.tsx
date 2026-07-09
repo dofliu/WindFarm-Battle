@@ -18,6 +18,8 @@ import { FaultFlashFX, RepairFX } from '../effects/FaultRepairFX';
 import { RoundSummaryToast } from '../effects/RoundSummaryToast';
 import { LibraryModal } from '../components/LibraryModal';
 import { ThemeSwitcher } from '../components/ThemeSwitcher';
+import { SettingsModal } from '../components/SettingsModal';
+import { useGameFeedback } from '../audio/useGameFeedback';
 import { Hourglass, Crosshair } from '../icons';
 import { uiPreviewMwh } from '../../store/game-store';
 import { canRetreat } from '../../core/actions';
@@ -74,7 +76,23 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
 
   const [showLibrary, setShowLibrary] = useState(false);
   const [showTheme, setShowTheme] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [dragInfo, setDragInfo] = useState<DragInfo | null>(null);
+
+  // 手感回饋：事件流 → 音效 + 螢幕震動（玩家＝side 0）
+  const { shakeKey } = useGameFeedback(0);
+  const [shakeClass, setShakeClass] = useState('');
+  useEffect(() => {
+    if (!shakeKey) return undefined;
+    // 先清空再於下一幀掛上 → 連續受擊也能每次重播動畫
+    setShakeClass('');
+    const raf = window.requestAnimationFrame(() => setShakeClass('wf-shake'));
+    const timer = window.setTimeout(() => setShakeClass(''), 460);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.clearTimeout(timer);
+    };
+  }, [shakeKey]);
 
   const me = state.players[0];
   const opp = state.players[1];
@@ -371,7 +389,10 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
     >
       <ThemeBackground />
 
-      <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', zIndex: 1 }}>
+      <div
+        className={shakeClass}
+        style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', zIndex: 1 }}
+      >
         <TopBar
           difficulty={difficulty}
           onDifficulty={setDifficulty}
@@ -379,6 +400,7 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
           onRestart={() => newGame()}
           onTitle={onTitle}
           onTheme={() => setShowTheme(true)}
+          onSettings={() => setShowSettings(true)}
         />
 
         {/* 頂條：回合 · 風速 · 動作（共享資訊，去掉「中間」） */}
@@ -742,6 +764,7 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
 
       {showLibrary && <LibraryModal onClose={() => setShowLibrary(false)} />}
       {showTheme && <ThemeSwitcher onClose={() => setShowTheme(false)} />}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

@@ -5,6 +5,8 @@ import type { Difficulty } from '../../core/types';
 import { t } from '../../i18n';
 import { useLocale } from '../locale/LocaleContext';
 import { LocaleSwitcher } from './LocaleSwitcher';
+import { useSettingsStore } from '../../store/settings-store';
+import { unlock, setMasterVolume, play } from '../audio/sound-engine';
 
 interface Props {
   readonly difficulty: Difficulty;
@@ -14,11 +16,28 @@ interface Props {
   readonly onTitle?: () => void;
   readonly onTheme?: () => void;
   readonly onHelp?: () => void;
+  readonly onSettings?: () => void;
 }
 
-export function TopBar({ difficulty, onDifficulty, onLibrary, onRestart, onTitle, onTheme, onHelp }: Props) {
+export function TopBar({ difficulty, onDifficulty, onLibrary, onRestart, onTitle, onTheme, onHelp, onSettings }: Props) {
   const { theme, themeKey } = useTheme();
   useLocale(); // 訂閱語言切換，觸發重新渲染
+
+  // 快速靜音切換（頂欄一鍵，不必開設定面板）
+  const soundOn = useSettingsStore((s) => s.soundOn);
+  const toggleSound = useSettingsStore((s) => s.toggleSound);
+  const volume = useSettingsStore((s) => s.volume);
+  const handleMute = () => {
+    const wasOn = soundOn;
+    toggleSound();
+    if (!wasOn) {
+      // 剛開啟 → 解鎖音訊並給預覽
+      unlock();
+      setMasterVolume(volume);
+      play('tap');
+    }
+  };
+  const muteLabel = soundOn ? t('topbar.muteOn') : t('topbar.muteOff');
 
   if (themeKey === 'tideboard') {
     return (
@@ -83,6 +102,8 @@ export function TopBar({ difficulty, onDifficulty, onLibrary, onRestart, onTitle
           {onHelp && <TideButton label={t('topbar.help')} onClick={onHelp} />}
           {onLibrary && <TideButton label={t('topbar.library')} onClick={onLibrary} />}
           {onTheme && <TideButton label={t('topbar.theme')} onClick={onTheme} />}
+          <TideButton label={muteLabel} onClick={handleMute} title={t('topbar.mute')} />
+          {onSettings && <TideButton label={t('topbar.settings')} onClick={onSettings} />}
           {onRestart && <TideButton label={t('topbar.restart')} onClick={onRestart} />}
           <LocaleSwitcher
             style={{
@@ -189,6 +210,8 @@ export function TopBar({ difficulty, onDifficulty, onLibrary, onRestart, onTitle
         {onHelp && <CumButton label={`❓ ${t('topbar.help')}`} onClick={onHelp} />}
         {onLibrary && <CumButton label={`📚 ${t('topbar.library')}`} onClick={onLibrary} />}
         {onTheme && <CumButton label={`🎨 ${t('topbar.theme')}`} onClick={onTheme} />}
+        <CumButton label={soundOn ? '🔊' : '🔇'} onClick={handleMute} title={t('topbar.mute')} />
+        {onSettings && <CumButton label={`⚙️ ${t('topbar.settings')}`} onClick={onSettings} />}
         {onRestart && <CumButton label={`🔄 ${t('topbar.restart')}`} onClick={onRestart} />}
         <LocaleSwitcher
           style={{
@@ -205,11 +228,12 @@ export function TopBar({ difficulty, onDifficulty, onLibrary, onRestart, onTitle
   );
 }
 
-function TideButton({ label, onClick }: { readonly label: string; readonly onClick: () => void }) {
+function TideButton({ label, onClick, title }: { readonly label: string; readonly onClick: () => void; readonly title?: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      title={title}
       style={{
         background: 'linear-gradient(180deg, #6e4a18, #3d2a1e)',
         border: '1px solid #c89848',
@@ -229,11 +253,12 @@ function TideButton({ label, onClick }: { readonly label: string; readonly onCli
   );
 }
 
-function CumButton({ label, onClick }: { readonly label: string; readonly onClick: () => void }) {
+function CumButton({ label, onClick, title }: { readonly label: string; readonly onClick: () => void; readonly title?: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      title={title}
       style={{
         background: 'rgba(255,255,255,0.55)',
         border: '1px solid rgba(28,42,58,0.1)',
