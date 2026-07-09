@@ -1,7 +1,26 @@
 # 📌 NOTES — 接續開發注意事項（給 Claude Code / Dof）
 
 > 這份是「接手前先看」的現況與注意事項。詳細設計看 `REFACTOR_PLAN.md` 與 `SPRINT2_DESIGN.md`。
-> 最後更新：2026-05-22（Sprint 4 卡牌模板系統完成；Route B originalAvail 永久損傷視覺化）。
+> 最後更新：2026-07-09（S8 手感沉浸強化：Web Audio 合成音效 + 螢幕震動 + 分數跳動 + 體驗設定面板）。
+
+---
+
+## 0. 最新：S8 手感沉浸強化（Juice Pass）⭐
+
+roadmap 的「動畫／音效後期增強」落地。**純 UI/store 層，零 core 規則改動**（D9：UI 由事件流驅動）。
+
+- **音效**：`src/ui/audio/sound-engine.ts` 用 Web Audio API **即時合成**所有音效（零音檔，離線可跑），
+  首次使用者手勢解鎖（瀏覽器自動播放政策）。`event-sounds.ts` 是**純函式**事件→音效映射（可測），
+  `useGameFeedback.ts` diff `store.events` 逐批播放。出牌/部署/技師/故障/修復（完全 vs 部分不同音）/
+  得分/颱風/勝負…各有音色。
+- **視覺 juice**：受擊/颱風 → 螢幕微震（`wf-shake`，≤7px 防暈）；結算得分 → 分數彈跳（`wf-score-pop`）。
+  `@media (prefers-reduced-motion)` + 使用者可關雙保險。
+- **設定**：`src/store/settings-store.ts`（持久化 `wfb-settings`）音效/音量/螢幕震動/手機震動；
+  `SettingsModal.tsx`（⚙️）+ TopBar 一鍵靜音（🔊/🔇）。預設尊重系統 `prefers-reduced-motion`。
+- **手機震動**：`navigator.vibrate`（無新依賴），受擊/勝利有觸覺回饋。
+- 測試：`event-sounds.test.ts`（15）+ `settings-store.test.ts`（5）；全套 **359** 綠、tsc/lint/build 乾淨。
+- ⚠️ 坑重現：撰寫時再度混入 U+200B 零寬空格（第 3 節第 5 點），已用 `perl -CSD` 清除；
+  若日後 eslint 報 `no-irregular-whitespace`，掃 `[\x{00A0}\x{200B}\x{2028}\x{2029}\x{FEFF}]`。
 
 ---
 

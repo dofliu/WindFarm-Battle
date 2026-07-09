@@ -9,6 +9,7 @@
 // 因為 retreat 只 repoint activeTurbineIdx、不搬動陣列，主力的陣列索引撤退後可能改變。
 // data-zone（play-mine / play-opp）放在 TurbineStage 根節點供 Hand 拖曳落點判定沿用。
 // ============================================================
+import { useEffect, useRef, useState } from 'react';
 import { CARDS } from '../../core/cards';
 import { cardName, t } from '../../i18n';
 import { useTheme } from '../theme/ThemeContext';
@@ -46,6 +47,14 @@ export function FarmStatsPanel({ side, player, score, previewMwh, active, compac
   const { theme, themeKey } = useTheme();
   useLocale();
   const isTide = themeKey === 'tideboard';
+
+  // 分數增加時彈跳強調（結算得分的即時回饋）。key 遞增 → 重掛 span 重播動畫。
+  const prevScore = useRef(score);
+  const [pop, setPop] = useState(0);
+  useEffect(() => {
+    if (score > prevScore.current) setPop((p) => p + 1);
+    prevScore.current = score;
+  }, [score]);
 
   const turbines = player.turbines;
   const nonEmpty = turbines.filter(Boolean);
@@ -103,7 +112,13 @@ export function FarmStatsPanel({ side, player, score, previewMwh, active, compac
 
       {/* 累計分數 */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-        <span style={{ fontSize: 20, fontWeight: 800, color: theme.textPrimary, fontVariantNumeric: 'tabular-nums' }}>{score}</span>
+        <span
+          key={pop}
+          className={pop > 0 ? 'wf-score-pop' : undefined}
+          style={{ fontSize: 20, fontWeight: 800, color: theme.textPrimary, fontVariantNumeric: 'tabular-nums' }}
+        >
+          {score}
+        </span>
         <span style={{ fontSize: 9, color: theme.textSecondary }}>MWh</span>
         {previewMwh !== undefined && previewMwh > 0 && (
           <span style={{ fontSize: 10, color: '#3a8a5e', fontWeight: 700, marginLeft: 'auto' }}>+{previewMwh}</span>
