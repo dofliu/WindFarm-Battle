@@ -19,7 +19,9 @@ import { RoundSummaryToast } from '../effects/RoundSummaryToast';
 import { LibraryModal } from '../components/LibraryModal';
 import { ThemeSwitcher } from '../components/ThemeSwitcher';
 import { SettingsModal } from '../components/SettingsModal';
+import { RepairInsightToast } from '../components/RepairInsightToast';
 import { useGameFeedback } from '../audio/useGameFeedback';
+import { useRepairInsight } from '../learning/useRepairInsight';
 import { Hourglass, Crosshair } from '../icons';
 import { uiPreviewMwh } from '../../store/game-store';
 import { canRetreat } from '../../core/actions';
@@ -81,6 +83,8 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
 
   // 手感回饋：事件流 → 音效 + 螢幕震動（玩家＝side 0）
   const { shakeKey } = useGameFeedback(0);
+  // 教學：維修時的知識-效益即時解說（受 settings.teachingTips 控制）
+  const repairInsight = useRepairInsight(0);
   const [shakeClass, setShakeClass] = useState('');
   useEffect(() => {
     if (!shakeKey) return undefined;
@@ -750,6 +754,9 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
           </div>
         </div>
       )}
+
+      {/* 維修知識即時解說（教學提示開啟時） */}
+      {repairInsight && <RepairInsightToast key={repairInsight.token} insight={repairInsight.insight} />}
 
       {/* 回合結算 toast */}
       {lastRoundScore && (

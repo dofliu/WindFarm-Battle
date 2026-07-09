@@ -291,6 +291,22 @@ body {
   display: inline-block;
 }
 
+/* 教學解說卡：從左側滑入 */
+@keyframes wf-slide-in-left {
+  0% {
+    opacity: 0;
+    transform: translate(-24px, -50%);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, -50%);
+  }
+}
+
+.wf-slide-in-left {
+  animation: wf-slide-in-left 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /*
  * 無障礙：系統要求減少動態時，關閉大幅位移動畫（抖動 / 彈跳）。
  * 螢幕震動另有使用者可關的設定；此處是雙保險（尊重 OS 層偏好）。
@@ -300,6 +316,9 @@ body {
     animation: none;
   }
   .wf-score-pop {
+    animation: wf-fade-in 0.3s ease-out both;
+  }
+  .wf-slide-in-left {
     animation: wf-fade-in 0.3s ease-out both;
   }
 }

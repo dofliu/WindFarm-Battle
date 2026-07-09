@@ -1,7 +1,20 @@
 # 📌 NOTES — 接續開發注意事項（給 Claude Code / Dof）
 
 > 這份是「接手前先看」的現況與注意事項。詳細設計看 `REFACTOR_PLAN.md` 與 `SPRINT2_DESIGN.md`。
-> 最後更新：2026-07-09（S8 手感沉浸強化：Web Audio 合成音效 + 螢幕震動 + 分數跳動 + 體驗設定面板）。
+> 最後更新：2026-07-09（S9 教學深度強化：維修知識-效益即時解說 + 局後學習複盤）。
+
+---
+
+## 00. 最新：S9 教學深度強化（Educational Depth）⭐
+
+把 Route B 隱藏的「知識-效益修復模型」變**可見、可複盤**。**純 UI/store + 新增 core 純函式，零規則改動**（讀事件流）。疊在 S8 的事件驅動架構上。
+
+- **即時解說**：`RepairInsightToast`（`useRepairInsight` 監看事件流）——修復發生時滑入左側，講「為什麼完全/部分修復」。部分修復（專長不符）以橙色點出**永久損失可用率**+ 該找的專長。受 `settings.teachingTips` 控制（預設開，漸進式揭露，專家可關）。
+- **局後複盤**：`LearningDebrief`（GameOver 的「📖 學習複盤」鈕開啟）——維運效率評級 S/A/B/C、完全/部分修復數、永久損失可用率、對症率、本局遇到的故障類別（配**真實運維情境**與對應專長）、接觸的 **IEC 61400 系列標準**。
+- **分析（純 core，可測）**：`core/learning.ts`（`extractLearningReport` / `explainRepair` / `gradeFor`）+ `core/knowledge.ts`（類別/專長/IEC 查詢）。與 `telemetry.ts` 平行：telemetry 服務研究數據，learning 服務「玩家學到什麼」。
+- **內容（i18n）**：`knowledge.zh-TW.ts` / `knowledge.en.ts` — 5 類別真實運維知識、IEC 標準標題（依實際標準命名）、修復模型解說、評級文案。merge 進 `i18n/index.ts`。
+- 測試：`learning.test.ts`（10）；全套 **369** 綠、tsc/lint/build 乾淨。
+- 資料來源：`fault-repaired` 事件已帶 `quality`（full/partial）與 `availLost`，故 learning 無需重算修復判定。
 
 ---
 
