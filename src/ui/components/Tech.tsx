@@ -1,4 +1,5 @@
 // 在場上的技師徽章（兩主題）。P3：多招式鈕 + 傳奇 ex 特性徽章。
+// v5.18：加入卡牌插畫顯示（Tideboard 小卡片 / Cumulus 圓形頭像）。
 import { CARDS } from '../../core/cards';
 import { cardName, t } from '../../i18n';
 import { useTheme } from '../theme/ThemeContext';
@@ -21,6 +22,12 @@ interface Props {
   readonly abilityLabel?: string;
 }
 
+/** 技師卡牌插畫路徑（有 card.image 時使用，否則 fallback 到 SVG 圖示）。 */
+function techImageSrc(techId: string): string | undefined {
+  const card = CARDS[techId];
+  return card?.image;
+}
+
 export function Tech({ techId, skills, skillUsed, abilityLabel }: Props) {
   const { themeKey } = useTheme();
   const card = CARDS[techId];
@@ -29,30 +36,91 @@ export function Tech({ techId, skills, skillUsed, abilityLabel }: Props) {
   const name = cardName(techId) || techId;
   const legendary = !!card.legendary;
   const hasSkills = !!skills && skills.length > 0;
+  const imgSrc = techImageSrc(techId);
 
   if (themeKey === 'tideboard') {
+    // Tideboard：小卡片式（64×84px），上方插畫圓角矩形，下方名稱 + 招式
+    const CARD_W = 64;
+    const ART_H = 72;
     return (
-      <div style={{ position: 'relative', width: 56, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div style={{ position: 'relative', width: 56, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <svg width="56" height="56" viewBox="0 0 56 56" style={{ position: 'absolute', inset: 0 }}>
-            <defs>
-              <radialGradient id={`tide-med-${techId}`} cx="50%" cy="30%" r="70%">
-                <stop offset="0%" stopColor={legendary ? '#f8e094' : '#e8c878'} />
-                <stop offset="60%" stopColor={legendary ? '#d8a838' : '#c89848'} />
-                <stop offset="100%" stopColor="#6e4a18" />
-              </radialGradient>
-            </defs>
-            <circle cx="28" cy="28" r="26" fill={`url(#tide-med-${techId})`} stroke="#3d2a1e" strokeWidth="1.5" />
-            <circle cx="28" cy="28" r="20" fill="#2a4838" stroke="rgba(0,0,0,0.5)" />
-          </svg>
-          <IconComp size={22} stroke="#a8d878" />
+      <div style={{ position: 'relative', width: CARD_W, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+        {/* 卡牌框 */}
+        <div
+          style={{
+            width: CARD_W,
+            borderRadius: 8,
+            overflow: 'hidden',
+            border: legendary ? '2px solid #f4d68a' : '1.5px solid #6e4a18',
+            boxShadow: legendary
+              ? '0 0 10px rgba(244,214,138,0.5), 0 2px 8px rgba(0,0,0,0.4)'
+              : '0 2px 8px rgba(0,0,0,0.35)',
+            background: '#2a1e0e',
+            position: 'relative',
+          }}
+        >
+          {/* 插畫區 */}
+          <div style={{ width: CARD_W, height: ART_H, position: 'relative', overflow: 'hidden', background: '#1a2e1e' }}>
+            {imgSrc ? (
+              <img
+                src={imgSrc}
+                alt={name}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: 'center 20%',
+                  display: 'block',
+                }}
+                loading="lazy"
+              />
+            ) : (
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <IconComp size={28} stroke="#a8d878" />
+              </div>
+            )}
+            {/* 傳奇金光邊 */}
+            {legendary && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(180deg, transparent 50%, rgba(244,214,138,0.25) 100%)',
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
+          </div>
+          {/* 名稱列 */}
+          <div
+            style={{
+              padding: '3px 4px',
+              background: legendary
+                ? 'linear-gradient(180deg, #3d2a1e, #2a1e0e)'
+                : 'rgba(20,35,25,0.95)',
+              textAlign: 'center',
+            }}
+          >
+            <div
+              style={{
+                fontSize: 8,
+                fontWeight: 800,
+                color: legendary ? '#f4d68a' : '#a8d878',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                fontFamily: 'Georgia, serif',
+                letterSpacing: '0.05em',
+              }}
+            >
+              {name}
+            </div>
+          </div>
         </div>
-        <div style={{ fontSize: 9, color: '#f4d68a', whiteSpace: 'nowrap', fontFamily: 'Georgia, serif', fontWeight: 700, marginTop: 2 }}>
-          {name}
-        </div>
+        {/* 特性徽章 */}
         {abilityLabel && <AbilityBadge label={abilityLabel} tide />}
+        {/* 招式按鈕 */}
         {hasSkills && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 3 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%' }}>
             {skillUsed ? (
               <UsedChip tide />
             ) : (
@@ -64,34 +132,60 @@ export function Tech({ techId, skills, skillUsed, abilityLabel }: Props) {
     );
   }
 
+  // Cumulus：膠囊橫條，左側改為圓形插畫頭像（36×36px）
+  const AVATAR = 36;
   return (
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 6,
-        padding: '5px 11px 5px 7px',
-        background: 'rgba(255,255,255,0.85)',
-        border: legendary ? '1px solid #d9a85a' : '1px solid rgba(93,181,140,0.4)',
+        gap: 7,
+        padding: '5px 11px 5px 5px',
+        background: legendary
+          ? 'linear-gradient(135deg, rgba(255,248,220,0.95), rgba(255,235,170,0.9))'
+          : 'rgba(255,255,255,0.88)',
+        border: legendary ? '1.5px solid #d9a85a' : '1.5px solid rgba(93,181,140,0.45)',
         borderRadius: 999,
-        boxShadow: '0 2px 6px rgba(28,42,58,0.06)',
+        boxShadow: legendary
+          ? '0 2px 10px rgba(217,168,90,0.3)'
+          : '0 2px 6px rgba(28,42,58,0.07)',
         flexWrap: 'wrap',
       }}
     >
+      {/* 圓形插畫頭像 */}
       <div
         style={{
-          width: 22,
-          height: 22,
+          width: AVATAR,
+          height: AVATAR,
           borderRadius: '50%',
+          overflow: 'hidden',
+          flexShrink: 0,
+          border: legendary ? '2px solid #d9a85a' : '2px solid rgba(93,181,140,0.6)',
+          boxShadow: legendary ? '0 0 6px rgba(217,168,90,0.5)' : '0 1px 4px rgba(0,0,0,0.12)',
           background: legendary ? '#d9a85a' : '#5db58c',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <IconComp size={14} stroke="#fff" />
+        {imgSrc ? (
+          <img
+            src={imgSrc}
+            alt={name}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: 'center 15%',
+              display: 'block',
+            }}
+            loading="lazy"
+          />
+        ) : (
+          <IconComp size={18} stroke="#fff" />
+        )}
       </div>
-      <span style={{ fontSize: 11, fontWeight: 600, color: '#1c2a3a' }}>{name}</span>
+      <span style={{ fontSize: 11, fontWeight: 700, color: '#1c2a3a' }}>{name}</span>
       {abilityLabel && <AbilityBadge label={abilityLabel} />}
       {hasSkills && (skillUsed ? <UsedChip /> : skills!.map((sk) => <SkillPill key={sk.tag} sk={sk} />))}
     </div>
@@ -161,6 +255,8 @@ function SkillPill({ sk, tide }: { readonly sk: SkillBtn; readonly tide?: boolea
           color: sk.ready ? '#f4d68a' : 'rgba(244,214,138,0.4)',
           fontFamily: 'Georgia, serif',
           whiteSpace: 'nowrap',
+          width: '100%',
+          textAlign: 'center',
         }}
       >
         {sk.label}
