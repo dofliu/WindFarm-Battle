@@ -13,6 +13,7 @@ import { BattleCenter } from '../components/BattleCenter';
 import { FarmStatsPanel, TurbineStage } from '../components/FarmPanel';
 import { Tech } from '../components/Tech';
 import { Hand, DragOverlay } from '../components/Hand';
+import { CardBack } from '../components/CardBack';
 import type { DragInfo } from '../components/Hand';
 import { FaultFlashFX, RepairFX } from '../effects/FaultRepairFX';
 import { RoundSummaryToast } from '../effects/RoundSummaryToast';
@@ -41,6 +42,38 @@ const RES_ICON: Record<string, string> = {
   'crane': '🏗️',
   'grid-priority': '⚡',
 };
+
+/** 對手手牌背面顯示（只顯示數量） */
+function OppHandBack({ count }: { readonly count: number }) {
+  const { theme, themeKey } = useTheme();
+  const isTide = themeKey === 'tideboard';
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 4,
+        padding: '6px 8px',
+        borderRadius: isTide ? 6 : 12,
+        background: isTide ? 'rgba(40,25,15,0.55)' : 'rgba(255,255,255,0.55)',
+        border: `1px solid ${theme.border}`,
+        backdropFilter: 'blur(6px)',
+      }}
+    >
+      <div style={{ fontSize: 8, color: theme.textSecondary, letterSpacing: '0.08em', fontFamily: theme.fontUI, textTransform: 'uppercase' }}>
+        對手手牌
+      </div>
+      <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
+        {Array.from({ length: count }, (_, i) => (
+          <CardBack key={i} size={22} />
+        ))}
+      </div>
+      <div style={{ fontSize: 9, fontWeight: 700, color: theme.textPrimary, textAlign: 'center', fontFamily: theme.fontUI }}>
+        {count} 張
+      </div>
+    </div>
+  );
+}
 
 export function BattleScreen({ onTitle, onGameOver }: Props) {
   const { theme, themeKey } = useTheme();
@@ -206,8 +239,7 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
   };
 
   // 一半 = 戰場（主力大格 + 備戰區）+ 風場資訊窄側欄。
-  // 寶可夢式版面：我方風場資訊放我方戰鬥卡「左邊」；對方風場資訊放對方戰鬥卡「右邊」
-  // （opp 在上、me 在下；靠 sidebar/stage 的 DOM 順序 + TurbineStage 的 reverseOrder 達成）。
+  // 新版面：左右側欄只顯示風場統計資訊；技師列表移到戰鬥區內部。
   const renderHalf = (sideKey: 'me' | 'opp') => {
     const p = sideKey === 'me' ? me : opp;
     const active = sideKey === 'me' ? isMyTurn : state.currentPlayer === 1 && !isAiThinking;
@@ -218,10 +250,11 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
       !!dragInfo &&
       (sideKey === 'opp' ? CARDS[dragInfo.cardId]?.type === 'fault' : CARDS[dragInfo.cardId]?.type !== 'fault');
 
+    // 側欄：只顯示風場統計資訊（移除技師列表）
     const sidebar = (
       <div
         style={{
-          width: isPortrait ? 108 : 152,
+          width: isPortrait ? 108 : 140,
           flexShrink: 0,
           minHeight: 0,
           display: 'flex',
@@ -238,66 +271,70 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
           active={active}
           compact={isPortrait}
         />
+        {/* 對手手牌數量（背面）顯示 */}
+        {sideKey === 'opp' && opp.hand.length > 0 && (
+          <OppHandBack count={opp.hand.length} />
+        )}
+      </div>
+    );
 
-        {/* 技師與招式 */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 9, letterSpacing: '0.1em', color: theme.textSecondary, textTransform: 'uppercase', fontFamily: theme.fontUI }}>
-              {t('farm.techsTitle')} {p.techs.length}/{MAX_TECHS}
-            </span>
-          </div>
+    // 技師區：顯示在戰鬥區內部（主力左右各一側）
+    const techsPanel = (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, justifyContent: 'center', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontSize: 8, letterSpacing: '0.1em', color: theme.textSecondary, textTransform: 'uppercase', fontFamily: theme.fontUI }}>
+            {t('farm.techsTitle')} {p.techs.length}/{MAX_TECHS}
+          </span>
           {comboTier(p) > 0 && (
             <span
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 4,
-                marginTop: 4,
-                padding: '2px 9px',
+                gap: 2,
+                padding: '1px 6px',
                 borderRadius: 999,
-                fontSize: 9,
+                fontSize: 8,
                 fontWeight: 800,
                 color: '#fff',
                 background: comboTier(p) >= 2 ? 'linear-gradient(180deg,#d9a85a,#b8893f)' : 'linear-gradient(180deg,#5db58c,#2a8a5a)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
               }}
               title={comboTier(p) >= 2 ? t('combo.trioHint') : t('combo.duoHint')}
             >
-              ✦ {comboTier(p) >= 2 ? t('combo.trio') : t('combo.duo')}
+              ❆ {comboTier(p) >= 2 ? t('combo.trio') : t('combo.duo')}
             </span>
           )}
-          {p.techs.length === 0 ? (
-            <div
-              style={{
-                fontSize: 10,
-                color: theme.textSecondary,
-                padding: '8px 10px',
-                marginTop: 4,
-                border: `1.5px dashed ${theme.border}`,
-                borderRadius: 10,
-                fontFamily: theme.fontUI,
-              }}
-            >
-              {t('farm.noTech')}
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: themeKey === 'tideboard' ? 16 : 4 }}>
-              {p.techs.map((id) => {
-                const abilTag = techAbilityTag(id);
-                const abilityLabel = abilTag ? abilityName(id, 0) : undefined;
-                if (sideKey === 'opp') return <Tech key={id} techId={id} abilityLabel={abilityLabel} />;
-                const used = me.usedSkillThisRound.includes(id);
-                const skills = techSkills(id).map((def) => ({
-                  tag: def.tag,
-                  label: t(`skill.${def.tag}` as Parameters<typeof t>[0]),
-                  ready: isMyTurn && !used && (def.targetKind === 'ownFault' ? myHasFault : true),
-                  onUse: () => activateSkill(id, def.tag),
-                }));
-                return <Tech key={id} techId={id} skills={skills} skillUsed={used} abilityLabel={abilityLabel} />;
-              })}
-            </div>
-          )}
         </div>
+        {p.techs.length === 0 ? (
+          <div
+            style={{
+              fontSize: 9,
+              color: theme.textSecondary,
+              padding: '6px 8px',
+              border: `1.5px dashed ${theme.border}`,
+              borderRadius: 8,
+              fontFamily: theme.fontUI,
+              textAlign: 'center',
+            }}
+          >
+            {t('farm.noTech')}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {p.techs.map((id) => {
+              const abilTag = techAbilityTag(id);
+              const abilityLabel = abilTag ? abilityName(id, 0) : undefined;
+              if (sideKey === 'opp') return <Tech key={id} techId={id} abilityLabel={abilityLabel} />;
+              const used = me.usedSkillThisRound.includes(id);
+              const skills = techSkills(id).map((def) => ({
+                tag: def.tag,
+                label: t(`skill.${def.tag}` as Parameters<typeof t>[0]),
+                ready: isMyTurn && !used && (def.targetKind === 'ownFault' ? myHasFault : true),
+                onUse: () => activateSkill(id, def.tag),
+              }));
+              return <Tech key={id} techId={id} skills={skills} skillUsed={used} abilityLabel={abilityLabel} />;
+            })}
+          </div>
+        )}
       </div>
     );
 
@@ -341,6 +378,17 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
       />
     );
 
+    // 戰鬥區（主力 + 備戰區）+ 技師區（左右各一側）
+    const stageWithTechs = (
+      <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: isPortrait ? 6 : 10 }}>
+        {/* 備戰區左側技師（我方）或對方技師（對方備戰區在左） */}
+        {sideKey === 'opp' && techsPanel}
+        {stage}
+        {/* 主力右側技師（我方） */}
+        {sideKey === 'me' && techsPanel}
+      </div>
+    );
+
     return (
       <div
         style={{
@@ -348,8 +396,8 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
           minHeight: 0,
           display: 'flex',
           flexDirection: 'row',
-          gap: isPortrait ? 8 : 16,
-          padding: isPortrait ? '8px 10px' : '10px 24px',
+          gap: isPortrait ? 6 : 12,
+          padding: isPortrait ? '6px 8px' : '8px 16px',
           alignItems: 'stretch',
           background: sideKey === 'me' ? theme.bgPlayer : theme.bgOpponent,
           borderTop:
@@ -361,15 +409,15 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
           overflow: 'hidden',
         }}
       >
-        {/* 我方：風場資訊在左、戰鬥卡在右；對方：戰鬥卡在左、風場資訊在右（鏡像對稱） */}
+        {/* 我方：風場資訊在左、戰鬥區+技師在右；對方：戰鬥區+技師在左、風場資訊在右 */}
         {sideKey === 'me' ? (
           <>
             {sidebar}
-            {stage}
+            {stageWithTechs}
           </>
         ) : (
           <>
-            {stage}
+            {stageWithTechs}
             {sidebar}
           </>
         )}
@@ -676,6 +724,7 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
             onDragEnd={onDragEnd}
             onCardClick={onCardClick}
             onDragStateChange={setDragInfo}
+            cardSize={isPortrait ? 72 : 90}
           />
 
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>

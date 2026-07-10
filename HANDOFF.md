@@ -2,7 +2,7 @@
 
 > **這是給 Claude Code 看的第一份文件。** 整個專案的現狀、決策、與下一步行動都在這裡。
 >
-> **最後更新：2026-07-03（progress 100%）**
+> **最後更新：2026-07-10（UI 重構 v6.0）**
 
 ---
 
@@ -60,6 +60,15 @@
 - [x] **遙測批次分析腳本**：`scripts/analyze_telemetry.py`，讀取 `data/telemetry/*.json` 批次分析多場對局；自動計算勝率/分數/回合數統計、逐回合分數趨勢、卡牌類別分布、Top 10 使用卡牌、冷門卡清單；終端機摘要 + 輸出 `reports/telemetry_report_YYYYMMDD.md` Markdown 研究報告；附 10 筆測試資料（`data/telemetry/test_*.json`）
 - [x] **對局遙測系統**：`src/core/telemetry.ts`，從 `events[]` 提取結構化 `GameRecord`（對局 ID、難度、勝敗、逐回合出牌序列、分數、出牌頻率）；`GameOverScreen` 加入「研究遙測」區塊，提供「下載 JSON」和「下載 CSV」兩個按鈕；`game-store` 加入 `gameStartedAt` 記錄開局時間；兩語匹出提示文字（zh-TW / en）
 - [x] **GitHub Pages 自動部署**：`.github/workflows/deploy.yml` GitHub Actions 工作流程（push main 自動觸發）；`npm run deploy` 手動部署備用；`public/.nojekyll` 確保 Vite `_assets` 目錄可存取。❗ **需手動到 GitHub 設定頁面啟用 Pages：** Settings → Pages → Source 選 **GitHub Actions**，完成後網址為 `https://dofliu.github.io/WindFarm-Battle/`
+
+### 🎮 UI 重構（2026-07-10）
+
+- [x] 🔴 **AI 動作逐步停頓效果**：`game-store.ts` 新增 `runAiOneStep()` 函式，使用 `aiChoose` 逐步執行 AI 動作（每步 800ms 停頓），取代原本一次性執行全部動作；新增 `aiCurrentAction` store 狀態（顯示 AI 當前動作標籤）；初始思考延遲 650-1000ms + 每步 800ms，讓玩家能看清楚 AI 每個招式
+- [x] 🔴 **版面重構：技師取代風機為主角**：移除左右側欄的技師列表；技師改為顯示在戰鬥區內部（我方技師在主力右側，對方技師在備戰區左側）；左右側欄（sidebar）改為純風場統計資訊（FarmStatsPanel 只顯示分數/可用率/故障/裝置量）
+- [x] 🔴 **對手手牌背面顯示**：在對方側欄加入 `OppHandBack` 元件，以背面卡牌圖示顯示對手手牌數量（讓玩家知道對手有幾張牌）
+- [x] 🟡 **手牌縮小 + 點選放大**：玩家手牌預設縮小（桌機 90px / 手機 72px，原為 138px）；點選手牌展開放大（1.7x）預覽；展開後再點可出牌；hover 時輕微放大提示；節省手牌列空間
+- [x] 🟡 **手牌 DragOverlay 尺寸同步**：DragOverlay 預設 cardSize 從 138 降為 90，與縮小後的手牌一致
+- 369 tests 全通過，tsc 零錯誤，build 成功（commit v6.0）
 
 ### 🎮 遊戲機制改善（2026-06-01 排入，按優先序執行）
 

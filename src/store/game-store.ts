@@ -35,7 +35,8 @@ import {
 } from '../core/rules-engine';
 import { _applyActionMutate, canPlayCard, canRetreat, effectiveCost } from '../core/actions';
 import { techSkillDef } from '../core/rules-engine';
-import { aiTakeTurn } from '../core/ai';
+import { aiTakeTurn, aiChoose, RESERVE_THRESHOLD } from '../core/ai';
+import { _applyActionMutate as _applyAiAction } from '../core/actions';
 import { CARDS } from '../core/cards';
 
 const HUMAN: 0 | 1 = 0;
@@ -111,6 +112,12 @@ interface GameStore {
    */
   lastAiActions: GameEvent[];
   clearLastAiActions: () => void;
+
+  /**
+   * AI 正在執行的當前動作標籤（逐步模式用，顯示在 UI 上）。
+   * 每個 AI 步驟開始時設置，回合結束時清除。
+   */
+  aiCurrentAction: string | null;
 
   /** 本局開始時間（遙測用） */
   gameStartedAt: Date;
@@ -235,6 +242,27 @@ function runAiTurn(s: GameState, difficulty: Difficulty, rng: Rng): GameEvent[] 
   return takeTurn(s, AI, rng);
 }
 
+/**
+ * 逐步執行 AI 回合：每次呼叫只執行「一個」AI 動作，並回傳該動作產生的事件。
+ * 若 AI 已無更多動作（或 score < RESERVE_THRESHOLD），回傳 null 表示回合結束。
+ */
+function runAiOneStep(
+  s: GameState,
+  difficulty: Difficulty,
+  rng: Rng,
+): GameEvent[] | null {
+  const choice = aiChoose(s, AI, difficulty, rng);
+  if (!choice || choice.chosen.score < RESERVE_THRESHOLD) return null;
+  const beforeActions = s.actionsLeft;
+  const beforeSkills = s.players[AI].usedSkillThisRound.length;
+  const events = _applyAiAction(s, choice.chosen.action, rng, UI_RICH_CONFIG);
+  const progressed =
+    s.actionsLeft < beforeActions ||
+    s.players[AI].usedSkillThisRound.length > beforeSkills;
+  if (!progressed) return null;
+  return events;
+}
+
 // ============================================================
 // Store factory
 // ============================================================
@@ -303,6 +331,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isAiThinking: false,
   lastRoundScore: null,
   lastAiActions: [],
+  aiCurrentAction: null,
   effects: [],
   windRolling: false,
   gameStartedAt: new Date(),
@@ -323,7 +352,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   newGame: (seed = Date.now() & 0xffffffff) => {
     const { difficulty } = get();
     const fresh = makeInitialStoreState(seed, difficulty);
-    set({ ...fresh, pendingFaultHandIdx: null, pendingReplaceHandIdx: null, pendingSkillTechId: null, pendingSkillTag: null, pendingResourceId: null, hasDiscarded: false, isAiThinking: false, lastRoundScore: null, lastAiActions: [], effects: [], windRolling: false, gameStartedAt: new Date() });
+    set({ ...fresh, pendingFaultHandIdx: null, pendingReplaceHandIdx: null, pendingSkillTechId: null, pendingSkillTag: null, pendingResourceId: null, hasDiscarded: false, isAiThinking: false, lastRoundScore: null, lastAiActions: [], aiCurrentAction: null, effects: [], windRolling: false, gameStartedAt: new Date() });
   },
 
   playCard: (handIdx, options) => {
@@ -546,48 +575,84 @@ export const useGameStore = create<GameStore>((set, get) => ({
         isAiThinking: true,
       });
 
-      // Phase 2（非同步）：AI 思考延遲後跑 AI 動作
-      setTimeout(() => {
-        const { state: s2, events: ev2, difficulty: diff } = get();
-        const s3 = cloneState(s2);
-        const ev3: GameEvent[] = [];
-        ev3.push(...runAiTurn(s3, diff, rng));
-        ev3.push(..._repairFaults(s3, AI, UI_RICH_CONFIG));
-        ev3.push(..._periodicRepair(s3, AI));
-        const completedRound = s3.round;
-        ev3.push(...endRound(s3, rng));
-        // 回合結算摘要
-        const roundScore = _extractRoundScore(ev3, completedRound, s3.players[0].score, s3.players[1].score);
+      // Phase 2（非同步）：AI 思考延遲後逐步執行 AI 動作（每步 800ms 停頓）
+      const AI_STEP_DELAY = 800; // 每個 AI 動作之間的停頓（ms）
+      const AI_THINK_DELAY = 650 + Math.floor(Math.random() * 350); // 初始思考時間
 
-        // 新回合若 AI 先手 → 同步跑（不再延遲，避免複雜度）
-        if (!s3.gameOver && s3.currentPlayer === AI) {
-          ev3.push(...runAiTurn(s3, diff, rng));
-          ev3.push(..._repairFaults(s3, AI, UI_RICH_CONFIG));
-          ev3.push(..._periodicRepair(s3, AI));
-          ev3.push(..._beginTurn(s3, HUMAN));
-        }
+      // 逐步執行 AI 動作的遞迴函式
+      const runNextAiStep = (stepState: GameState, stepEvents: GameEvent[], allStepEvents: GameEvent[], isFirstStep: boolean) => {
+        const delay = isFirstStep ? AI_THINK_DELAY : AI_STEP_DELAY;
+        setTimeout(() => {
+          const { difficulty: diff } = get();
+          // 嘗試執行一個 AI 動作
+          const stepResult = runAiOneStep(stepState, diff, rng);
+          if (stepResult !== null) {
+            // 有動作：更新 UI 顯示此步驟，然後繼續
+            const newAllEvents = [...allStepEvents, ...stepResult];
+            // 觸發此步驟的視覺特效
+            for (const fx of _deriveEffects(stepResult)) {
+              get().pushEffect(fx.type, { side: fx.side, slot: fx.slot, cardId: fx.cardId });
+            }
+            // 更新 store 顯示目前 AI 狀態（讓 UI 即時反映）
+            const { events: currentEvents } = get();
+            set({
+              state: cloneState(stepState), // 顯示目前 AI 動作後的狀態
+              events: [...currentEvents, ...stepResult].slice(-EVENT_LOG_LIMIT),
+              aiCurrentAction: stepResult[0]?.kind ?? null,
+            });
+            // 繼續下一步
+            runNextAiStep(stepState, [...stepEvents, ...stepResult], newAllEvents, false);
+          } else {
+            // AI 無更多動作：執行修復 + 結算
+            // 注意：stepState 已包含所有 AI 動作後的最新狀態（runAiOneStep 直接 mutate）
+            const { events: ev2, difficulty: diff2 } = get();
+            const ev3: GameEvent[] = [...allStepEvents];
+            const repairEvents: GameEvent[] = [];
+            repairEvents.push(..._repairFaults(stepState, AI, UI_RICH_CONFIG));
+            repairEvents.push(..._periodicRepair(stepState, AI));
+            ev3.push(...repairEvents);
+            const completedRound = stepState.round;
+            ev3.push(...endRound(stepState, rng));
+            // 回合結算摘要
+            const roundScore = _extractRoundScore(ev3, completedRound, stepState.players[0].score, stepState.players[1].score);
 
-        // 提取 AI 動作事件（只保留有意義的行動，排除 repair / round-scoring / weather-tick 等）
-        const INTERESTING_AI_KINDS = new Set([
-          'card-played', 'turbine-deployed', 'turbine-replaced', 'turbine-returned',
-          'tech-deployed', 'fault-applied', 'fault-cascaded', 'func-played',
-          'weather-applied', 'contract-applied', 'mwh-boost', 'extra-action-banked',
-          'turbine-shutdown', 'retreat',
-        ]);
-        const aiSummary = ev3.filter(e => INTERESTING_AI_KINDS.has(e.kind) && 'player' in e && (e as { player: number }).player === AI);
+            // 新回合若 AI 先手 → 同步跑（不再延遲，避免複雜度）
+            if (!stepState.gameOver && stepState.currentPlayer === AI) {
+              ev3.push(...runAiTurn(stepState, diff2, rng));
+              ev3.push(..._repairFaults(stepState, AI, UI_RICH_CONFIG));
+              ev3.push(..._periodicRepair(stepState, AI));
+              ev3.push(..._beginTurn(stepState, HUMAN));
+            }
 
-        set({
-          state: s3,
-          events: [...ev2, ...ev3].slice(-EVENT_LOG_LIMIT),
-          isAiThinking: false,
-          lastRoundScore: roundScore,
-          lastAiActions: aiSummary,
-        });
-        // 觸發 AI 動作 + 回合結算所產生的視覺特效
-        for (const fx of _deriveEffects(ev3)) {
-          get().pushEffect(fx.type, { side: fx.side, slot: fx.slot, cardId: fx.cardId });
-        }
-      }, 650 + Math.floor(Math.random() * 350)); // 650–1000ms 隨機思考時間
+            // 提取 AI 動作事件（只保留有意義的行動）
+            const INTERESTING_AI_KINDS = new Set([
+              'card-played', 'turbine-deployed', 'turbine-replaced', 'turbine-returned',
+              'tech-deployed', 'fault-applied', 'fault-cascaded', 'func-played',
+              'weather-applied', 'contract-applied', 'mwh-boost', 'extra-action-banked',
+              'turbine-shutdown', 'retreat',
+            ]);
+            const aiSummary = ev3.filter(e => INTERESTING_AI_KINDS.has(e.kind) && 'player' in e && (e as { player: number }).player === AI);
+
+            set({
+              state: stepState,
+              events: [...ev2, ...ev3].slice(-EVENT_LOG_LIMIT),
+              isAiThinking: false,
+              aiCurrentAction: null,
+              lastRoundScore: roundScore,
+              lastAiActions: aiSummary,
+            });
+            // 觸發修復 + 結算所產生的視覺特效
+            for (const fx of _deriveEffects([...repairEvents, ...ev3])) {
+              get().pushEffect(fx.type, { side: fx.side, slot: fx.slot, cardId: fx.cardId });
+            }
+          }
+        }, delay);
+      };
+
+      // 開始逐步執行（先取得最新 state）
+      const { state: s2 } = get();
+      const s3 = cloneState(s2);
+      runNextAiStep(s3, [], [], true);
     } else {
       // ── AI 先手（本回合 AI 已動完）→ 直接結算 ──
       const completedRound = s.round;
@@ -612,6 +677,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         pendingResourceId: null,
         hasDiscarded: false,
         isAiThinking: false,
+        aiCurrentAction: null,
         lastRoundScore: roundScore,
         lastAiActions: [],  // AI 先手時，AI 已在前一回合動完，不重複顯示
       });

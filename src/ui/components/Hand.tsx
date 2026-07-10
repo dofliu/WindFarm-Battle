@@ -42,7 +42,7 @@ export function Hand({
   pendingFaultHandIdx,
   onDragEnd,
   onCardClick,
-  cardSize = 138,
+  cardSize = 90,
   onDragStateChange,
 }: HandProps) {
   useLocale(); // 訂閱語言切換，觸發重新渲染
@@ -50,6 +50,7 @@ export function Hand({
   const me = state.players[0];
   const [dragInfo, setDragInfo] = useState<DragInfo | null>(null);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const dragInfoRef = useRef<DragInfo | null>(null);
   dragInfoRef.current = dragInfo;
 
@@ -92,8 +93,23 @@ export function Hand({
     setHoverIdx(null);
   };
 
+  // 點擊手牌：展開大卡預覽（對於不能出牌時也可預覽）
+  const handleCardClick = (i: number) => {
+    if (expandedIdx === i) {
+      // 再次點擊已展開的卡：如果可出牌則出牌，否則收起
+      if (isPlayerTurn && canPlayCard(state, 0, i)) {
+        onCardClick?.(i);
+      }
+      setExpandedIdx(null);
+    } else {
+      setExpandedIdx(i);
+    }
+  };
+
+  const expandedSize = cardSize * 1.7; // 展開後的大卡尺寸
+
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, flex: 1, justifyContent: 'center', position: 'relative' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, flex: 1, justifyContent: 'center', position: 'relative' }}>
       {me.hand.length === 0 && (
         <div
           style={{
@@ -114,38 +130,68 @@ export function Hand({
         const canAfford = isPlayerTurn && canPlayCard(state, 0, i);
         const isDragging = dragInfo?.handIdx === i;
         const isPending = pendingFaultHandIdx === i;
+        const isExpanded = expandedIdx === i;
+        const isHovered = hoverIdx === i;
         const offset = Math.abs(i - (me.hand.length - 1) / 2);
         const angle = (i - (me.hand.length - 1) / 2) * 2.5;
+        const displaySize = isExpanded ? expandedSize : cardSize;
         return (
           <div
             key={`${i}-${cardId}`}
             style={{
               position: 'relative',
-              marginLeft: i === 0 ? 0 : -14,
-              zIndex: hoverIdx === i ? 50 : Math.max(1, 10 - Math.round(offset)),
+              marginLeft: i === 0 ? 0 : -(cardSize * 0.12),
+              zIndex: isExpanded ? 100 : isHovered ? 50 : Math.max(1, 10 - Math.round(offset)),
               transform:
-                !isDragging && !pendingFaultHandIdx && !isPending
-                  ? `translateY(${offset * 3}px) rotate(${angle}deg)`
-                  : 'none',
-              transition: 'transform 0.2s',
+                isDragging
+                  ? 'none'
+                  : isExpanded
+                    ? 'translateY(-20px) scale(1)'
+                    : isHovered && !pendingFaultHandIdx && !isPending
+                      ? `translateY(-${offset * 2 + 8}px) rotate(${angle}deg) scale(1.08)`
+                      : !pendingFaultHandIdx && !isPending
+                        ? `translateY(${offset * 3}px) rotate(${angle}deg)`
+                        : 'none',
+              transition: 'transform 0.2s, z-index 0s',
+              cursor: 'pointer',
             }}
           >
             <Card
               cardId={cardId}
-              lifted={hoverIdx === i && !isDragging}
+              lifted={isHovered && !isDragging}
               faded={!canAfford || isDragging}
-              size={cardSize}
-              onMouseEnter={() => setHoverIdx(i)}
+              size={displaySize}
+              onMouseEnter={() => !isExpanded && setHoverIdx(i)}
               onMouseLeave={() => setHoverIdx((cur) => (cur === i ? null : cur))}
               onPointerDown={
-                canAfford
+                canAfford && !isExpanded
                   ? (e) => startDrag(e, i, cardId)
-                  : onCardClick
-                    ? () => onCardClick(i)
-                    : undefined
+                  : undefined
               }
+              onClick={() => handleCardClick(i)}
             />
-            {hoverIdx === i && !isDragging && !dragInfo && <HoverPreview cardId={cardId} />}
+            {/* 展開大卡時顯示出牌提示 */}
+            {isExpanded && canAfford && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: -22,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  padding: '2px 10px',
+                  borderRadius: 999,
+                  background: 'rgba(58,167,200,0.9)',
+                  color: '#fff',
+                  fontSize: 9,
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                  pointerEvents: 'none',
+                }}
+              >
+                再點出牌
+              </div>
+            )}
+            {isHovered && !isExpanded && !isDragging && !dragInfo && <HoverPreview cardId={cardId} />}
           </div>
         );
       })}
