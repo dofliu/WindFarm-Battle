@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="420" viewBox="0 0 600 420">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#92400e"/><stop offset="1" stop-color="#fbbf24"/></linearGradient><radialGradient id="r"><stop stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
+<rect width="600" height="420" fill="url(#g)"/><circle cx="105" cy="70" r="170" fill="url(#r)"/><circle cx="520" cy="360" r="210" fill="#020617" opacity=".18"/><rect x="130" y="170" width="340" height="170" rx="28" fill="#78350f"/><rect x="165" y="140" width="270" height="70" rx="22" fill="#fef3c7"/><text x="300" y="295" text-anchor="middle" font-size="130">🪜</text>
+<rect x="0" y="330" width="600" height="90" fill="#020617" opacity=".58"/><text x="32" y="370" font-family="Noto Sans TC, sans-serif" font-size="32" font-weight="800" fill="white">安全吊帶</text><text x="32" y="402" font-family="Noto Sans TC, sans-serif" font-size="18" fill="#dbeafe">TL02 · tool · wind-immune</text>
+</svg>

@@ -11,16 +11,18 @@ interface Props {
   readonly onClose: () => void;
 }
 
-const FILTER_KEYS: ReadonlyArray<CardType | 'all'> = ['all', 'turbine', 'tech', 'fault', 'func', 'weather', 'contract'];
+const FILTER_KEYS: ReadonlyArray<CardType | 'tool' | 'item' | 'all'> = ['all', 'turbine', 'tech', 'tool', 'item', 'fault', 'contract'];
 
 export function LibraryModal({ onClose }: Props) {
   const { theme, themeKey } = useTheme();
   useLocale(); // 訂閱語言切換，觸發重新渲染
-  const [filter, setFilter] = useState<CardType | 'all'>('all');
+  const [filter, setFilter] = useState<CardType | 'tool' | 'item' | 'all'>('all');
   const filtered = filter === 'all' ? allCardIds : allCardIds.filter((id) => CARDS[id].type === filter);
 
-  const filterLabel = (k: CardType | 'all'): string => {
+  const filterLabel = (k: CardType | 'tool' | 'item' | 'all'): string => {
     if (k === 'all') return t('category.all');
+    if (k === 'tool') return '工具';
+    if (k === 'item') return '道具';
     return t(`category.${k}` as Parameters<typeof t>[0]);
   };
 
