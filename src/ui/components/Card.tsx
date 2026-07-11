@@ -1,7 +1,7 @@
 // ============================================================
 // 主題化手牌卡片（Cumulus 圓潤 / Tideboard 木質羊皮）。
 // ============================================================
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { CARDS } from '../../core/cards';
 import { cardName, t } from '../../i18n';
@@ -27,6 +27,14 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(props, r
   const { cardId, lifted, dragging, faded, size = 138, style, onMouseEnter, onMouseLeave, onPointerDown, onClick } = props;
   const card = CARDS[cardId];
   const { theme, themeKey } = useTheme();
+
+  const [lastCardId, setLastCardId] = useState(cardId);
+  const [imageError, setImageError] = useState(false);
+  if (cardId !== lastCardId) {
+    setLastCardId(cardId);
+    setImageError(false);
+  }
+
   if (!card) return null;
   
   // 映射類型以適配舊版 theme/meta 色彩配置
@@ -175,10 +183,22 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(props, r
             overflow: 'hidden',
           }}
         >
-          <StripedPlaceholder width={size - 24} height={size * 0.6} stripe="rgba(232,200,120,0.15)" />
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <IconComp size={size * 0.32} stroke={isLegendary ? '#f4d68a' : '#e8c878'} strokeWidth={1.3} />
-          </div>
+          {!imageError ? (
+            <img
+              src={card.image || `/cards/${cardId}.jpg`}
+              alt={name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              loading="lazy"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <>
+              <StripedPlaceholder width={size - 24} height={size * 0.6} stripe="rgba(232,200,120,0.15)" />
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <IconComp size={size * 0.32} stroke={isLegendary ? '#f4d68a' : '#e8c878'} strokeWidth={1.3} />
+              </div>
+            </>
+          )}
         </div>
         {/* 數值 */}
         <div
@@ -317,10 +337,22 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(props, r
           justifyContent: 'center',
         }}
       >
-        <StripedPlaceholder width={size - 20} height={size * 0.65} stripe={`hsla(${tc.hue}, 30%, 50%, 0.15)`} />
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <IconComp size={size * 0.36} stroke={tc.accent} strokeWidth={1.3} />
-        </div>
+        {!imageError ? (
+          <img
+            src={card.image || `/cards/${cardId}.jpg`}
+            alt={name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', borderRadius: 10 }}
+            loading="lazy"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <>
+            <StripedPlaceholder width={size - 20} height={size * 0.65} stripe={`hsla(${tc.hue}, 30%, 50%, 0.15)`} />
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <IconComp size={size * 0.36} stroke={tc.accent} strokeWidth={1.3} />
+            </div>
+          </>
+        )}
       </div>
       {/* 卡名 */}
       <div style={{ fontSize: 12, fontWeight: 700, color: theme.textPrimary, textAlign: 'center', marginTop: 6, fontFamily: theme.fontUI, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

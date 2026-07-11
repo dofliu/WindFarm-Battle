@@ -45,6 +45,7 @@ export interface Card {
   readonly iec: string;
   readonly abilities: readonly Ability[];
   readonly stats?: Readonly<Record<string, number>>;
+  readonly image?: string;
   
   // 技師專屬
   readonly specialty?: FaultCategory;
