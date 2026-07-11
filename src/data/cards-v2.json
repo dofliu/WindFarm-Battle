@@ -1,0 +1,551 @@
+{
+  "$schema": "card-schema-v2",
+  "version": "v2.0",
+  "totalCards": 45,
+  "categories": {
+    "tech": { "count": 15, "color": "#34d399" },
+    "tool": { "count": 8, "color": "#fbbf24" },
+    "item": { "count": 9, "color": "#ec4899" },
+    "contract": { "count": 3, "color": "#a78bfa" },
+    "turbine": { "count": 3, "color": "#38bdf8" },
+    "fault": { "count": 7, "color": "#f87171" }
+  },
+  "rarity": {
+    "1": "common",
+    "2": "uncommon",
+    "3": "rare",
+    "4": "epic",
+    "5": "legendary"
+  },
+  "cards": {
+    "OS8": {
+      "id": "OS8",
+      "type": "turbine",
+      "icon": "🌀",
+      "cost": 0,
+      "rarity": 1,
+      "stats": { "mw": 8, "avail": 90 },
+      "abilities": [],
+      "iec": "61400-3-1"
+    },
+    "OS10": {
+      "id": "OS10",
+      "type": "turbine",
+      "icon": "⚙️",
+      "cost": 0,
+      "rarity": 2,
+      "stats": { "mw": 10, "avail": 88 },
+      "abilities": [],
+      "iec": "61400-3-1"
+    },
+    "OS12": {
+      "id": "OS12",
+      "type": "turbine",
+      "icon": "🌊",
+      "cost": 0,
+      "rarity": 3,
+      "stats": { "mw": 12, "avail": 86 },
+      "abilities": [],
+      "iec": "61400-3-2"
+    },
+    "T01": {
+      "id": "T01",
+      "type": "tech",
+      "icon": "🔧",
+      "cost": 1,
+      "rarity": 1,
+      "iec": "61400-28",
+      "abilities": [],
+      "skills": {
+        "lv1": { "tag": "basic-repair", "staminaCost": 5, "repairPower": 3 },
+        "lv2": { "tag": "mid-repair", "staminaCost": 5, "repairPower": 5 },
+        "lv3": { "tag": "expert-repair", "staminaCost": 5, "repairPower": 8 }
+      }
+    },
+    "T02": {
+      "id": "T02",
+      "type": "tech",
+      "icon": "🪂",
+      "cost": 1,
+      "rarity": 2,
+      "specialty": "blade",
+      "iec": "61400-5",
+      "abilities": [],
+      "skills": {
+        "lv1": { "tag": "blade-inspect", "staminaCost": 5, "repairPower": 4 },
+        "lv2": { "tag": "blade-repair", "staminaCost": 5, "repairPower": 7 },
+        "lv3": { "tag": "blade-rebuild", "staminaCost": 5, "repairPower": 10, "availBoost": 2 }
+      }
+    },
+    "T03": {
+      "id": "T03",
+      "type": "tech",
+      "icon": "⚙️",
+      "cost": 1,
+      "rarity": 2,
+      "specialty": "mechanical",
+      "iec": "61400-4",
+      "abilities": [],
+      "skills": {
+        "lv1": { "tag": "mech-tune", "staminaCost": 5, "repairPower": 4 },
+        "lv2": { "tag": "gear-repair", "staminaCost": 5, "repairPower": 7 },
+        "lv3": { "tag": "shaft-rebuild", "staminaCost": 5, "repairPower": 10, "availBoost": 2 }
+      }
+    },
+    "T04": {
+      "id": "T04",
+      "type": "tech",
+      "icon": "⚡",
+      "cost": 1,
+      "rarity": 2,
+      "specialty": "electrical",
+      "iec": "61400-21",
+      "abilities": [],
+      "skills": {
+        "lv1": { "tag": "elec-test", "staminaCost": 5, "repairPower": 4 },
+        "lv2": { "tag": "elec-repair", "staminaCost": 5, "repairPower": 7 },
+        "lv3": { "tag": "sys-reset", "staminaCost": 5, "repairPower": 10, "availBoost": 2 }
+      }
+    },
+    "T05": {
+      "id": "T05",
+      "type": "tech",
+      "icon": "📡",
+      "cost": 1,
+      "rarity": 2,
+      "specialty": "sensor",
+      "iec": "61400-25",
+      "abilities": [],
+      "skills": {
+        "lv1": { "tag": "scada-calib", "staminaCost": 5, "repairPower": 3 },
+        "lv2": { "tag": "predict-monitor", "staminaCost": 5, "repairPower": 5, "special": "predict-wind" },
+        "lv3": { "tag": "smart-diag", "staminaCost": 5, "repairPower": 8, "special": "predict-all" }
+      }
+    },
+    "T06": {
+      "id": "T06",
+      "type": "tech",
+      "icon": "🔬",
+      "cost": 1,
+      "rarity": 2,
+      "specialty": "hydraulic",
+      "iec": "61400-25-6",
+      "abilities": [],
+      "skills": {
+        "lv1": { "tag": "hydro-inspect", "staminaCost": 5, "repairPower": 4 },
+        "lv2": { "tag": "hydro-repair", "staminaCost": 5, "repairPower": 7 },
+        "lv3": { "tag": "pipe-rebuild", "staminaCost": 5, "repairPower": 10, "availBoost": 2 }
+      }
+    },
+    "T07": {
+      "id": "T07",
+      "type": "tech",
+      "icon": "🛸",
+      "cost": 1,
+      "rarity": 3,
+      "specialty": "blade",
+      "iec": "61400-5",
+      "abilities": [],
+      "skills": {
+        "lv1": { "tag": "drone-inspect", "staminaCost": 5, "repairPower": 3 },
+        "lv2": { "tag": "remote-repair", "staminaCost": 5, "repairPower": 6 },
+        "lv3": { "tag": "ai-inspect", "staminaCost": 5, "repairPower": 8, "special": "all-turbines-diag" }
+      }
+    },
+    "T08": {
+      "id": "T08",
+      "type": "tech",
+      "icon": "🤿",
+      "cost": 1,
+      "rarity": 3,
+      "specialty": "mechanical",
+      "iec": "61400-3-1",
+      "abilities": [
+        { "tag": "wave-immune" }
+      ],
+      "skills": {
+        "lv1": { "tag": "underwater-inspect", "staminaCost": 5, "repairPower": 4 },
+        "lv2": { "tag": "sub-repair", "staminaCost": 5, "repairPower": 7 },
+        "lv3": { "tag": "base-rebuild", "staminaCost": 5, "repairPower": 10 }
+      }
+    },
+    "T09": {
+      "id": "T09",
+      "type": "tech",
+      "icon": "📊",
+      "cost": 1,
+      "rarity": 3,
+      "specialty": "sensor",
+      "iec": "61400-25",
+      "abilities": [],
+      "skills": {
+        "lv1": { "tag": "data-analyze", "staminaCost": 5, "availBoost": 2 },
+        "lv2": { "tag": "predict-maintain", "staminaCost": 5, "availBoost": 4 },
+        "lv3": { "tag": "ai-predict", "staminaCost": 5, "availBoost": 6, "special": "block-next-fault" }
+      }
+    },
+    "T10": {
+      "id": "T10",
+      "type": "tech",
+      "icon": "🔌",
+      "cost": 1,
+      "rarity": 3,
+      "specialty": "electrical",
+      "iec": "61400-21",
+      "abilities": [],
+      "skills": {
+        "lv1": { "tag": "grid-calib", "staminaCost": 5, "repairPower": 5 },
+        "lv2": { "tag": "transformer-repair", "staminaCost": 5, "repairPower": 8 },
+        "lv3": { "tag": "grid-optimize", "staminaCost": 5, "repairPower": 10, "mwBoost": 1 }
+      }
+    },
+    "T11": {
+      "id": "T11",
+      "type": "tech",
+      "icon": "🧪",
+      "cost": 1,
+      "rarity": 4,
+      "specialty": "blade",
+      "iec": "61400-5",
+      "abilities": [],
+      "skills": {
+        "lv1": { "tag": "carbon-inspect", "staminaCost": 5, "repairPower": 6 },
+        "lv2": { "tag": "advanced-repair", "staminaCost": 5, "repairPower": 9 },
+        "lv3": { "tag": "nano-repair", "staminaCost": 5, "repairPower": 12, "availBoost": 3 }
+      }
+    },
+    "T12": {
+      "id": "T12",
+      "type": "tech",
+      "icon": "👔",
+      "cost": 1,
+      "rarity": 4,
+      "iec": "61400-28",
+      "abilities": [],
+      "skills": {
+        "lv1": { "tag": "dispatch-manage", "staminaCost": 5, "special": "draw-item" },
+        "lv2": { "tag": "eff-optimize", "staminaCost": 5, "availBoost": 2, "special": "draw-item" },
+        "lv3": { "tag": "excel-manage", "staminaCost": 5, "availBoost": 3, "special": "draw-item-double" }
+      }
+    },
+    "T13": {
+      "id": "T13",
+      "type": "tech",
+      "icon": "🔬",
+      "cost": 1,
+      "rarity": 4,
+      "specialty": "sensor",
+      "iec": "61400-25-6",
+      "abilities": [],
+      "skills": {
+        "lv1": { "tag": "vib-analyze", "staminaCost": 5, "special": "prevent-fault-30" },
+        "lv2": { "tag": "cms-monitor", "staminaCost": 5, "special": "prevent-fault-50" },
+        "lv3": { "tag": "digital-twin", "staminaCost": 5, "special": "prevent-fault-70" }
+      }
+    },
+    "T14": {
+      "id": "T14",
+      "type": "tech",
+      "icon": "💼",
+      "cost": 1,
+      "rarity": 5,
+      "legendary": true,
+      "iec": "61400-28",
+      "abilities": [
+        { "tag": "global-stamina-save", "value": 1 }
+      ],
+      "skills": {
+        "lv1": { "tag": "global-dispatch", "staminaCost": 5, "special": "team-stamina-save-1" },
+        "lv2": { "tag": "strategy-direct", "staminaCost": 5, "special": "team-stamina-save-2" },
+        "lv3": { "tag": "master-direct", "staminaCost": 5, "special": "team-stamina-save-2-mw-1" }
+      }
+    },
+    "T15": {
+      "id": "T15",
+      "type": "tech",
+      "icon": "🎓",
+      "cost": 1,
+      "rarity": 5,
+      "legendary": true,
+      "iec": "61400-1",
+      "abilities": [],
+      "skills": {
+        "lv1": { "tag": "eng-audit", "staminaCost": 5, "repairPower": 8, "specialtyMatchesOnly": false },
+        "lv2": { "tag": "sys-reconstruct", "staminaCost": 5, "repairPower": 12, "specialtyMatchesOnly": false },
+        "lv3": { "tag": "master-reconstruct", "staminaCost": 5, "repairPower": 15, "availBoost": 5, "specialtyMatchesOnly": false }
+      }
+    },
+    "TL01": {
+      "id": "TL01",
+      "type": "tool",
+      "icon": "🔧",
+      "cost": 1,
+      "rarity": 1,
+      "effect": "stamina-save",
+      "value": 1,
+      "iec": "61400-28"
+    },
+    "TL02": {
+      "id": "TL02",
+      "type": "tool",
+      "icon": "🪜",
+      "cost": 1,
+      "rarity": 2,
+      "effect": "wind-immune",
+      "iec": "61400-28"
+    },
+    "TL03": {
+      "id": "TL03",
+      "type": "tool",
+      "icon": "⚓",
+      "cost": 1,
+      "rarity": 2,
+      "effect": "wave-immune",
+      "iec": "61400-28"
+    },
+    "TL04": {
+      "id": "TL04",
+      "type": "tool",
+      "icon": "📸",
+      "cost": 1,
+      "rarity": 2,
+      "effect": "repair-boost",
+      "value": 2,
+      "iec": "61400-28"
+    },
+    "TL05": {
+      "id": "TL05",
+      "type": "tool",
+      "icon": "🖥️",
+      "cost": 1,
+      "rarity": 3,
+      "effect": "passive-repair",
+      "value": 1,
+      "iec": "61400-25-6"
+    },
+    "TL06": {
+      "id": "TL06",
+      "type": "tool",
+      "icon": "👓",
+      "cost": 1,
+      "rarity": 3,
+      "effect": "skill-boost-1",
+      "iec": "61400-28"
+    },
+    "TL07": {
+      "id": "TL07",
+      "type": "tool",
+      "icon": "🚁",
+      "cost": 1,
+      "rarity": 4,
+      "effect": "multi-target-2",
+      "iec": "61400-5"
+    },
+    "TL08": {
+      "id": "TL08",
+      "type": "tool",
+      "icon": "🏅",
+      "cost": 1,
+      "rarity": 5,
+      "effect": "master-cert",
+      "value": 3,
+      "iec": "61400-28"
+    },
+    "IT01": {
+      "id": "IT01",
+      "type": "item",
+      "icon": "🔩",
+      "cost": 1,
+      "rarity": 1,
+      "effect": "quick-repair-worst",
+      "iec": "61400-28"
+    },
+    "IT02": {
+      "id": "IT02",
+      "type": "item",
+      "icon": "🔋",
+      "cost": 1,
+      "rarity": 1,
+      "effect": "temp-mw-boost",
+      "value": 3,
+      "iec": "61400-28"
+    },
+    "IT03": {
+      "id": "IT03",
+      "type": "item",
+      "icon": "📝",
+      "cost": 1,
+      "rarity": 1,
+      "effect": "draw-cards",
+      "value": 2,
+      "iec": "61400-28"
+    },
+    "IT04": {
+      "id": "IT04",
+      "type": "item",
+      "icon": "🏗️",
+      "cost": 1,
+      "rarity": 2,
+      "effect": "recover-shutdown",
+      "iec": "61400-28"
+    },
+    "IT05": {
+      "id": "IT05",
+      "type": "item",
+      "icon": "🛡️",
+      "cost": 1,
+      "rarity": 3,
+      "effect": "fault-shield",
+      "value": 2,
+      "iec": "61400-28"
+    },
+    "IT06": {
+      "id": "IT06",
+      "type": "item",
+      "icon": "🔩",
+      "cost": 1,
+      "rarity": 3,
+      "effect": "permanent-mw-boost",
+      "value": 1,
+      "iec": "61400-1"
+    },
+    "IT07": {
+      "id": "IT07",
+      "type": "item",
+      "icon": "🧹",
+      "cost": 1,
+      "rarity": 3,
+      "effect": "all-avail-boost",
+      "value": 5,
+      "iec": "61400-28"
+    },
+    "IT08": {
+      "id": "IT08",
+      "type": "item",
+      "icon": "🏥",
+      "cost": 1,
+      "rarity": 4,
+      "effect": "restore-avail",
+      "iec": "61400-28"
+    },
+    "IT09": {
+      "id": "IT09",
+      "type": "item",
+      "icon": "🧼",
+      "cost": 1,
+      "rarity": 5,
+      "oncePerGame": true,
+      "effect": "clean-all-faults",
+      "iec": "61400-28"
+    },
+    "CT01": {
+      "id": "CT01",
+      "type": "contract",
+      "icon": "📜",
+      "cost": 1,
+      "rarity": 2,
+      "effect": "mwh-multiplier-turn",
+      "multiplier": 1.3,
+      "duration": 1,
+      "iec": "61400-26"
+    },
+    "CT02": {
+      "id": "CT02",
+      "type": "contract",
+      "icon": "🤝",
+      "cost": 1,
+      "rarity": 3,
+      "effect": "mwh-multiplier-temp",
+      "multiplier": 1.2,
+      "duration": 3,
+      "iec": "61400-26"
+    },
+    "CT03": {
+      "id": "CT03",
+      "type": "contract",
+      "icon": "🏆",
+      "cost": 1,
+      "rarity": 4,
+      "effect": "endgame-bonus-mwh",
+      "value": 20,
+      "iec": "61400-26"
+    },
+    "F01": {
+      "id": "F01",
+      "type": "fault",
+      "icon": "🧭",
+      "cost": 0,
+      "faultCategory": "sensor",
+      "severity": 1,
+      "drop": 3,
+      "duration": 1,
+      "iec": "61400-12"
+    },
+    "F02": {
+      "id": "F02",
+      "type": "fault",
+      "icon": "🧭",
+      "cost": 0,
+      "faultCategory": "mechanical",
+      "severity": 1,
+      "drop": 5,
+      "duration": 1,
+      "iec": "61400-1"
+    },
+    "F03": {
+      "id": "F03",
+      "type": "fault",
+      "icon": "💧",
+      "cost": 0,
+      "faultCategory": "hydraulic",
+      "severity": 2,
+      "drop": 8,
+      "duration": 2,
+      "iec": "61400-1"
+    },
+    "F04": {
+      "id": "F04",
+      "type": "fault",
+      "icon": "🪂",
+      "cost": 0,
+      "faultCategory": "blade",
+      "severity": 3,
+      "drop": 12,
+      "duration": 2,
+      "iec": "61400-5"
+    },
+    "F05": {
+      "id": "F05",
+      "type": "fault",
+      "icon": "📐",
+      "cost": 0,
+      "faultCategory": "electrical",
+      "severity": 3,
+      "drop": 15,
+      "duration": 2,
+      "iec": "61400-21"
+    },
+    "F06": {
+      "id": "F06",
+      "type": "fault",
+      "icon": "⚙️",
+      "cost": 0,
+      "faultCategory": "mechanical",
+      "severity": 4,
+      "drop": 20,
+      "duration": 3,
+      "iec": "61400-4"
+    },
+    "F07": {
+      "id": "F07",
+      "type": "fault",
+      "icon": "💥",
+      "cost": 0,
+      "faultCategory": "mechanical",
+      "severity": 5,
+      "drop": 25,
+      "duration": 3,
+      "iec": "61400-4"
+    }
+  }
+}

@@ -1,212 +1,156 @@
 // ============================================================
-// AI 出牌迴圈（對齊 v3 generateActions + aiChoose + doAITurn）。
-//   - generateActions：對手牌每張呼叫對應 evaluator；fault 對每個對手機組各產生一個動作。
-//   - aiChoose：策略 + 候選 + pickByDifficulty。
-//   - aiTakeTurn：返回 runGame 用的 TakeTurn；while actionsLeft>0 → aiChoose →
-//     score < RESERVE_THRESHOLD 視為保留行動；否則 _applyActionMutate 直接套用。
-// 注意：本檔依設計直接 mutate 工作副本（透過 _applyActionMutate），與其他 core 純函式
-// 不同；這是 takeTurn 設計的必要妥協（runGame 不便對每張卡 clone 一次）。
+// AI 出牌與決策迴圈。
 // ============================================================
 import type { GameState, Difficulty } from '../types';
 import type { Rng } from '../rng';
 import type { GameEvent } from '../events';
 import { CARDS } from '../cards';
-import { canPlayCard, canRetreat, _applyActionMutate, RETREAT_ACTION_COST } from '../actions';
-import { type RulesConfig, DEFAULT_CONFIG, type TakeTurn, techSkills } from '../rules-engine';
+import { legalActions, applyAction } from '../actions';
 import { getStrategy, type Strategy } from './strategy';
 import {
-  evaluateTurbinePlay,
   evaluateTechPlay,
-  evaluateFaultPlay,
-  evaluateFuncPlay,
-  evaluateSkillPlay,
-  evaluateResourceGrab,
-  evaluateRetreatPlay,
-  RESERVE_THRESHOLD,
+  evaluateToolPlay,
+  evaluateItemPlay,
+  evaluateContractPlay,
+  evaluatePromote,
+  evaluateRetreat,
+  evaluateSkill,
+  RESERVE_THRESHOLD
 } from './evaluator';
 import {
   type ScoredAction,
   type AIChoice,
-  pickByDifficulty,
+  pickByDifficulty
 } from './difficulty';
 
-/** 對齊 v3 generateActions：對所有合法手牌產生候選動作。 */
+/** 列出所有合法候選動作並評分 */
 export function generateActions(
   state: GameState,
   player: 0 | 1,
-  difficulty: Difficulty = 'hard',
+  difficulty: Difficulty = 'hard'
 ): { actions: ScoredAction[]; strategy: Strategy } {
   const me = state.players[player];
-  const opp = state.players[1 - player];
   const strategy = getStrategy(state, player);
-  const actions: ScoredAction[] = [];
+  const actionsList = legalActions(state, player);
+  const scoredActions: ScoredAction[] = [];
 
-  for (let i = 0; i < me.hand.length; i++) {
-    if (!canPlayCard(state, player, i)) continue;
-    const cardId = me.hand[i];
-    const card = CARDS[cardId];
-    if (card.type === 'turbine') {
-      actions.push({
-        action: { kind: 'play-card', player, handIdx: i },
-        score: evaluateTurbinePlay(card, state, player, strategy, difficulty),
-        desc: me.turbines.length >= 3 ? `${cardId}（替換）` : `部署 ${cardId}`,
-      });
-    } else if (card.type === 'tech') {
-      actions.push({
-        action: { kind: 'play-card', player, handIdx: i },
-        score: evaluateTechPlay(card, state, player, strategy, difficulty),
-        desc: `派遣 ${cardId}`,
-      });
-    } else if (card.type === 'fault') {
-      // 寶可夢式規則：故障卡唯一合法目標＝對手主力機組（canPlayCard 已保證主力存在且非停機）。
-      const activeIdx = opp.activeTurbineIdx as number;
-      actions.push({
-        action: { kind: 'play-card', player, handIdx: i, target: activeIdx },
-        score: evaluateFaultPlay(card, opp.turbines[activeIdx], state, player, strategy, difficulty),
-        desc: `${cardId} → 對手主力機組#${activeIdx}`,
-      });
-    } else if (card.type === 'func') {
-      actions.push({
-        action: { kind: 'play-card', player, handIdx: i },
-        score: evaluateFuncPlay(card, state, player, strategy),
-        desc: `${cardId}`,
-      });
-    } else if (card.type === 'weather') {
-      // S3.6：weather 卡用簡化估計分數。AI 看見 wind-boost/mwh-double 給高分；
-      // shutdown-all 視為「對自己也有害」給低分；wind-penalty 看局勢（落後時加分）。
-      const tags = card.abilities.map((a) => a.tag);
-      let score = -card.cost * 4;
-      if (tags.includes('wind-boost') || tags.includes('mwh-double')) score += 18;
-      if (tags.includes('wind-penalty')) score += strategy.position === 'losing' ? 8 : -3;
-      if (tags.includes('shutdown-all')) score += strategy.position === 'losing' ? 15 : -10;
-      actions.push({
-        action: { kind: 'play-card', player, handIdx: i },
-        score,
-        desc: `🌬️ ${cardId}`,
-      });
-    } else if (card.type === 'contract') {
-      // S3.7：合約卡 cost=0，價值 = reward × 達成機率估計。AI 簡化：reward 折半當作期望值；
-      // 落後時略加碼，因為合約是逆風時的彎道超車手段。
-      const reward = card.target?.reward ?? 0;
-      let score = reward * 0.5 - card.cost * 4;
-      if (strategy.position === 'losing') score += 5;
-      if (strategy.phase === 'late') score *= 0.4; // 終局簽合約來不及達成
-      actions.push({
-        action: { kind: 'play-card', player, handIdx: i },
-        score,
-        desc: `📋 ${cardId}`,
-      });
-    }
-  }
+  for (const action of actionsList) {
+    let score = 0;
+    let desc = '';
 
-  // 技師招式候選——每技師的每一招 × 目標種類（一回合每技師只會出一招，由 usedSkillThisRound 把關）
-  for (const techId of me.techs) {
-    if (me.usedSkillThisRound.includes(techId)) continue;
-    for (const def of techSkills(techId)) {
-      if (def.targetKind === 'none') {
-        actions.push({
-          action: { kind: 'use-skill', player, techId, skillTag: def.tag },
-          score: evaluateSkillPlay(techId, def.tag, undefined, state, player, strategy, difficulty),
-          desc: `${techId} ${def.tag}`,
-        });
-      } else {
-        for (let ti = 0; ti < me.turbines.length; ti++) {
-          const tu = me.turbines[ti];
-          if (def.targetKind === 'ownFault' && tu.faults.length === 0) continue;
-          actions.push({
-            action: { kind: 'use-skill', player, techId, skillTag: def.tag, turbineIdx: ti },
-            score: evaluateSkillPlay(techId, def.tag, tu, state, player, strategy, difficulty),
-            desc: `${techId} ${def.tag} → 機組#${ti}`,
-          });
-        }
+    if (action.kind === 'end-turn') {
+      score = 0.1; // 微小正分，作為保底動作
+      desc = '結束回合';
+    } else if (action.kind === 'promote-tech') {
+      const tech = me.field.bench[action.benchIdx];
+      score = evaluatePromote(tech, state, player);
+      desc = `晉升備戰區技師 ${tech.cardId}`;
+    } else if (action.kind === 'retreat') {
+      const active = me.field.active!;
+      const bench = me.field.bench[action.benchIdx];
+      score = evaluateRetreat(active, bench, state, player);
+      desc = `撤退主力 ${active.cardId}，換上 ${bench.cardId}`;
+    } else if (action.kind === 'use-skill') {
+      const active = me.field.active!;
+      const targetTurbine = action.targetTurbineIdx !== undefined ? me.windFarm[action.targetTurbineIdx] : null;
+      score = evaluateSkill(active, targetTurbine, state, player, strategy, difficulty);
+      const skillName = CARDS[active.cardId].skills?.[active.level === 3 ? 'lv3' : active.level === 2 ? 'lv2' : 'lv1'].tag ?? 'skill';
+      desc = `主力 ${active.cardId} 使用技能 ${skillName}${targetTurbine ? ` 於 ${targetTurbine.id}` : ''}`;
+    } else if (action.kind === 'play-card') {
+      const cardId = me.hand[action.handIdx];
+      const card = CARDS[cardId];
+      
+      if (card.type === 'tech') {
+        score = evaluateTechPlay(card, state, player, strategy, difficulty);
+        desc = `派遣技師 ${cardId}`;
+      } else if (card.type === 'tool' && action.targetTechIdx !== undefined) {
+        const allTechs = [me.field.active, ...me.field.bench].filter((t): t is DeployedTech => t !== null);
+        const targetTech = allTechs[action.targetTechIdx];
+        score = evaluateToolPlay(card, targetTech, state, player, difficulty);
+        desc = `裝備工具 ${cardId} 於 ${targetTech.cardId}`;
+      } else if (card.type === 'item') {
+        const targetTurbine = action.targetTurbineIdx !== undefined ? me.windFarm[action.targetTurbineIdx] : null;
+        score = evaluateItemPlay(card, targetTurbine, state, player, strategy, difficulty);
+        desc = `使用道具 ${cardId}${targetTurbine ? ` 於 ${targetTurbine.id}` : ''}`;
+      } else if (card.type === 'contract') {
+        score = evaluateContractPlay(card, state, strategy, difficulty);
+        desc = `簽訂合約 ${cardId}`;
       }
     }
+
+    scoredActions.push({ action, score, desc });
   }
 
-  // R3：搶共享資源候選（需 ≥1 動作）
-  if (state.actionsLeft >= 1) {
-    for (const res of state.roundResources) {
-      if (res.claimedBy !== undefined) continue;
-      if (res.type === 'grid-priority') {
-        actions.push({
-          action: { kind: 'grab-resource', player, resourceId: res.id },
-          score: evaluateResourceGrab('grid-priority', undefined, state, player, strategy, difficulty),
-          desc: `搶 併網優先`,
-        });
-      } else {
-        for (let ti = 0; ti < me.turbines.length; ti++) {
-          if (me.turbines[ti].faults.length === 0) continue;
-          actions.push({
-            action: { kind: 'grab-resource', player, resourceId: res.id, turbineIdx: ti },
-            score: evaluateResourceGrab(res.type, me.turbines[ti], state, player, strategy, difficulty),
-            desc: `搶 ${res.type} → 機組#${ti}`,
-          });
-        }
-      }
-    }
-  }
-
-  // 寶可夢式撤退候選（花 1 動作，把主力換成某台備戰區機組）
-  if (state.actionsLeft >= RETREAT_ACTION_COST && me.activeTurbineIdx !== null) {
-    for (let bi = 0; bi < me.turbines.length; bi++) {
-      if (bi === me.activeTurbineIdx) continue;
-      if (!canRetreat(state, player, bi)) continue;
-      actions.push({
-        action: { kind: 'retreat', player, benchIdx: bi },
-        score: evaluateRetreatPlay(state, player, bi, strategy),
-        desc: `撤退 → 換上機組#${bi}`,
-      });
-    }
-  }
-
-  return { actions, strategy };
+  return { actions: scoredActions, strategy };
 }
 
-/** 對齊 v3 aiChoose：依難度選一個候選動作。無候選時回 null。 */
+/** AI 選擇最佳動作 */
 export function aiChoose(
   state: GameState,
   player: 0 | 1,
   difficulty: Difficulty,
-  rng: Rng,
+  rng: Rng
 ): AIChoice | null {
   const { actions, strategy } = generateActions(state, player, difficulty);
   if (actions.length === 0) return null;
+
   const chosen = pickByDifficulty(actions, difficulty, rng);
   if (!chosen) return null;
-  return { chosen, considered: actions, strategy };
-}
 
-/**
- * 對齊 v3 doAITurn：把整個玩家回合包成 TakeTurn（runGame 接此 factory）。
- * 終止條件：actionsLeft<=0 / 無合法動作 / 最佳 score < RESERVE_THRESHOLD（保留行動）。
- */
-export function aiTakeTurn(difficulty: Difficulty, config: RulesConfig = DEFAULT_CONFIG): TakeTurn {
-  return (state: GameState, player: 0 | 1, rng: Rng): GameEvent[] => {
-    const events: GameEvent[] = [];
-    // 安全網：出牌受 actionsLeft 限制、出招受「每技師每回合一次」限制 → 有限步數；仍設上限避免異常 ability 拖死。
-    // 輕模式後技師出招不消耗 actionsLeft，故迴圈條件改為「有進展就繼續」，不再只看 actionsLeft。
-    const HARD_CAP = 30;
-    let steps = 0;
-    while (!state.gameOver && steps++ < HARD_CAP) {
-      const choice = aiChoose(state, player, difficulty, rng);
-      if (!choice || choice.chosen.score < RESERVE_THRESHOLD) break;
-      const beforeActions = state.actionsLeft;
-      const beforeSkills = state.players[player].usedSkillThisRound.length;
-      events.push(..._applyActionMutate(state, choice.chosen.action, rng, config));
-      // 進展判定：出牌消耗 actionsLeft，或技師出招使 usedSkillThisRound 增加。皆無 → 跳出避免死迴圈。
-      const progressed =
-        state.actionsLeft < beforeActions ||
-        state.players[player].usedSkillThisRound.length > beforeSkills;
-      if (!progressed) break;
-    }
-    return events;
+  return {
+    chosen,
+    considered: actions,
+    strategy,
   };
 }
 
-// re-export 給外部單一入口
-export { pickByDifficulty } from './difficulty';
-export type { ScoredAction, AIChoice } from './difficulty';
-export type { Strategy, Phase, Position, BoardEval } from './strategy';
-export { getStrategy, evaluateBoard } from './strategy';
-export { RESERVE_THRESHOLD, AI_AVG_WIND_COEFF, getDifficultyMultipliers } from './evaluator';
-export type { DifficultyMultipliers } from './evaluator';
+// 用於 DeployedTech 的 type 宣告
+type DeployedTech = import('../types').DeployedTech;
+
+/** 執行 AI 的完整回合 */
+export function aiTakeTurn(
+  state: GameState,
+  difficulty: Difficulty,
+  rng: Rng
+): { state: GameState; events: GameEvent[] } {
+  let currState = structuredClone(state);
+  const events: GameEvent[] = [];
+  const activePlayer = currState.currentPlayer;
+
+  let steps = 0;
+  const HARD_CAP = 30;
+
+  while (steps < HARD_CAP && !currState.gameOver) {
+    steps++;
+    const choice = aiChoose(currState, activePlayer, difficulty, rng);
+    if (!choice) break;
+
+    const { action, score } = choice.chosen;
+    
+    // 如果最佳動作小於保留閾值，或者決定結束回合，則退出循環
+    if (score < RESERVE_THRESHOLD || action.kind === 'end-turn') {
+      events.push({ kind: 'turn-ended', player: activePlayer });
+      break;
+    }
+
+    // 執行動作並累積事件
+    const result = applyAction(currState, action, rng);
+    currState = result.state;
+    events.push(...result.events);
+
+    // 寶可夢規則：使用技能會立即結束回合
+    if (action.kind === 'use-skill') {
+      break;
+    }
+  }
+
+  // 確保一定有結束事件，避免呼叫端陷入無窮迴圈
+  const hasEnded = events.some(
+    (e) => e.kind === 'turn-ended' || e.kind === 'skill-used'
+  );
+  if (!hasEnded && !currState.gameOver) {
+    events.push({ kind: 'turn-ended', player: activePlayer });
+  }
+
+  return { state: currState, events };
+}

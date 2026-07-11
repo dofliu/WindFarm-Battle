@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createRng } from '../src/core/rng';
-import { rollWind } from '../src/core/rules-engine';
+import { rollWind } from '../src/core/environment';
 
 describe('風速骰（對齊 v3）', () => {
   it('效率係數只會是合法值 {0, 0.4, 1.0, 0.7}', () => {

@@ -59,10 +59,10 @@ export interface LearningReport {
  */
 export function explainRepair(e: GameEvent): RepairInsight | null {
   if (e.kind !== 'fault-repaired') return null;
-  const techId = isTechCard(e.by ?? '') ? e.by : undefined;
+  const techId = e.byTechCardId && isTechCard(e.byTechCardId) ? e.byTechCardId : undefined;
   return {
     player: e.player,
-    by: e.by ?? '',
+    by: e.byTechCardId ?? '',
     techId,
     faultId: e.cardId,
     category: categoryOf(e.cardId),
@@ -99,21 +99,22 @@ export function extractLearningReport(events: readonly GameEvent[], self: 0 | 1 
   };
 
   for (const e of events) {
-    switch (e.kind) {
+    const event: any = e;
+    switch (event.kind) {
       case 'fault-applied':
         // fault-applied.player = 受害者；只計自己遇到的故障
-        if (e.player === self) bumpCategory(e.cardId);
+        if (event.player === self) bumpCategory(event.cardId);
         break;
       case 'fault-cascaded':
-        if (e.player === self) bumpCategory(e.cardId);
+        if (event.player === self) bumpCategory(event.cardId);
         break;
       case 'incident':
         // 同題共享事件：雙方同時受擊 → 玩家也遇到
-        bumpCategory(e.faultCardId);
+        bumpCategory(event.faultCardId);
         break;
       case 'fault-repaired': {
-        if (e.player !== self) break;
-        const insight = explainRepair(e);
+        if (event.player !== self) break;
+        const insight = explainRepair(event);
         if (!insight) break;
         if (insight.matched) fullRepairs += 1;
         else {

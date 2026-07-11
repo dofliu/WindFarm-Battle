@@ -16,9 +16,16 @@ export function HoverPreview({ cardId }: Props) {
   const card = CARDS[cardId];
   const { theme, themeKey } = useTheme();
   if (!card) return null;
-  const cardType = card.type as CardType;
-  const tc = getTypeColor(themeKey, cardType);
-  const IconComp = pickIcon(card.icon, cardType);
+  // 映射類型以適配舊版 theme/meta 色彩配置
+  let mappedType: CardType = 'tech';
+  if (card.type === 'tool') mappedType = 'tech';
+  else if (card.type === 'item') mappedType = 'func';
+  else if (card.type === 'contract') mappedType = 'contract';
+  else if (card.type === 'fault') mappedType = 'fault';
+  else if (card.type === 'turbine') mappedType = 'turbine';
+
+  const tc = getTypeColor(themeKey, mappedType);
+  const IconComp = pickIcon(card.icon, mappedType);
   const name = cardName(cardId) || cardId;
   const flavor = cardFlavor(cardId);
 

@@ -39,10 +39,10 @@ export function GameOverScreen({ state, onRestart, onTitle }: Props) {
   const accent = winner === 'me' ? theme.success : winner === 'ai' ? theme.danger : theme.warning;
 
   const stats: ReadonlyArray<[string, number]> = [
-    [t('gameover.stat.turbines'), me.turbines.length],
-    [t('gameover.stat.techs'), me.techs.length],
-    [t('gameover.stat.faults'), opp.turbines.reduce((s, tu) => s + tu.faults.length, 0)],
-    [t('gameover.stat.rounds'), state.round],
+    [t('gameover.stat.turbines') || '機組數', me.windFarm.length],
+    [t('gameover.stat.techs') || '技師數', (me.field.active ? 1 : 0) + me.field.bench.length],
+    [t('gameover.stat.faults') || '故障數', opp.windFarm.reduce((s, tu) => s + tu.faults.length, 0)],
+    [t('gameover.stat.rounds') || '回合數', state.round - 1],
   ];
 
   function handleExportJson() {

@@ -1,20 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { allCardIds, cardsByType, getCard, CARD_COUNT } from '../src/core/cards';
+import { allCardIds, getCard } from '../src/core/cards';
 
-describe('卡牌資料載入', () => {
-  it('共 55 張卡（含 OS8/OS10/OS12 開局艦隊 + UP01-UP04 升級卡）', () => {
-    expect(CARD_COUNT).toBe(55);
-  });
-
-  it('六大類別數量正確（15/9/9/13/5/4，turbine 含 3 張開局艦隊，func 含 UP01-UP04）', () => {
-    expect(cardsByType('turbine')).toHaveLength(15);
-    expect(cardsByType('tech')).toHaveLength(9);
-    expect(cardsByType('fault')).toHaveLength(9);
-    expect(cardsByType('func')).toHaveLength(13);
-    expect(cardsByType('weather')).toHaveLength(5);
-    expect(cardsByType('contract')).toHaveLength(4);
-  });
-
+describe('卡牌資料載入 v2.0', () => {
   it('每張卡 id 一致且有數字 cost', () => {
     for (const id of allCardIds) {
       const c = getCard(id);

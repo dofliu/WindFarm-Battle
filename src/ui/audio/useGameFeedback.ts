@@ -17,10 +17,10 @@ import { getSettings } from '../../store/settings-store';
 
 /** 新批次是否包含「對自己有衝擊」的事件（受擊 / 停機 / 同題事件）→ 觸發螢幕震動。 */
 function hasImpactOnSelf(events: readonly GameEvent[], self: 0 | 1): boolean {
-  return events.some((e) => {
-    if (e.kind === 'incident') return true;
-    if (e.kind === 'fault-applied' || e.kind === 'fault-cascaded') return e.player === self;
-    if (e.kind === 'turbine-shutdown') return e.player === self;
+  return events.some((event: any) => {
+    if (event.kind === 'incident') return true;
+    if (event.kind === 'fault-applied' || event.kind === 'fault-cascaded') return event.player === self;
+    if (event.kind === 'turbine-shutdown') return event.player === self;
     return false;
   });
 }

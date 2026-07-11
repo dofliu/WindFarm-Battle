@@ -1,103 +1,53 @@
 // ============================================================
 // Sprint 5 Zustand store：包裝核心 GameState + UI 動作。
-//
-// 流程設計：
-//   1. newGame() → 建立初始狀態，跑回合 1 的 startRound（風骰/抽牌/begin P0）
-//   2. 使用者 playCard / endTurn → 觸發本地 mutate + 推進回合
-//   3. endTurn(P0) → _repairFaults + _periodicRepair → AI turn → repair → endRound
-//      → 下一回合 startRound（直到 round > 12 → gameOver）
-//
-// 為什麼不直接用 runGame：runGame 跑滿 12 回合無暫停點；UI 需要在玩家每個 turn 暫停等輸入。
-// 因此這裡組合 rules-engine 的 internal mutate 函式，自行控制流程。
 // ============================================================
 import { create } from 'zustand';
 import type { GameState, GameMode, Difficulty } from '../core/types';
 import type { GameEvent } from '../core/events';
-import type { Rng } from '../core/rng';
-import { createRng } from '../core/rng';
+import { createRng, Rng } from '../core/rng';
 import { createInitialState, cloneState } from '../core/game-state';
 import {
-  rollWind,
-  _drawCard,
-  _beginTurn,
-  _tickFaults,
-  _scoreRound,
-  _applySalt,
-  _periodicRepair,
-  _repairFaults,
-  _unpredictableShuffle,
-  _applyEnvironmentIncident,
-  _spawnRoundResources,
-  _tickWeather,
-  _checkContracts,
-  UI_RICH_CONFIG,
-  determineWinner,
+  startRound,
+  endRound,
 } from '../core/rules-engine';
-import { _applyActionMutate, canPlayCard, canRetreat, effectiveCost } from '../core/actions';
-import { techSkillDef } from '../core/rules-engine';
-import { aiTakeTurn, aiChoose, RESERVE_THRESHOLD } from '../core/ai';
-import { _applyActionMutate as _applyAiAction } from '../core/actions';
+import { applyAction, canPlayCard } from '../core/actions';
+import { aiChoose } from '../core/ai';
+import { RESERVE_THRESHOLD } from '../core/ai/evaluator';
 import { CARDS } from '../core/cards';
 
 const HUMAN: 0 | 1 = 0;
 const AI: 0 | 1 = 1;
-const EVENT_LOG_LIMIT = 200; // 防 store 無限長
+const EVENT_LOG_LIMIT = 200;
 
-/** 從事件列表提取回合結算摘要（供 UI toast 顯示）*/
-type RoundScore = NonNullable<GameStore['lastRoundScore']>;
-function _extractRoundScore(events: GameEvent[], completedRound: number, p0Total: number, p1Total: number): RoundScore | null {
-  const p0 = events.find(e => e.kind === 'round-scored' && (e as { player: number }).player === 0);
-  const p1 = events.find(e => e.kind === 'round-scored' && (e as { player: number }).player === 1);
-  if (!p0 || !p1 || p0.kind !== 'round-scored' || p1.kind !== 'round-scored') return null;
-  return { round: completedRound, p0Mwh: p0.mwh, p1Mwh: p1.mwh, p0Total, p1Total };
-}
-
-/** UI 動畫特效（故障/修復一次性閃光）。由 store 自動清掃 */
 export interface UiEffect {
   readonly id: string;
   readonly type: 'fault' | 'repair';
-  /** side: 0=玩家 / 1=AI；slot: 該玩家機組陣列索引 */
   readonly target: { side: 0 | 1; slot: number; cardId?: string };
   readonly time: number;
 }
 
 interface GameStore {
-  // 設定
-  readonly mode: GameMode;
+  mode: GameMode;
   difficulty: Difficulty;
   setDifficulty: (d: Difficulty) => void;
 
-  // 遊戲狀態
   state: GameState;
   events: GameEvent[];
-  /** 玩家正在挑選 fault 目標時，記住要出哪張手牌 idx；否則 null */
-  pendingFaultHandIdx: number | null;
-  /** 玩家正在挑選 turbine 替換目標時，記住要出哪張手牌 idx；否則 null */
+  pendingFaultHandIdx: number | null; // 借用為道具施放的 turbine 選擇狀態
   pendingReplaceHandIdx: number | null;
-  /** 當前 rng（mutable）— Zustand store 內部使用，不公開 */
   rng: Rng;
-  /**
-   * AI 正在思考中（UI 顯示動畫用）。
-   * 玩家結束回合後，先顯示此旗標 ~700ms，再跑 AI 動作並清除。
-   */
   isAiThinking: boolean;
 
-  // ── UI 動畫狀態（不影響規則邏輯）──────────────────────────────
-  /** 一次性視覺特效佇列（故障/修復閃光），UI 自動移除 */
   effects: UiEffect[];
   pushEffect: (
     type: 'fault' | 'repair',
     target: { side: 0 | 1; slot: number; cardId?: string },
-    durationMs?: number,
+    durationMs?: number
   ) => void;
   removeEffect: (id: string) => void;
-  /** 風速骰動畫旗標（純 UI；新回合切換時設為 true 1.2s） */
   windRolling: boolean;
   setWindRolling: (rolling: boolean) => void;
-  /**
-   * 上一回合結算結果（UI 回合摘要 toast 用）。
-   * 新回合開始或玩家出牌後自動清除。
-   */
+  
   lastRoundScore: {
     round: number;
     p0Mwh: number;
@@ -106,205 +56,43 @@ interface GameStore {
     p1Total: number;
   } | null;
 
-  /**
-   * AI 上一個 turn 所做動作的事件列表（教學用：讓玩家看到 AI 在做什麼）。
-   * endTurn Phase 2 完成後設置；玩家出牌 / 棄牌 / newGame 時清除。
-   */
   lastAiActions: GameEvent[];
   clearLastAiActions: () => void;
-
-  /**
-   * AI 正在執行的當前動作標籤（逐步模式用，顯示在 UI 上）。
-   * 每個 AI 步驟開始時設置，回合結束時清除。
-   */
   aiCurrentAction: string | null;
-
-  /** 本局開始時間（遙測用） */
   gameStartedAt: Date;
 
-  // 動作
   newGame: (seed?: number) => void;
-  /** 嘗試出牌；fault 卡若未指定 target 會切到「挑目標」模式 */
-  playCard: (handIdx: number, options?: { target?: number; replaceIdx?: number }) => void;
-  /** 玩家挑選 fault 目標後完成出牌 */
-  selectFaultTarget: (targetIdx: number) => void;
+  playCard: (handIdx: number, options?: { targetTurbineIdx?: number; targetTechIdx?: number }) => void;
+  selectFaultTarget: (targetIdx: number) => void; // 點擊風機時調用 (用來對應道具卡或修復目標)
   selectReplaceTarget: (replaceIdx: number) => void;
-  /** 技師出招挑目標時記住的技師 ID / 招式 tag；否則 null */
+  
   pendingSkillTechId: string | null;
   pendingSkillTag: string | null;
-  /** 技師出招（指定招式 tag）。需目標且多台可選時，切到「挑機組」模式 */
   activateSkill: (techId: string, skillTag: string, turbineIdx?: number) => void;
-  /** 挑好機組後完成出招 */
   selectSkillTarget: (turbineIdx: number) => void;
-  /** R3：玩家正在替某資源(備品/吊車)挑選要施用的自家機組時，記住資源 ID；否則 null */
+  
   pendingResourceId: string | null;
-  /** R3：搶共享資源（花 1 動作）。備品/吊車未指定機組且多台可修時切「挑機組」模式 */
   grabResource: (resourceId: string, turbineIdx?: number) => void;
-  /** R3：挑好機組後完成搶資源 */
   selectResourceTarget: (turbineIdx: number) => void;
-  /** 寶可夢式撤退：花 1 動作，把主力換成 benchIdx 指定的備戰區機組 */
+  
   retreat: (benchIdx: number) => void;
+  promoteTech: (benchIdx: number) => void;
   cancelPending: () => void;
-  /** 玩家主動棄牌（不花費動作，但每回合只能用一次） */
   discardCard: (handIdx: number) => void;
   hasDiscarded: boolean;
-  /** 結束玩家回合 → 顯示 AI 思考動畫（~700ms）→ AI 跑完 → 結算 → 進入下一回合 */
-  endTurn: () => void;
-  /** 清除回合結算摘要（UI toast 消失後呼叫） */
   clearLastRoundScore: () => void;
+  endTurn: () => void;
 }
 
-/** 啟動新回合：rollWind + tickFaults + unpredictable + drawCard×N + beginTurn(firstPlayer) */
-function startRound(s: GameState, rng: Rng): GameEvent[] {
-  const events: GameEvent[] = [];
-  // FN05 D4 修正：futureWind 優先消費
-  if (s.futureWind.length > 0) {
-    s.wind = s.futureWind.shift() as GameState['wind'];
-  } else {
-    s.wind = rollWind(rng);
-  }
-  events.push({ kind: 'round-start', round: s.round, windLabel: s.wind.label });
-
-  events.push(..._tickFaults(s));
-  events.push(..._unpredictableShuffle(s, rng));
-  // R2 同題：共享環境事件（同故障同槽砸雙方）
-  events.push(..._applyEnvironmentIncident(s, rng));
-  // R3 同題：生成本回合共享資源（並歸零併網加成）
-  events.push(..._spawnRoundResources(s, rng));
-  s.players.forEach((p) => {
-    p.mwhBoostActive = false;
-  });
-  // 每回合抽 drawsPerRound 張（UI_RICH_CONFIG = 2，讓手牌更豐富）
-  const draws = UI_RICH_CONFIG.drawsPerRound ?? 1;
-  for (let i = 0; i < draws; i++) {
-    _drawCard(s, 0, rng, UI_RICH_CONFIG);
-    _drawCard(s, 1, rng, UI_RICH_CONFIG);
-  }
-
-  // 先手玩家：(round - 1) % 2
-  s.firstPlayer = ((s.round - 1) % 2) as 0 | 1;
-  events.push(..._beginTurn(s, s.firstPlayer));
-  // 自動補牌：先手玩家手牌不足 refillHandTo 張時補到目標張數
-  const refillTo = UI_RICH_CONFIG.refillHandTo ?? 0;
-  if (refillTo > 0) {
-    while (s.players[s.firstPlayer].hand.length < refillTo) {
-      _drawCard(s, s.firstPlayer, rng, UI_RICH_CONFIG);
-    }
-  }
-  return events;
-}
-
-/** 結算 + 下回合準備（或結束遊戲） */
-function endRound(s: GameState, rng: Rng): GameEvent[] {
-  const events: GameEvent[] = [];
-  events.push(..._scoreRound(s));
-  _applySalt(s);
-  events.push(..._checkContracts(s));
-  events.push(..._tickWeather(s));
-
-  if (s.round >= s.maxRounds) {
-    s.gameOver = true;
-    events.push({ kind: 'game-over', winner: determineWinner(s) });
-    return events;
-  }
-  s.round += 1;
-  events.push(...startRound(s, rng));
-  return events;
-}
-
-/** 玩家完成 turn → repair + periodic-repair；若還有下一玩家就 beginTurn；否則 endRound */
-function advanceAfterTurn(s: GameState, finishedPlayer: 0 | 1, rng: Rng): GameEvent[] {
-  const events: GameEvent[] = [];
-  events.push(..._repairFaults(s, finishedPlayer, UI_RICH_CONFIG));
-  events.push(..._periodicRepair(s, finishedPlayer));
-  const nextPlayer = (1 - finishedPlayer) as 0 | 1;
-  // 已經輪過兩位玩家？比較 firstPlayer
-  if (finishedPlayer === s.firstPlayer) {
-    // 還有對手玩家要動
-    events.push(..._beginTurn(s, nextPlayer));
-    // 自動補牌：手牌不足 refillHandTo 張時補到目標張數
-    const refillTo = UI_RICH_CONFIG.refillHandTo ?? 0;
-    if (refillTo > 0) {
-      while (s.players[nextPlayer].hand.length < refillTo) {
-        _drawCard(s, nextPlayer, rng, UI_RICH_CONFIG);
-      }
-    }
-  } else {
-    // 兩位都動過了 → endRound
-    events.push(...endRound(s, rng));
-  }
-  return events;
-}
-
-/** 跑 AI 玩家的整個 turn */
-function runAiTurn(s: GameState, difficulty: Difficulty, rng: Rng): GameEvent[] {
-  const takeTurn = aiTakeTurn(difficulty, UI_RICH_CONFIG);
-  return takeTurn(s, AI, rng);
-}
-
-/**
- * 逐步執行 AI 回合：每次呼叫只執行「一個」AI 動作，並回傳該動作產生的事件。
- * 若 AI 已無更多動作（或 score < RESERVE_THRESHOLD），回傳 null 表示回合結束。
- */
-function runAiOneStep(
-  s: GameState,
-  difficulty: Difficulty,
-  rng: Rng,
-): GameEvent[] | null {
-  const choice = aiChoose(s, AI, difficulty, rng);
-  if (!choice || choice.chosen.score < RESERVE_THRESHOLD) return null;
-  const beforeActions = s.actionsLeft;
-  const beforeSkills = s.players[AI].usedSkillThisRound.length;
-  const events = _applyAiAction(s, choice.chosen.action, rng, UI_RICH_CONFIG);
-  const progressed =
-    s.actionsLeft < beforeActions ||
-    s.players[AI].usedSkillThisRound.length > beforeSkills;
-  if (!progressed) return null;
-  return events;
-}
-
-// ============================================================
-// Store factory
-// ============================================================
-function makeInitialStoreState(seed: number, difficulty: Difficulty) {
-  const rng = createRng(seed);
-  // R2：UI 預設走同題競賽模式（共享環境事件、風場固定、無 PvP）
-  const state = createInitialState(rng, 'weather-challenge');
-  // 開局手牌：initialDraws 張（UI_RICH_CONFIG = 3，讓玩家一開始就有選擇）
-  const initialDraws = UI_RICH_CONFIG.initialDraws ?? 0;
-  for (let i = 0; i < initialDraws; i++) {
-    _drawCard(state, 0, rng, UI_RICH_CONFIG);
-    _drawCard(state, 1, rng, UI_RICH_CONFIG);
-  }
-  // 進入回合 1（再抽 drawsPerRound 張）
-  const events = startRound(state, rng);
-  // 若 AI 先手（round=1 firstPlayer=0，AI 不會先手），但保險起見：
-  if (state.currentPlayer === AI && !state.gameOver) {
-    const aiEvents = runAiTurn(state, difficulty, rng);
-    events.push(...aiEvents);
-    events.push(...advanceAfterTurn(state, AI, rng));
-  }
-  return { state, events, rng };
-}
-
-/**
- * 從 events 推導出該觸發哪些一次性視覺特效（fault / repair）。
- * - fault-applied/cascaded：在目標機組上播放故障閃光
- * - fault-repaired：在被修復的機組上播放修復星光
- *
- * 注意：rules-engine 中 fault-applied.player = oppId（受害者的 side = 1 - attacker），
- * 因此這裡直接用 e.player 作為 targetSide，不需再做 1- 翻轉。
- * 若再翻轉一次，特效會出現在攻擊者自己的卡牌上（bug）。
- */
 function _deriveEffects(events: GameEvent[]): Array<{ type: 'fault' | 'repair'; side: 0 | 1; slot: number; cardId?: string }> {
   const out: Array<{ type: 'fault' | 'repair'; side: 0 | 1; slot: number; cardId?: string }> = [];
   for (const e of events) {
-    if (e.kind === 'fault-applied' || e.kind === 'fault-cascaded') {
-      // fault-applied.player = oppId（受害者），直接用作 targetSide
-      out.push({ type: 'fault', side: e.player as 0 | 1, slot: e.targetIdx, cardId: e.cardId });
+    if (e.kind === 'fault-applied') {
+      const turbineIdx = e.turbineId === 'OS8' ? 0 : e.turbineId === 'OS10' ? 1 : 2;
+      out.push({ type: 'fault', side: e.player as 0 | 1, slot: turbineIdx, cardId: e.cardId });
     } else if (e.kind === 'fault-repaired') {
-      // 修復對象 = 該玩家自己的機組
-      out.push({ type: 'repair', side: e.player, slot: e.targetIdx, cardId: e.cardId });
+      const turbineIdx = e.turbineId === 'OS8' ? 0 : e.turbineId === 'OS10' ? 1 : 2;
+      out.push({ type: 'repair', side: e.player, slot: turbineIdx, cardId: e.cardId });
     }
   }
   return out;
@@ -316,124 +104,200 @@ function _nextEffectId(): string {
   return `fx-${Date.now()}-${_effectIdCounter}`;
 }
 
+function makeInitialStoreState(seed: number, difficulty: Difficulty) {
+  void difficulty;
+  const rng = createRng(seed);
+  const state = createInitialState(rng, 'weather-challenge');
+  
+  // 開局抽 4 張牌
+  for (let i = 0; i < 4; i++) {
+    if (state.players[0].deck.length > 0) {
+      state.players[0].hand.push(state.players[0].deck.shift()!);
+    }
+    if (state.players[1].deck.length > 0) {
+      state.players[1].hand.push(state.players[1].deck.shift()!);
+    }
+  }
+  
+  // 啟動第一回合
+  const events = startRound(state, rng);
+  return { state, events, rng };
+}
+
 export const useGameStore = create<GameStore>((set, get) => ({
   mode: 'weather-challenge',
   difficulty: 'hard',
   setDifficulty: (d) => set({ difficulty: d }),
 
-  ...makeInitialStoreState(20260521, 'hard'),
+  ...makeInitialStoreState(Date.now() & 0xffffffff, 'hard'),
   pendingFaultHandIdx: null,
   pendingReplaceHandIdx: null,
+  isAiThinking: false,
+  effects: [],
+  windRolling: false,
+  lastRoundScore: null,
+  lastAiActions: [],
+  aiCurrentAction: null,
+  gameStartedAt: new Date(),
   pendingSkillTechId: null,
   pendingSkillTag: null,
   pendingResourceId: null,
   hasDiscarded: false,
-  isAiThinking: false,
-  lastRoundScore: null,
-  lastAiActions: [],
-  aiCurrentAction: null,
-  effects: [],
-  windRolling: false,
-  gameStartedAt: new Date(),
 
-  pushEffect: (type, target, durationMs = 900) => {
+  pushEffect: (type, target, durationMs = 1000) => {
     const id = _nextEffectId();
-    const fx: UiEffect = { id, type, target, time: Date.now() };
-    set((s) => ({ effects: [...s.effects, fx] }));
-    window.setTimeout(() => {
-      set((s) => ({ effects: s.effects.filter((e) => e.id !== id) }));
-    }, durationMs);
+    const effect: UiEffect = { id, type, target, time: Date.now() };
+    set((s) => ({ effects: [...s.effects, effect] }));
+    setTimeout(() => get().removeEffect(id), durationMs);
   },
 
   removeEffect: (id) => set((s) => ({ effects: s.effects.filter((e) => e.id !== id) })),
-
   setWindRolling: (rolling) => set({ windRolling: rolling }),
 
   newGame: (seed = Date.now() & 0xffffffff) => {
     const { difficulty } = get();
     const fresh = makeInitialStoreState(seed, difficulty);
-    set({ ...fresh, pendingFaultHandIdx: null, pendingReplaceHandIdx: null, pendingSkillTechId: null, pendingSkillTag: null, pendingResourceId: null, hasDiscarded: false, isAiThinking: false, lastRoundScore: null, lastAiActions: [], aiCurrentAction: null, effects: [], windRolling: false, gameStartedAt: new Date() });
+    set({
+      ...fresh,
+      pendingFaultHandIdx: null,
+      pendingReplaceHandIdx: null,
+      pendingSkillTechId: null,
+      pendingSkillTag: null,
+      pendingResourceId: null,
+      hasDiscarded: false,
+      isAiThinking: false,
+      lastRoundScore: null,
+      lastAiActions: [],
+      aiCurrentAction: null,
+      effects: [],
+      windRolling: false,
+      gameStartedAt: new Date(),
+    });
   },
 
   playCard: (handIdx, options) => {
     const { state, events, rng } = get();
     if (state.gameOver || state.currentPlayer !== HUMAN) return;
-    if (!canPlayCard(state, HUMAN, handIdx)) return;
+    if (!canPlayCard(state, HUMAN, handIdx, options?.targetTurbineIdx, options?.targetTechIdx)) return;
 
     const cardId = state.players[HUMAN].hand[handIdx];
     const card = CARDS[cardId];
 
-    // 寶可夢式規則：故障卡唯一合法目標＝對手主力機組，不再有「多台可選」的情境，
-    // 不需要 pendingFaultHandIdx 挑目標流程——canPlayCard 已保證主力存在且非停機，
-    // 未指定 target 時交給 _applyFault 自動解析為對手主力（見 rules-engine.activeTargetIndex）。
-
-    // Turbine 滿格替換（M10 no-slot 除外，actions 內部已處理）
-    if (card.type === 'turbine' && options?.replaceIdx === undefined) {
-      // 簡化：交由 actions._deployTurbine 用 findWeakest 替；不強制讓使用者選
+    // 道具卡如果需要指定機組，且點擊時尚未指定，則進入 turbine 選擇狀態
+    if (
+      card.type === 'item' &&
+      ['quick-repair-worst', 'temp-mw-boost', 'recover-shutdown', 'fault-shield', 'permanent-mw-boost', 'restore-avail'].includes(card.effect ?? '') &&
+      options?.targetTurbineIdx === undefined
+    ) {
+      set({ pendingFaultHandIdx: handIdx });
+      return;
     }
 
-    // 套用動作
+    // 工具卡自動裝備到主力技師（若主力不存在，則裝備到備戰第一個）
+    let finalTargetTechIdx = options?.targetTechIdx;
+    if (card.type === 'tool' && finalTargetTechIdx === undefined) {
+      if (state.players[HUMAN].field.active) {
+        finalTargetTechIdx = 0;
+      } else if (state.players[HUMAN].field.bench.length > 0) {
+        finalTargetTechIdx = 1; // 備戰區第一個在 DeployedTechs 列表中索引是 1 (因為 active 是 0)
+      } else {
+        return; // 沒有技師無法裝備工具
+      }
+    }
+
+    // 執行 play-card
     const s = cloneState(state);
-    const eventsNew = _applyActionMutate(
+    const actionResult = applyAction(
       s,
-      { kind: 'play-card', player: HUMAN, handIdx, target: options?.target, replaceIdx: options?.replaceIdx },
-      rng,
-      UI_RICH_CONFIG,
+      {
+        kind: 'play-card',
+        player: HUMAN,
+        handIdx,
+        targetTurbineIdx: options?.targetTurbineIdx,
+        targetTechIdx: finalTargetTechIdx,
+      },
+      rng
     );
+
     set({
-      state: s,
-      events: [...events, ...eventsNew].slice(-EVENT_LOG_LIMIT),
+      state: actionResult.state,
+      events: [...events, ...actionResult.events].slice(-EVENT_LOG_LIMIT),
       pendingFaultHandIdx: null,
       pendingReplaceHandIdx: null,
       pendingSkillTechId: null,
-      pendingResourceId: null,
-      lastAiActions: [],   // 玩家開始動作 → 清除 AI 摘要
+      lastAiActions: [],
     });
-    // 觸發一次性視覺特效（故障/修復）
-    for (const fx of _deriveEffects(eventsNew)) {
+
+    for (const fx of _deriveEffects(actionResult.events)) {
       get().pushEffect(fx.type, { side: fx.side, slot: fx.slot, cardId: fx.cardId });
     }
+  },
+
+  selectFaultTarget: (targetIdx) => {
+    const { pendingFaultHandIdx, playCard } = get();
+    if (pendingFaultHandIdx === null) return;
+    playCard(pendingFaultHandIdx, { targetTurbineIdx: targetIdx });
+  },
+
+  selectReplaceTarget: (replaceIdx) => {
+    const { pendingReplaceHandIdx, playCard } = get();
+    if (pendingReplaceHandIdx === null) return;
+    playCard(pendingReplaceHandIdx, { targetTurbineIdx: replaceIdx });
   },
 
   activateSkill: (techId, skillTag, turbineIdx) => {
     const { state, events, rng } = get();
     if (state.gameOver || state.currentPlayer !== HUMAN) return;
-    const p = state.players[HUMAN];
-    if (!p.techs.includes(techId) || p.usedSkillThisRound.includes(techId)) return;
-    const def = techSkillDef(techId, skillTag);
-    if (!def) return;
+    const activeTech = state.players[HUMAN].field.active;
+    if (!activeTech || activeTech.cardId !== techId || activeTech.usedSkillThisTurn) return;
+
+    const card = CARDS[techId];
+    const levelKey = activeTech.level === 3 ? 'lv3' : activeTech.level === 2 ? 'lv2' : 'lv1';
+    const skill = card.skills?.[levelKey];
+    if (!skill || skill.tag !== skillTag) return;
+
+    // 判定是否需要選擇目標機組
     let target = turbineIdx;
-    if (def.targetKind !== 'none' && target === undefined) {
-      const candIdx = p.turbines
-        .map((t, i) => (def.targetKind === 'ownFault' ? (t.faults.length > 0 ? i : -1) : i))
-        .filter((i) => i >= 0);
-      if (candIdx.length === 0) return;
-      if (candIdx.length > 1) {
-        set({ pendingSkillTechId: techId, pendingSkillTag: skillTag, pendingFaultHandIdx: null, pendingReplaceHandIdx: null, pendingResourceId: null });
-        return;
-      }
-      target = candIdx[0];
+    const needsTarget = !!(skill.repairPower || skill.availBoost || skill.mwBoost || skill.special?.includes('prevent-fault') || skill.special?.includes('block-next-fault'));
+    
+    if (needsTarget && target === undefined) {
+      set({
+        pendingSkillTechId: techId,
+        pendingSkillTag: skillTag,
+        pendingFaultHandIdx: null,
+        pendingReplaceHandIdx: null,
+      });
+      return;
     }
 
     const s = cloneState(state);
-    const eventsNew = _applyActionMutate(
+    const actionResult = applyAction(
       s,
-      { kind: 'use-skill', player: HUMAN, techId, skillTag, turbineIdx: target },
-      rng,
-      UI_RICH_CONFIG,
+      {
+        kind: 'use-skill',
+        player: HUMAN,
+        targetTurbineIdx: target,
+      },
+      rng
     );
+
     set({
-      state: s,
-      events: [...events, ...eventsNew].slice(-EVENT_LOG_LIMIT),
+      state: actionResult.state,
+      events: [...events, ...actionResult.events].slice(-EVENT_LOG_LIMIT),
       pendingSkillTechId: null,
       pendingSkillTag: null,
       pendingFaultHandIdx: null,
-      pendingReplaceHandIdx: null,
       lastAiActions: [],
     });
-    for (const fx of _deriveEffects(eventsNew)) {
+
+    for (const fx of _deriveEffects(actionResult.events)) {
       get().pushEffect(fx.type, { side: fx.side, slot: fx.slot, cardId: fx.cardId });
     }
+
+    // 寶可夢 TCG 規則：出招後自動結束回合！
+    setTimeout(() => {
+      get().endTurn();
+    }, 600);
   },
 
   selectSkillTarget: (turbineIdx) => {
@@ -442,101 +306,65 @@ export const useGameStore = create<GameStore>((set, get) => ({
     activateSkill(pendingSkillTechId, pendingSkillTag, turbineIdx);
   },
 
-  grabResource: (resourceId, turbineIdx) => {
-    const { state, events, rng } = get();
-    if (state.gameOver || state.currentPlayer !== HUMAN) return;
-    if (state.actionsLeft < 1) return;
-    const res = state.roundResources.find((r) => r.id === resourceId);
-    if (!res || res.claimedBy !== undefined) return;
-    let target = turbineIdx;
-    if (res.type !== 'grid-priority' && target === undefined) {
-      const faultedIdx = state.players[HUMAN].turbines
-        .map((t, i) => (t.faults.length > 0 ? i : -1))
-        .filter((i) => i >= 0);
-      if (faultedIdx.length === 0) return; // 無故障可修 → 不能用此資源
-      if (faultedIdx.length > 1) {
-        set({ pendingResourceId: resourceId, pendingFaultHandIdx: null, pendingReplaceHandIdx: null, pendingSkillTechId: null });
-        return;
-      }
-      target = faultedIdx[0];
-    }
-    const s = cloneState(state);
-    const eventsNew = _applyActionMutate(
-      s,
-      { kind: 'grab-resource', player: HUMAN, resourceId, turbineIdx: target },
-      rng,
-      UI_RICH_CONFIG,
-    );
-    set({
-      state: s,
-      events: [...events, ...eventsNew].slice(-EVENT_LOG_LIMIT),
-      pendingResourceId: null,
-      pendingFaultHandIdx: null,
-      pendingReplaceHandIdx: null,
-      pendingSkillTechId: null,
-      lastAiActions: [],
-    });
-    for (const fx of _deriveEffects(eventsNew)) {
-      get().pushEffect(fx.type, { side: fx.side, slot: fx.slot, cardId: fx.cardId });
-    }
-  },
-
-  selectResourceTarget: (turbineIdx) => {
-    const { pendingResourceId, grabResource } = get();
-    if (pendingResourceId === null) return;
-    grabResource(pendingResourceId, turbineIdx);
-  },
-
   retreat: (benchIdx) => {
     const { state, events, rng } = get();
     if (state.gameOver || state.currentPlayer !== HUMAN) return;
-    if (!canRetreat(state, HUMAN, benchIdx)) return;
     const s = cloneState(state);
-    const eventsNew = _applyActionMutate(
-      s,
-      { kind: 'retreat', player: HUMAN, benchIdx },
-      rng,
-      UI_RICH_CONFIG,
-    );
+    try {
+      const actionResult = applyAction(s, { kind: 'retreat', player: HUMAN, benchIdx }, rng);
+      set({
+        state: actionResult.state,
+        events: [...events, ...actionResult.events].slice(-EVENT_LOG_LIMIT),
+        lastAiActions: [],
+      });
+    } catch (e) {
+      console.warn(e);
+    }
+  },
+
+  promoteTech: (benchIdx) => {
+    const { state, events, rng } = get();
+    if (state.gameOver || state.currentPlayer !== HUMAN) return;
+    const s = cloneState(state);
+    try {
+      const actionResult = applyAction(s, { kind: 'promote-tech', player: HUMAN, benchIdx }, rng);
+      set({
+        state: actionResult.state,
+        events: [...events, ...actionResult.events].slice(-EVENT_LOG_LIMIT),
+        lastAiActions: [],
+      });
+    } catch (e) {
+      console.warn(e);
+    }
+  },
+
+  grabResource: () => {}, // 新版無此機制，保留 stub
+  selectResourceTarget: () => {},
+
+  cancelPending: () =>
     set({
-      state: s,
-      events: [...events, ...eventsNew].slice(-EVENT_LOG_LIMIT),
       pendingFaultHandIdx: null,
       pendingReplaceHandIdx: null,
       pendingSkillTechId: null,
-      pendingResourceId: null,
-      lastAiActions: [],   // 玩家動作 → 清除 AI 摘要
-    });
-  },
-
-  selectFaultTarget: (targetIdx) => {
-    const { pendingFaultHandIdx, playCard, state } = get();
-    if (pendingFaultHandIdx === null) return;
-    // 寶可夢式規則：唯一合法目標＝對手主力機組（備戰區免疫故障目標）
-    if (targetIdx !== state.players[AI].activeTurbineIdx) return;
-    const targetTurbine = state.players[AI].turbines[targetIdx];
-    if (targetTurbine?.shutdown) return;
-    playCard(pendingFaultHandIdx, { target: targetIdx });
-  },
-
-  selectReplaceTarget: (replaceIdx) => {
-    const { pendingReplaceHandIdx, playCard } = get();
-    if (pendingReplaceHandIdx === null) return;
-    playCard(pendingReplaceHandIdx, { replaceIdx });
-  },
-
-  cancelPending: () => set({ pendingFaultHandIdx: null, pendingReplaceHandIdx: null, pendingSkillTechId: null, pendingSkillTag: null, pendingResourceId: null }),
+      pendingSkillTag: null,
+    }),
 
   discardCard: (handIdx) => {
     const { state, events, hasDiscarded } = get();
-    // 每回合只能棄一張，且必須是玩家回合
     if (state.gameOver || state.currentPlayer !== HUMAN) return;
     if (hasDiscarded) return;
+
     const s = cloneState(state);
     const hand = s.players[HUMAN].hand;
     if (handIdx < 0 || handIdx >= hand.length) return;
+
     const discarded = hand.splice(handIdx, 1)[0];
-    const discardEvent: GameEvent = { kind: 'card-discarded', player: HUMAN, cardId: discarded };
+    const discardEvent: GameEvent = {
+      kind: 'card-discarded',
+      player: HUMAN,
+      cardId: discarded,
+    };
+
     set({
       state: s,
       events: [...events, discardEvent].slice(-EVENT_LOG_LIMIT),
@@ -544,189 +372,142 @@ export const useGameStore = create<GameStore>((set, get) => ({
       pendingFaultHandIdx: null,
       pendingReplaceHandIdx: null,
       pendingSkillTechId: null,
-      pendingResourceId: null,
-      lastAiActions: [],   // 玩家棄牌 → 清除 AI 摘要
+      lastAiActions: [],
     });
   },
 
   endTurn: () => {
     const { state, events, rng } = get();
     if (state.gameOver || state.currentPlayer !== HUMAN) return;
-    // 防止 AI 思考期間重複觸發
     if (get().isAiThinking) return;
 
     const s = cloneState(state);
     const ev1: GameEvent[] = [{ kind: 'turn-ended', player: HUMAN }];
-    ev1.push(..._repairFaults(s, HUMAN, UI_RICH_CONFIG));
-    ev1.push(..._periodicRepair(s, HUMAN));
 
-    if (HUMAN === s.firstPlayer) {
-      // ── 玩家先手 → AI 接著動 ──
-      // Phase 1（同步）：先切換到 AI、顯示「思考中」旗標
-      ev1.push(..._beginTurn(s, AI));
-      set({
-        state: s,
-        events: [...events, ...ev1].slice(-EVENT_LOG_LIMIT),
-        pendingFaultHandIdx: null,
-        pendingReplaceHandIdx: null,
-        pendingSkillTechId: null,
-        pendingResourceId: null,
-        hasDiscarded: false,
-        isAiThinking: true,
-      });
+    // 玩家結束 turn，開始 AI 的 turn 流程
+    // 1. 切換 currentPlayer = AI
+    s.currentPlayer = AI;
+    ev1.push(...startRound(s, rng)); // 其實 startRound 內會跑 beginTurn
 
-      // Phase 2（非同步）：AI 思考延遲後逐步執行 AI 動作（每步 800ms 停頓）
-      const AI_STEP_DELAY = 800; // 每個 AI 動作之間的停頓（ms）
-      const AI_THINK_DELAY = 650 + Math.floor(Math.random() * 350); // 初始思考時間
+    set({
+      state: s,
+      events: [...events, ...ev1].slice(-EVENT_LOG_LIMIT),
+      pendingFaultHandIdx: null,
+      pendingReplaceHandIdx: null,
+      pendingSkillTechId: null,
+      hasDiscarded: false,
+      isAiThinking: true,
+    });
 
-      // 逐步執行 AI 動作的遞迴函式
-      const runNextAiStep = (stepState: GameState, stepEvents: GameEvent[], allStepEvents: GameEvent[], isFirstStep: boolean) => {
-        const delay = isFirstStep ? AI_THINK_DELAY : AI_STEP_DELAY;
-        setTimeout(() => {
-          const { difficulty: diff } = get();
-          // 嘗試執行一個 AI 動作
-          const stepResult = runAiOneStep(stepState, diff, rng);
-          if (stepResult !== null) {
-            // 有動作：更新 UI 顯示此步驟，然後繼續
-            const newAllEvents = [...allStepEvents, ...stepResult];
-            // 觸發此步驟的視覺特效
-            for (const fx of _deriveEffects(stepResult)) {
-              get().pushEffect(fx.type, { side: fx.side, slot: fx.slot, cardId: fx.cardId });
-            }
-            // 更新 store 顯示目前 AI 狀態（讓 UI 即時反映）
-            const { events: currentEvents } = get();
-            set({
-              state: cloneState(stepState), // 顯示目前 AI 動作後的狀態
-              events: [...currentEvents, ...stepResult].slice(-EVENT_LOG_LIMIT),
-              aiCurrentAction: stepResult[0]?.kind ?? null,
-            });
-            // 繼續下一步
-            runNextAiStep(stepState, [...stepEvents, ...stepResult], newAllEvents, false);
-          } else {
-            // AI 無更多動作：執行修復 + 結算
-            // 注意：stepState 已包含所有 AI 動作後的最新狀態（runAiOneStep 直接 mutate）
-            const { events: ev2, difficulty: diff2 } = get();
-            const ev3: GameEvent[] = [...allStepEvents];
-            const repairEvents: GameEvent[] = [];
-            repairEvents.push(..._repairFaults(stepState, AI, UI_RICH_CONFIG));
-            repairEvents.push(..._periodicRepair(stepState, AI));
-            ev3.push(...repairEvents);
-            const completedRound = stepState.round;
-            ev3.push(...endRound(stepState, rng));
-            // 回合結算摘要
-            const roundScore = _extractRoundScore(ev3, completedRound, stepState.players[0].score, stepState.players[1].score);
+    // 2. AI 逐步執行
+    const AI_STEP_DELAY = 1000;
 
-            // 新回合若 AI 先手 → 同步跑（不再延遲，避免複雜度）
-            if (!stepState.gameOver && stepState.currentPlayer === AI) {
-              ev3.push(...runAiTurn(stepState, diff2, rng));
-              ev3.push(..._repairFaults(stepState, AI, UI_RICH_CONFIG));
-              ev3.push(..._periodicRepair(stepState, AI));
-              ev3.push(..._beginTurn(stepState, HUMAN));
-            }
-
-            // 提取 AI 動作事件（只保留有意義的行動）
-            const INTERESTING_AI_KINDS = new Set([
-              'card-played', 'turbine-deployed', 'turbine-replaced', 'turbine-returned',
-              'tech-deployed', 'fault-applied', 'fault-cascaded', 'func-played',
-              'weather-applied', 'contract-applied', 'mwh-boost', 'extra-action-banked',
-              'turbine-shutdown', 'retreat',
-            ]);
-            const aiSummary = ev3.filter(e => INTERESTING_AI_KINDS.has(e.kind) && 'player' in e && (e as { player: number }).player === AI);
-
-            set({
-              state: stepState,
-              events: [...ev2, ...ev3].slice(-EVENT_LOG_LIMIT),
-              isAiThinking: false,
-              aiCurrentAction: null,
-              lastRoundScore: roundScore,
-              lastAiActions: aiSummary,
-            });
-            // 觸發修復 + 結算所產生的視覺特效
-            for (const fx of _deriveEffects([...repairEvents, ...ev3])) {
-              get().pushEffect(fx.type, { side: fx.side, slot: fx.slot, cardId: fx.cardId });
-            }
+    const runNextAiStep = (stepState: GameState, stepEvents: GameEvent[]) => {
+      setTimeout(() => {
+        const { difficulty } = get();
+        const choice = aiChoose(stepState, AI, difficulty, rng);
+        
+        if (choice && choice.chosen.score >= RESERVE_THRESHOLD && choice.chosen.action.kind !== 'end-turn') {
+          // 執行 AI 的一個動作
+          const result = applyAction(stepState, choice.chosen.action, rng);
+          const newEvents = [...stepEvents, ...result.events];
+          
+          for (const fx of _deriveEffects(result.events)) {
+            get().pushEffect(fx.type, { side: fx.side, slot: fx.slot, cardId: fx.cardId });
           }
-        }, delay);
-      };
 
-      // 開始逐步執行（先取得最新 state）
-      const { state: s2 } = get();
-      const s3 = cloneState(s2);
-      runNextAiStep(s3, [], [], true);
-    } else {
-      // ── AI 先手（本回合 AI 已動完）→ 直接結算 ──
-      const completedRound = s.round;
-      ev1.push(...endRound(s, rng));
-      const roundScore = _extractRoundScore(ev1, completedRound, s.players[0].score, s.players[1].score);
+          const { events: currentEvents } = get();
+          set({
+            state: cloneState(stepState),
+            events: [...currentEvents, ...result.events].slice(-EVENT_LOG_LIMIT),
+            aiCurrentAction: choice.chosen.desc,
+          });
 
-      // 新回合若 AI 先手（偶爾發生），同步跑
-      if (!s.gameOver && s.currentPlayer === AI) {
-        const { difficulty: diff } = get();
-        ev1.push(...runAiTurn(s, diff, rng));
-        ev1.push(..._repairFaults(s, AI, UI_RICH_CONFIG));
-        ev1.push(..._periodicRepair(s, AI));
-        ev1.push(..._beginTurn(s, HUMAN));
+          // 如果 AI 使用了技能，其回合自動結束
+          if (choice.chosen.action.kind === 'use-skill') {
+            finalizeRound(stepState, newEvents);
+          } else {
+            runNextAiStep(stepState, newEvents);
+          }
+        } else {
+          // AI 無動作或選擇結束，結算回合
+          const endTurnEvent: GameEvent = { kind: 'turn-ended', player: AI };
+          finalizeRound(stepState, [...stepEvents, endTurnEvent]);
+        }
+      }, AI_STEP_DELAY);
+    };
+
+    const finalizeRound = (stepState: GameState, allAiEvents: GameEvent[]) => {
+      // 執行結算
+      const roundEndEvents = endRound(stepState, rng);
+      const completedRound = stepState.round - 1; // endRound 內會 round + 1
+      
+      const combinedEvents = [...allAiEvents, ...roundEndEvents];
+      
+      // 計算 lastRoundScore
+      const p0Sc = combinedEvents.find(e => e.kind === 'round-scored' && e.player === 0);
+      const p1Sc = combinedEvents.find(e => e.kind === 'round-scored' && e.player === 1);
+      const roundScore = p0Sc && p1Sc && p0Sc.kind === 'round-scored' && p1Sc.kind === 'round-scored'
+        ? {
+            round: completedRound,
+            p0Mwh: p0Sc.mwh,
+            p1Mwh: p1Sc.mwh,
+            p0Total: p0Sc.total,
+            p1Total: p1Sc.total,
+          }
+        : null;
+
+      // 若遊戲未結束，則開啟下一回合
+      if (!stepState.gameOver) {
+        stepState.currentPlayer = HUMAN;
+        const newRoundEvents = startRound(stepState, rng);
+        combinedEvents.push(...newRoundEvents);
       }
 
+      const { events: currentEvents } = get();
       set({
-        state: s,
-        events: [...events, ...ev1].slice(-EVENT_LOG_LIMIT),
-        pendingFaultHandIdx: null,
-        pendingReplaceHandIdx: null,
-        pendingSkillTechId: null,
-        pendingResourceId: null,
-        hasDiscarded: false,
+        state: stepState,
+        events: [...currentEvents, ...combinedEvents].slice(-EVENT_LOG_LIMIT),
         isAiThinking: false,
         aiCurrentAction: null,
         lastRoundScore: roundScore,
-        lastAiActions: [],  // AI 先手時，AI 已在前一回合動完，不重複顯示
+        lastAiActions: allAiEvents.filter(e => e.kind === 'card-played' || e.kind === 'skill-used'),
       });
-      for (const fx of _deriveEffects(ev1)) {
-        get().pushEffect(fx.type, { side: fx.side, slot: fx.slot, cardId: fx.cardId });
-      }
-    }
+    };
+
+    const { state: s2 } = get();
+    runNextAiStep(cloneState(s2), []);
   },
 
   clearLastRoundScore: () => set({ lastRoundScore: null }),
   clearLastAiActions: () => set({ lastAiActions: [] }),
 }));
 
-// 給測試使用的 helpers（不對 UI 公開）
 export const _internalForTest = {
   startRound,
   endRound,
-  advanceAfterTurn,
-  runAiTurn,
 };
 
-// 計算手牌的「實際 cost」給 UI 顯示用
 export function uiEffectiveCost(state: GameState, player: 0 | 1, cardId: string): number {
-  return effectiveCost(state, player, cardId);
+  void state;
+  void player;
+  return CARDS[cardId]?.cost ?? 1;
 }
 
-/**
- * 快速估算本回合結算可得 MWh（UI 用預覽，近似值）。
- * 不跑完整 _scoreRound（忽略 W 卡光環、F05 storm-amplify 加乘等特效），
- * 但對一般情況已足夠準確，讓玩家理解風速與可用率的關係。
- */
 export function uiPreviewMwh(state: GameState, player: 0 | 1): number {
   const p = state.players[player];
-  // 計分＝整個風場（所有已部署機組）的營運產出，不是只有主力——
-  // 主力/備戰區的意義是「誰暴露在故障卡攻擊範圍內」，不是計分開關（見 _scoreRound 說明）。
   const coeff = state.wind.coeff;
   let mwh = 0;
-  for (const t of p.turbines) {
-    const card = CARDS[t.cardId];
-    const mw = (card.stats?.mw ?? 0) + t.mwBonus;
-    const drop = t.faults.reduce((s, f) => s + f.drop, 0);
-    const avail = Math.max(0, t.avail - drop);
-    mwh += mw * coeff * (avail / 100);
-  }
-  const boost = p.mwhBoostActive ? 1.5 : 1.0;
-  return Math.round(mwh * boost);
-}
-
-// DEV-only：把 store 掛到 window 方便手動測試 / 截圖（production build 會被 import.meta.env.DEV 剝除）
-if (import.meta.env.DEV) {
-  (window as unknown as { __wfStore?: typeof useGameStore }).__wfStore = useGameStore;
+  p.windFarm.forEach((t) => {
+    if (t.shutdown) return;
+    const mw = t.mw + t.mwBonus;
+    mwh += mw * coeff * (t.avail / 100);
+  });
+  
+  let activeMultiplier = 1.0;
+  p.activeContracts.forEach((c) => {
+    activeMultiplier *= c.multiplier;
+  });
+  
+  return Math.round(mwh * activeMultiplier * 100) / 100;
 }

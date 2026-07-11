@@ -1,8 +1,5 @@
 // ============================================================
 // 主題化手牌卡片（Cumulus 圓潤 / Tideboard 木質羊皮）。
-// 元件只吃資料 → 出視覺（CLAUDE.md §視覺與資料分離）。
-// 中央 60% 為「藝術區」：目前用 StripedPlaceholder + SVG icon 佔位，
-// 之後直接把藝術區換成 <img src="/cards/<id>.png" /> 即可，其餘不用動。
 // ============================================================
 import { forwardRef } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
@@ -10,7 +7,7 @@ import { CARDS } from '../../core/cards';
 import { cardName, t } from '../../i18n';
 import { useTheme } from '../theme/ThemeContext';
 import { pickIcon, StripedPlaceholder } from '../icons';
-import { getTypeColor, TYPE_META } from '../styles/themes';
+import { getTypeColor } from '../styles/themes';
 import type { CardType } from '../styles/themes';
 
 export interface CardProps {
@@ -31,16 +28,37 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(props, r
   const card = CARDS[cardId];
   const { theme, themeKey } = useTheme();
   if (!card) return null;
-  const cardType = card.type as CardType;
-  const IconComp = pickIcon(card.icon, cardType);
-  const tc = getTypeColor(themeKey, cardType);
+  
+  // 映射類型以適配舊版 theme/meta 色彩配置
+  let mappedType: CardType = 'tech';
+  if (card.type === 'tool') mappedType = 'tech';
+  else if (card.type === 'item') mappedType = 'func';
+  else if (card.type === 'contract') mappedType = 'contract';
+  else if (card.type === 'fault') mappedType = 'fault';
+  else if (card.type === 'turbine') mappedType = 'turbine';
+
+  const IconComp = pickIcon(card.icon, mappedType);
+  const tc = getTypeColor(themeKey, mappedType);
   const isLegendary = !!card.legendary;
   const name = cardName(cardId) || cardId;
-  const mw = card.stats?.mw;
-  const drop = card.stats?.drop;
-  const duration = card.duration;
   const rarity = card.rarity ?? 1;
   const stripeId = `wf-card-${cardId}-${size}`;
+
+  // 取得展示的數值說明
+  let statLabel = '';
+  if (card.type === 'tech') {
+    statLabel = card.specialty ? t(`category.${card.specialty}`) || card.specialty : '通用';
+  } else if (card.type === 'tool') {
+    statLabel = card.effect ? t(`tool.effect.${card.effect}`) || card.effect : '';
+  } else if (card.type === 'item') {
+    statLabel = card.effect ? t(`item.effect.${card.effect}`) || card.effect : '';
+  } else if (card.type === 'contract') {
+    statLabel = card.multiplier ? `${card.multiplier}x` : card.effect ?? '';
+  } else if (card.type === 'fault') {
+    statLabel = card.drop ? `-${card.drop}%` : '';
+  } else if (card.type === 'turbine') {
+    statLabel = card.stats?.mw ? `⚡${card.stats.mw}MW` : '';
+  }
 
   if (themeKey === 'tideboard') {
     return (
@@ -157,42 +175,33 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(props, r
             overflow: 'hidden',
           }}
         >
-          {card.image ? (
-            <img
-              src={card.image}
-              alt={name}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              loading="lazy"
-            />
-          ) : (
-            <>
-              <StripedPlaceholder width={size - 24} height={size * 0.6} stripe="rgba(232,200,120,0.15)" />
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <IconComp size={size * 0.32} stroke={isLegendary ? '#f4d68a' : '#e8c878'} strokeWidth={1.3} />
-              </div>
-            </>
-          )}
+          <StripedPlaceholder width={size - 24} height={size * 0.6} stripe="rgba(232,200,120,0.15)" />
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <IconComp size={size * 0.32} stroke={isLegendary ? '#f4d68a' : '#e8c878'} strokeWidth={1.3} />
+          </div>
         </div>
         {/* 數值 */}
         <div
           style={{
             position: 'absolute',
             top: size * 0.86,
-            left: 0,
-            right: 0,
+            left: 8,
+            right: 8,
             zIndex: 1,
             display: 'flex',
             justifyContent: 'center',
             gap: 6,
-            fontSize: size * 0.07,
+            fontSize: size * 0.065,
             fontWeight: 700,
             fontFamily: 'Georgia, serif',
             color: '#3d2a1e',
+            textAlign: 'center',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
           }}
         >
-          {mw !== undefined && <span>⚡{mw}MW</span>}
-          {drop !== undefined && <span style={{ color: '#a8453a' }}>-{drop}%</span>}
-          {duration !== undefined && <span style={{ color: '#6e4a18' }}>{t('card.duration').replace('{n}', String(duration))}</span>}
+          <span>{statLabel}</span>
         </div>
         {/* 稀有度 */}
         <div
@@ -292,7 +301,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(props, r
           color: tc.accent,
         }}
       >
-        {TYPE_META[cardType].short}
+        {card.type.toUpperCase()}
       </div>
       {/* 藝術區 */}
       <div
@@ -308,31 +317,18 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(props, r
           justifyContent: 'center',
         }}
       >
-        {card.image ? (
-          <img
-            src={card.image}
-            alt={name}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', borderRadius: 10 }}
-            loading="lazy"
-          />
-        ) : (
-          <>
-            <StripedPlaceholder width={size - 20} height={size * 0.65} stripe={`hsla(${tc.hue}, 30%, 50%, 0.15)`} />
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <IconComp size={size * 0.36} stroke={tc.accent} strokeWidth={1.3} />
-            </div>
-          </>
-        )}
+        <StripedPlaceholder width={size - 20} height={size * 0.65} stripe={`hsla(${tc.hue}, 30%, 50%, 0.15)`} />
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <IconComp size={size * 0.36} stroke={tc.accent} strokeWidth={1.3} />
+        </div>
       </div>
       {/* 卡名 */}
-      <div style={{ fontSize: 12, fontWeight: 700, color: theme.textPrimary, textAlign: 'center', marginTop: 6, fontFamily: theme.fontUI }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: theme.textPrimary, textAlign: 'center', marginTop: 6, fontFamily: theme.fontUI, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {name}
       </div>
       {/* 數值 */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 6, fontSize: 10, marginTop: 4 }}>
-        {mw !== undefined && <span style={{ color: '#3aa7c8', fontWeight: 700 }}>⚡{mw}MW</span>}
-        {drop !== undefined && <span style={{ color: '#a8453a', fontWeight: 700 }}>-{drop}%</span>}
-        {duration !== undefined && <span style={{ color: '#a87a2a', fontWeight: 600 }}>{t('card.duration').replace('{n}', String(duration))}</span>}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 6, fontSize: 10, marginTop: 4, fontWeight: 700, color: theme.textSecondary }}>
+        <span>{statLabel}</span>
       </div>
       {/* 稀有度（最多 5 顆，傳奇用金色）*/}
       <div style={{ display: 'flex', justifyContent: 'center', gap: 1, marginTop: 'auto', fontSize: 9 }}>

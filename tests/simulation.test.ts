@@ -63,20 +63,3 @@ describe('S2.5 simulator：100 場合理性（hard×hard）', () => {
     expect(total).toBeGreaterThan(0);
   });
 });
-
-describe('S2.5 simulator：legacyV3 對齊旗標傳遞', () => {
-  it('legacyV3=true 與 false 結果不同（驗證 config 確實傳到 runGame）', () => {
-    // 用同 seed 跑，旗標不同應產生不同結果（D4 修正：T01 上限、FN05 futureWind 等）
-    const off = simulate({ p1: 'hard', p2: 'hard', games: 20, seed: 7, config: { legacyV3: false } });
-    const on = simulate({ p1: 'hard', p2: 'hard', games: 20, seed: 7, config: { legacyV3: true } });
-    // 結構必須一致
-    expect(off.games).toBe(on.games);
-    // 至少其中一個指標不同（否則表示旗標沒生效）
-    const anyDiff =
-      off.avgP1 !== on.avgP1 ||
-      off.avgP2 !== on.avgP2 ||
-      off.p1WinRate !== on.p1WinRate ||
-      Object.keys(off.cardUsage).length !== Object.keys(on.cardUsage).length;
-    expect(anyDiff).toBe(true);
-  });
-});

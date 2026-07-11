@@ -11,7 +11,10 @@ interface FaultFlashProps {
 
 export function FaultFlashFX({ cardId }: FaultFlashProps) {
   const card = cardId ? CARDS[cardId] : undefined;
-  const IconComp = card ? pickIcon(card.icon, card.type) : FaultLightning;
+  let mappedType: any = card?.type;
+  if (mappedType === 'tool') mappedType = 'tech';
+  else if (mappedType === 'item') mappedType = 'func';
+  const IconComp = card ? pickIcon(card.icon, mappedType) : FaultLightning;
   return (
     <div
       style={{

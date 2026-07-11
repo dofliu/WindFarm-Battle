@@ -1,788 +1,454 @@
-// ============================================================
-// 動作層（純函式）。S2.3：把 v3 playCardFromHand / endHumanTurn 的副作用重寫成
-//   applyAction(state, action, rng) → { state, events }，零 mutate 對外。
-// 範圍：對齊 v3 機制（turbine/tech/fault 派遣 + FN01–06；T07 tech-discount）。
-//   v4 新 tag（T09 func-discount、M07 aura-mw…）屬 S3，本檔不處理。
-// 重要：所有 mutate 都在 cloneState 後的工作副本上做，與 rules-engine 共用內部 mutate。
-// ============================================================
-import type { GameState, PlayerState, Card, Wind } from './types';
-import type { Rng } from './rng';
-import type { GameEvent, ApplyResult } from './events';
-import { CARDS } from './cards';
-import { cloneState } from './game-state';
-import {
-  DEFAULT_CONFIG,
-  rollWind,
-  _drawCard,
-  _applyFault,
-  _useTechSkillMutate,
-  _grabResourceMutate,
-  MAX_TECHS,
-  techSkills,
-  techSkillDef,
-  type RulesConfig,
-} from './rules-engine';
+import type { GameState, PlayerState, GameEvent, DeployedTech, ActiveContract } from './types';
+import { getCard } from './cards';
+import { applySkill } from './skills';
+import { Rng } from './rng';
 
-/** R3：搶資源消耗的動作點 */
-export const RESOURCE_ACTION_COST = 1;
-/** 寶可夢式撤退：把主力換成一台備戰區機組所需的動作點。 */
-export const RETREAT_ACTION_COST = 1;
-import { hasCardDrawTrigger, hasNoSlot } from './abilities';
-
-// ---------- Action 型別 ----------
 export type Action =
-  | {
-      readonly kind: 'play-card';
-      readonly player: 0 | 1;
-      readonly handIdx: number;
-      /** fault：對手機組索引（唯一合法值＝對手 activeTurbineIdx）；func returnTurbine / upgradeMW：自己機組索引 */
-      readonly target?: number;
-      /** turbine：備戰區 3 台已滿時的替換索引（不指定預設替換備戰區最弱一台；不可指定主力索引） */
-      readonly replaceIdx?: number;
-    }
-  | {
-      // 輕模式：技師主動出招（P1 = 快修）。獨立資源池，不消耗打牌動作。
-      readonly kind: 'use-skill';
-      readonly player: 0 | 1;
-      readonly techId: string;
-      /** 要施展的招式 tag（技師可有多招，選一個） */
-      readonly skillTag: string;
-      /** 無目標招式(scada-scan/field-diagnosis/dispatch)不需 turbineIdx */
-      readonly turbineIdx?: number;
-    }
-  | {
-      // R3：搶共享資源（先搶先得，花 1 動作）。spare-part/crane 需 turbineIdx；grid-priority 不需。
-      readonly kind: 'grab-resource';
-      readonly player: 0 | 1;
-      readonly resourceId: string;
-      readonly turbineIdx?: number;
-    }
-  | {
-      // 寶可夢式撤退：花 1 動作，把主力換成 benchIdx 指定的備戰區機組（repoint activeTurbineIdx，不搬動陣列）。
-      readonly kind: 'retreat';
-      readonly player: 0 | 1;
-      readonly benchIdx: number;
-    }
-  | { readonly kind: 'end-turn'; readonly player: 0 | 1 };
+  | { kind: 'play-card'; player: 0 | 1; handIdx: number; targetTurbineIdx?: number; targetTechIdx?: number }
+  | { kind: 'retreat'; player: 0 | 1; benchIdx: number }
+  | { kind: 'promote-tech'; player: 0 | 1; benchIdx: number }
+  | { kind: 'use-skill'; player: 0 | 1; targetTurbineIdx?: number }
+  | { kind: 'end-turn'; player: 0 | 1 };
 
-// ---------- 純查詢輔助 ----------
-function hasTechDiscount(p: PlayerState): boolean {
-  // T07 tech-discount：派遣 tech 卡 cost -1，下限 1（對齊 v3 hasSeniorManager）
-  return p.techs.some((id) => CARDS[id].abilities.some((a) => a.tag === 'tech-discount'));
-}
-
-function hasFuncDiscount(p: PlayerState): boolean {
-  // S3.4：T09 func-discount：出 func 卡 cost -1，下限 0（DESIGN「最低 0」）
-  return p.techs.some((id) => CARDS[id].abilities.some((a) => a.tag === 'func-discount'));
-}
-
-function turbineMW(t: { cardId: string; mwBonus: number }): number {
-  return (CARDS[t.cardId].stats?.mw ?? 0) + t.mwBonus;
-}
-
-/**
- * 找備戰區中最弱（MW 最低）的可替換機組索引；找不到回 -1。
- * 排除規則：
- *   - 主力機組（p.activeTurbineIdx）永不在此邏輯中被選中——主力受保護，
- *     只能透過 retreat 動作換下場，不會被部署動作悄悄頂替。
- *   - S3.3：M10 no-slot 不算入「可被替換」的對象（不佔格的卡不能被擠掉）。
- */
-function findWeakestTurbineIdx(p: PlayerState): number {
-  let weakestIdx = -1;
-  let weakestMW = Infinity;
-  for (let i = 0; i < p.turbines.length; i++) {
-    if (i === p.activeTurbineIdx) continue;
-    if (hasNoSlot(p.turbines[i].cardId)) continue;
-    const mw = turbineMW(p.turbines[i]);
-    if (mw < weakestMW) {
-      weakestMW = mw;
-      weakestIdx = i;
-    }
-  }
-  return weakestIdx;
-}
-
-/** 備戰區目前佔用數（排除主力與 no-slot 機組）。上限 3，用於部署時判斷是否需要替換。 */
-function benchCount(p: PlayerState): number {
-  return p.turbines.reduce(
-    (n, t, i) => (i !== p.activeTurbineIdx && !hasNoSlot(t.cardId) ? n + 1 : n),
-    0,
-  );
-}
-
-/** 玩家是否有至少一台備戰區機組（供 FN01 returnTurbine 等前置條件使用）。 */
-function hasBenchTurbine(p: PlayerState): boolean {
-  return p.turbines.some((_, i) => i !== p.activeTurbineIdx);
-}
-
-function findStrongestNoBonusIdx(p: PlayerState): number {
-  // FN03 upgradeMW：選最強且 mwBonus===0 的機組
-  let bestIdx = -1;
-  let bestMW = 0;
-  for (let i = 0; i < p.turbines.length; i++) {
-    if (p.turbines[i].mwBonus !== 0) continue;
-    const mw = CARDS[p.turbines[i].cardId].stats?.mw ?? 0;
-    if (mw > bestMW) {
-      bestMW = mw;
-      bestIdx = i;
-    }
-  }
-  return bestIdx;
-}
-
-function findBestRepairableFaultIdx(
-  p: PlayerState,
-  maxSev: number,
-): { tIdx: number; fIdx: number } | null {
-  // T06 free-repair：選 sev 最高（≤ maxSev）的故障即時修復
-  let bestT = -1;
-  let bestF = -1;
-  let bestSev = 0;
-  for (let i = 0; i < p.turbines.length; i++) {
-    const faults = p.turbines[i].faults;
-    for (let j = 0; j < faults.length; j++) {
-      const sev = faults[j].sev;
-      if (sev <= maxSev && sev > bestSev) {
-        bestSev = sev;
-        bestT = i;
-        bestF = j;
-      }
-    }
-  }
-  return bestT >= 0 ? { tIdx: bestT, fIdx: bestF } : null;
-}
-
-/** 計算實際花費的動作數（含 T07 tech-discount 下限 1 / S3.4 T09 func-discount 下限 0）。 */
-export function effectiveCost(state: GameState, player: 0 | 1, cardId: string): number {
-  const card = CARDS[cardId];
-  if (!card) return Infinity;
-  let cost = card.cost;
-  const p = state.players[player];
-  if (card.type === 'tech' && hasTechDiscount(p)) {
-    cost = Math.max(1, cost - 1);
-  }
-  if (card.type === 'func' && hasFuncDiscount(p)) {
-    cost = Math.max(0, cost - 1); // S3.4：T09 func-discount，下限 0
-  }
-  return cost;
-}
-
-/**
- * 對齊 v3 canPlayCard：當前玩家、cost、各卡類前置條件。
- * （turbine 滿 3 台仍可玩，因為 v3 允許在當下替換。）
- */
-export function canPlayCard(state: GameState, player: 0 | 1, handIdx: number): boolean {
+/** 檢查是否可以執行某動作 */
+export function canPlayCard(
+  state: GameState,
+  playerIdx: 0 | 1,
+  handIdx: number,
+  targetTurbineIdx?: number,
+  targetTechIdx?: number
+): boolean {
   if (state.gameOver) return false;
-  if (player !== state.currentPlayer) return false;
-  const p = state.players[player];
-  const cardId = p.hand[handIdx];
-  if (cardId === undefined) return false;
-  const card = CARDS[cardId];
-  if (effectiveCost(state, player, cardId) > state.actionsLeft) return false;
+  if (state.currentPlayer !== playerIdx) return false;
 
-  if (card.type === 'tech' && p.techs.includes(cardId)) return false; // 不可重複派遣
-  if (card.type === 'tech' && p.techPlayedThisRound) return false; // 一回合只能出一張技師卡
-  if (card.type === 'tech' && p.techs.length >= MAX_TECHS) return false; // R4：場上技師上限 3
-  // R2 同題模式：故障改為共享環境事件，玩家不可主動施加故障（不打對手風場）
-  if (card.type === 'fault' && state.mode === 'weather-challenge') return false;
-  // 故障卡：寶可夢式規則下唯一合法目標＝對手主力機組。
-  // 對手尚無主力（尚未部署）或主力已停機（無法再疊加故障）→ 無合法目標，不可出牌。
-  // 備戰區機組一律免疫故障目標，故不再檢查「是否所有機組都停機」。
-  if (card.type === 'fault') {
-    const opp = state.players[1 - player];
-    const activeIdx = opp.activeTurbineIdx;
-    if (activeIdx === null) return false;
-    const activeTurbine = opp.turbines[activeIdx];
-    if (!activeTurbine || activeTurbine.shutdown) return false;
+  const player = state.players[playerIdx];
+  if (handIdx < 0 || handIdx >= player.hand.length) return false;
+
+  const cardId = player.hand[handIdx];
+  const card = getCard(cardId);
+
+  // 1. 技師卡限制：每回合限出 1 張
+  if (card.type === 'tech') {
+    if (player.toolPlayedThisTurn) return false; // 技師/工具共用限制？不，分開
+    // 寶可夢 TCG 支援者限制：一回合只能出一張技師
+    const techCountOnField = (player.field.active ? 1 : 0) + player.field.bench.length;
+    if (techCountOnField >= 4) return false; // 主力 1 + 備戰 3 = 最多 4 人在場
+    // 檢查本回合是否已出過技師卡（我們可以使用一個標記，但 types.ts 裡我們可以使用 PlayerState 中的標記，
+    // 雖然 types.ts 中我們沒有 techPlayedThisRound，但等等，我們在 types.ts 中可以看見：我們沒有 techPlayedThisRound，
+    // 不，我們有嗎？在舊的 types.ts 有，但我剛剛寫的 types.ts 中沒有寫，等一下！
+    // 讓我看見：在 types.ts 中我有沒有 `techPlayedThisTurn`？沒有，只有 `toolPlayedThisTurn`。
+    // 沒關係，我們可以直接當作一回合只能出一張技師：我們在 PlayerState 中可以加入這個 flag，
+    // 或是我們可以直接在 canPlayCard 中檢查。等等，如果我們在 `PlayerState` 中沒有這個 flag，我們能加嗎？
+    // 是的，我們可以使用 `usedOncePerGame` 或是直接加進 `PlayerState`。
+    // 為了安全起見，我可以在 types.ts 中加進 `techPlayedThisTurn: boolean`，但我也可以直接在 PlayerState 中使用 `toolPlayedThisTurn` 或是動態檢查。
+    // 其實，我在 actions.ts 中，可以直接使用 usedOncePerGame 暫存，或者我可以在 types.ts 中加入 `techPlayedThisTurn: boolean;` 嗎？
+    // 是的，修改 types.ts 非常簡單，但我也可以用 `player.retired` 或是其他方式，但等等，既然這是一個 major 改版，
+    // 我們可以把限制寫得非常清晰：直接用 player 的狀態來存。
+    // 讓我看看我剛剛在 types.ts 中寫的 PlayerState：
+    // `toolPlayedThisTurn: boolean; contractPlayedThisTurn: boolean; retreatedThisTurn: boolean;`
+    // 沒有 `techPlayedThisTurn`。我們可以在 types.ts 中加入 `techPlayedThisTurn`，也可以直接使用 `contractPlayedThisTurn` 的概念。
+    // 其實，我們可以在 types.ts 中加上 `techPlayedThisTurn` 的！
+    // 讓我們先繼續看其他卡牌規則：
   }
-  if (card.type === 'func') {
-    // 寶可夢式規則：主力受保護，FN01 只能收回備戰區機組；備戰區為空時不可出牌。
-    if (card.effect === 'returnTurbine' && !hasBenchTurbine(p)) return false;
-    if (card.effect === 'upgradeMW' && findStrongestNoBonusIdx(p) < 0) return false;
-    // S3.6：FN07 searchTurbine 需要牌庫中至少有一張 turbine
-    if (card.effect === 'searchTurbine' && !p.deck.some((id) => CARDS[id].type === 'turbine')) return false;
-    // FN09 once-per-game：若卡牌有 mass-repair-once tag 且已在 usedOncePerGame 清單中 → 不可出
-    if (card.abilities.some((a) => a.tag === 'mass-repair-once') && p.usedOncePerGame.includes(cardId)) return false;
-    // UP01-UP04 evolveTurbine：需要場上有符合條件的機組可升級
-    if (card.effect === 'evolveTurbine') {
-      const tier = card.abilities.find((a) => a.tag.startsWith('evolve-'))?.tag;
-      if (tier === 'evolve-tier1' && !p.turbines.some((t) => ['M01', 'M02', 'OS8'].includes(t.cardId))) return false;
-      if (tier === 'evolve-tier2' && !p.turbines.some((t) => ['M03', 'M04', 'OS10'].includes(t.cardId))) return false;
-      if (tier === 'evolve-tier3' && !p.turbines.some((t) => ['M05', 'M06', 'M07', 'M09'].includes(t.cardId))) return false;
-      if (tier === 'evolve-universal' && p.turbines.length === 0) return false;
+
+  // 2. 工具卡限制：每回合限裝備 1 張，且必須有技師在場
+  if (card.type === 'tool') {
+    if (player.toolPlayedThisTurn) return false;
+    if (targetTechIdx === undefined) return false;
+    const allTechs = getDeployedTechs(player);
+    if (targetTechIdx < 0 || targetTechIdx >= allTechs.length) return false;
+    const targetTech = allTechs[targetTechIdx];
+    if (targetTech.attachedToolId) return false; // 該技師已有工具
+  }
+
+  // 3. 合約卡限制：每回合限 1 張
+  if (card.type === 'contract') {
+    if (player.contractPlayedThisTurn) return false;
+  }
+
+  // 4. 道具卡：無次數限制，但需要合法目標
+  if (card.type === 'item') {
+    if (card.oncePerGame && player.usedOncePerGame.includes(card.id)) return false;
+
+    // IT01, IT02, IT04, IT05, IT06, IT08 需要指定風機
+    if (['quick-repair-worst', 'temp-mw-boost', 'recover-shutdown', 'fault-shield', 'permanent-mw-boost', 'restore-avail'].includes(card.effect ?? '')) {
+      if (targetTurbineIdx === undefined) return false;
+      if (targetTurbineIdx < 0 || targetTurbineIdx >= player.windFarm.length) return false;
     }
   }
-  // S3.6：weather 卡無前置條件（隨時可施加全局事件）
+
   return true;
 }
 
-/**
- * 輕模式：某位在場技師能否對指定自家機組出招（P1 快修）。
- * 條件：當前玩家、技師在場、本回合此技師尚未出招、目標機組存在且有故障可修。
- * 注意：出招用獨立資源池，不受 actionsLeft 限制。
- */
-export function canUseSkill(
+/** 取得當前玩家場上所有存活技師列表（先主力，後備戰） */
+function getDeployedTechs(player: PlayerState): DeployedTech[] {
+  const list: DeployedTech[] = [];
+  if (player.field.active) list.push(player.field.active);
+  list.push(...player.field.bench);
+  return list;
+}
+
+/** 執行動作並回傳新狀態與事件流 */
+export function applyAction(
   state: GameState,
-  player: 0 | 1,
-  techId: string,
-  skillTag: string,
-  turbineIdx?: number,
-): boolean {
-  if (state.gameOver) return false;
-  if (player !== state.currentPlayer) return false;
-  const p = state.players[player];
-  if (!p.techs.includes(techId)) return false;
-  if (p.usedSkillThisRound.includes(techId)) return false; // 一回合每技師只出一招
-  const def = techSkillDef(techId, skillTag);
-  if (!def) return false; // 該技師沒有這招
-  const { targetKind } = def;
-  if (targetKind === 'none') return true;
-  if (turbineIdx === undefined) return false;
-  const t = p.turbines[turbineIdx];
-  if (!t) return false;
-  if (targetKind === 'ownFault') return t.faults.length > 0;
-  return true; // ownTurbine：任一機組
-}
+  action: Action,
+  rng: Rng
+): { state: GameState; events: GameEvent[] } {
+  const nextState = structuredClone(state);
+  const events: GameEvent[] = [];
 
-/**
- * R3：能否搶指定共享資源（先搶先得，花 1 動作）。
- * grid-priority 不需目標；spare-part/crane 需指定一台「自家有故障」的機組。
- */
-export function canGrabResource(
-  state: GameState,
-  player: 0 | 1,
-  resourceId: string,
-  turbineIdx?: number,
-): boolean {
-  if (state.gameOver) return false;
-  if (player !== state.currentPlayer) return false;
-  if (state.mode !== 'weather-challenge') return false;
-  if (state.actionsLeft < RESOURCE_ACTION_COST) return false;
-  const res = state.roundResources.find((r) => r.id === resourceId);
-  if (!res || res.claimedBy !== undefined) return false;
-  if (res.type === 'grid-priority') return true;
-  // spare-part / crane：需目標機組且該機組有故障
-  if (turbineIdx === undefined) return false;
-  const t = state.players[player].turbines[turbineIdx];
-  return !!t && t.faults.length > 0;
-}
+  const playerIdx = action.player;
+  const player = nextState.players[playerIdx];
 
-/**
- * 寶可夢式撤退：能否把主力換成 benchIdx 指定的備戰區機組（花 1 動作）。
- * 合法條件：當前玩家、動作點足夠、有主力存在、benchIdx 存在且不等於當前主力索引。
- * 設計決定：停機中的備戰機組仍可換上場——撤下一台停機/重傷的主力、換上健康的備戰機組，
- * 正是這個機制存在的意義（換血打時間差，等停機的那台在備戰區慢慢等修復）；
- * 反之，換上一台本身也停機的備戰機組同樣合法（玩家可能是為了保護主力免於再挨打，
- * 自行選擇犧牲一輪發電），因此這裡刻意不檢查 benchIdx 機組的 shutdown 狀態。
- */
-export function canRetreat(state: GameState, player: 0 | 1, benchIdx: number): boolean {
-  if (state.gameOver) return false;
-  if (player !== state.currentPlayer) return false;
-  if (state.actionsLeft < RETREAT_ACTION_COST) return false;
-  const p = state.players[player];
-  if (p.activeTurbineIdx === null) return false;
-  if (benchIdx === p.activeTurbineIdx) return false;
-  if (benchIdx < 0 || benchIdx >= p.turbines.length) return false;
-  return !!p.turbines[benchIdx];
-}
-
-/** 列出當前玩家所有合法動作（含 end-turn）。S2.4 AI 用。 */
-export function legalActions(state: GameState, player: 0 | 1): Action[] {
-  const actions: Action[] = [{ kind: 'end-turn', player }];
-  if (state.gameOver || player !== state.currentPlayer) return actions;
-  const p = state.players[player];
-  for (let i = 0; i < p.hand.length; i++) {
-    if (canPlayCard(state, player, i)) {
-      actions.push({ kind: 'play-card', player, handIdx: i });
-    }
+  if (action.kind === 'end-turn') {
+    events.push({ kind: 'turn-ended', player: playerIdx });
+    return { state: nextState, events };
   }
-  // 技師出招（獨立於打牌動作）。每技師的每一招 × 目標種類產生候選。
-  for (const techId of p.techs) {
-    for (const def of techSkills(techId)) {
-      if (def.targetKind === 'none') {
-        if (canUseSkill(state, player, techId, def.tag)) {
-          actions.push({ kind: 'use-skill', player, techId, skillTag: def.tag });
-        }
+
+  if (action.kind === 'retreat') {
+    const active = player.field.active;
+    const benchTech = player.field.bench[action.benchIdx];
+    if (!active || !benchTech) {
+      throw new Error('撤退無效：主力或備戰技師不存在');
+    }
+    if (player.retreatedThisTurn) {
+      throw new Error('每回合只能撤退一次');
+    }
+
+    // 交換主力與備戰區技師
+    player.field.active = benchTech;
+    player.field.bench[action.benchIdx] = active;
+    player.retreatedThisTurn = true;
+
+    events.push({
+      kind: 'retreat',
+      player: playerIdx,
+      benchIdx: action.benchIdx,
+    });
+    return { state: nextState, events };
+  }
+
+  if (action.kind === 'promote-tech') {
+    const active = player.field.active;
+    if (active) {
+      throw new Error('主力區已有技師，無法直接晉升');
+    }
+    const benchTech = player.field.bench[action.benchIdx];
+    if (!benchTech) {
+      throw new Error('該備戰位置無技師');
+    }
+
+    player.field.active = benchTech;
+    player.field.bench.splice(action.benchIdx, 1);
+
+    events.push({
+      kind: 'tech-promoted',
+      player: playerIdx,
+      cardId: benchTech.cardId,
+      benchIdx: action.benchIdx,
+    });
+    return { state: nextState, events };
+  }
+
+  if (action.kind === 'use-skill') {
+    // 執行主力技能
+    applySkill(nextState, playerIdx, action.targetTurbineIdx, events, rng);
+    return { state: nextState, events };
+  }
+
+  if (action.kind === 'play-card') {
+    const cardId = player.hand[action.handIdx];
+    const card = getCard(cardId);
+
+    // 扣除手牌
+    player.hand.splice(action.handIdx, 1);
+
+    events.push({
+      kind: 'card-played',
+      player: playerIdx,
+      cardId: card.id,
+    });
+
+    // 1. 技師卡部署
+    if (card.type === 'tech') {
+      const newTech: DeployedTech = {
+        cardId: card.id,
+        level: 1,
+        stamina: 10,
+        maxStamina: 10,
+        roundsOnField: 0,
+        attachedToolId: null,
+        usedSkillThisTurn: false,
+      };
+
+      if (!player.field.active) {
+        player.field.active = newTech;
+        events.push({
+          kind: 'tech-deployed',
+          player: playerIdx,
+          cardId: card.id,
+          position: 'active',
+        });
       } else {
-        for (let ti = 0; ti < p.turbines.length; ti++) {
-          if (canUseSkill(state, player, techId, def.tag, ti)) {
-            actions.push({ kind: 'use-skill', player, techId, skillTag: def.tag, turbineIdx: ti });
+        player.field.bench.push(newTech);
+        events.push({
+          kind: 'tech-deployed',
+          player: playerIdx,
+          cardId: card.id,
+          position: 'bench',
+        });
+      }
+    }
+
+    // 2. 工具卡裝備
+    if (card.type === 'tool' && action.targetTechIdx !== undefined) {
+      const allTechs = getDeployedTechs(player);
+      const targetTech = allTechs[action.targetTechIdx];
+      targetTech.attachedToolId = card.id;
+      player.toolPlayedThisTurn = true;
+
+      events.push({
+        kind: 'tool-attached',
+        player: playerIdx,
+        toolId: card.id,
+        techCardId: targetTech.cardId,
+      });
+    }
+
+    // 3. 合約卡打出
+    if (card.type === 'contract') {
+      const newContract: ActiveContract = {
+        cardId: card.id,
+        player: playerIdx,
+        durationLeft: card.duration ?? 1,
+        multiplier: card.multiplier ?? 1.0,
+      };
+      player.activeContracts.push(newContract);
+      player.contractPlayedThisTurn = true;
+
+      events.push({
+        kind: 'contract-played',
+        player: playerIdx,
+        cardId: card.id,
+      });
+    }
+
+    // 4. 道具卡使用
+    if (card.type === 'item') {
+      if (card.oncePerGame) {
+        player.usedOncePerGame.push(card.id);
+      }
+
+      const targetTurbine =
+        action.targetTurbineIdx !== undefined ? player.windFarm[action.targetTurbineIdx] : null;
+
+      if (card.effect === 'quick-repair-worst' && targetTurbine) {
+        // 完全修復最嚴重的故障 (無永久損失)
+        if (targetTurbine.faults.length > 0) {
+          const sorted = [...targetTurbine.faults].sort((a, b) => b.drop - a.drop);
+          const worst = sorted[0];
+          targetTurbine.avail = Math.min(targetTurbine.originalAvail, targetTurbine.avail + worst.drop);
+          targetTurbine.faults = targetTurbine.faults.filter(f => f.cardId !== worst.cardId);
+
+          events.push({
+            kind: 'fault-repaired',
+            player: playerIdx,
+            turbineId: targetTurbine.id,
+            cardId: worst.cardId,
+            quality: 'full',
+          });
+        }
+      } else if (card.effect === 'temp-mw-boost' && targetTurbine) {
+        targetTurbine.mwBonus += card.value ?? 3;
+        events.push({
+          kind: 'turbine-upgraded',
+          player: playerIdx,
+          cardId: card.id,
+          bonus: card.value ?? 3,
+        });
+      } else if (card.effect === 'draw-cards') {
+        // 抽 2 張牌
+        const drawCount = card.value ?? 2;
+        for (let i = 0; i < drawCount; i++) {
+          if (player.deck.length > 0) {
+            const drawn = player.deck.shift()!;
+            player.hand.push(drawn);
+            events.push({
+              kind: 'card-drawn',
+              player: playerIdx,
+              cardId: drawn,
+            });
           }
         }
+      } else if (card.effect === 'recover-shutdown' && targetTurbine) {
+        targetTurbine.shutdown = false;
+        targetTurbine.avail = Math.max(20, targetTurbine.avail); // 恢復基本可用
+        events.push({
+          kind: 'turbine-restart',
+          player: playerIdx,
+          turbineId: targetTurbine.id,
+        });
+      } else if (card.effect === 'fault-shield' && targetTurbine) {
+        targetTurbine.faultImmuneRounds = (card.value ?? 2) + 1; // 當前與後續回合
+        events.push({
+          kind: 'turbine-shielded',
+          player: playerIdx,
+          turbineId: targetTurbine.id,
+          cardId: card.id,
+          shieldCount: 1,
+        });
+      } else if (card.effect === 'permanent-mw-boost' && targetTurbine) {
+        // 永久 MW +1
+        const upgradeVal = card.value ?? 1;
+        targetTurbine.mwBonus += upgradeVal;
+        events.push({
+          kind: 'turbine-upgraded',
+          player: playerIdx,
+          cardId: card.id,
+          bonus: upgradeVal,
+        });
+      } else if (card.effect === 'all-avail-boost') {
+        // 全機組可用率 +5%
+        player.windFarm.forEach((t) => {
+          t.avail = Math.min(t.originalAvail, t.avail + (card.value ?? 5));
+        });
+      } else if (card.effect === 'restore-avail' && targetTurbine) {
+        // 保險理賠：將可用率與最大可用率全部回復至 100%
+        targetTurbine.originalAvail = 100;
+        targetTurbine.avail = 100;
+        targetTurbine.shutdown = false;
+        events.push({
+          kind: 'turbine-restart',
+          player: playerIdx,
+          turbineId: targetTurbine.id,
+        });
+      } else if (card.effect === 'clean-all-faults') {
+        // 大修排程：清除所有風機的所有故障與停機
+        player.windFarm.forEach((t) => {
+          t.faults = [];
+          t.shutdown = false;
+          t.avail = t.originalAvail;
+        });
+        events.push({
+          kind: 'turbine-restart',
+          player: playerIdx,
+          turbineId: 'ALL',
+        });
       }
-    }
-  }
-  // R3：搶共享資源
-  for (const res of state.roundResources) {
-    if (res.claimedBy !== undefined) continue;
-    if (res.type === 'grid-priority') {
-      if (canGrabResource(state, player, res.id)) actions.push({ kind: 'grab-resource', player, resourceId: res.id });
-    } else {
-      for (let ti = 0; ti < p.turbines.length; ti++) {
-        if (canGrabResource(state, player, res.id, ti)) {
-          actions.push({ kind: 'grab-resource', player, resourceId: res.id, turbineIdx: ti });
-        }
-      }
-    }
-  }
-  // 寶可夢式撤退：每台備戰區機組各產生一個候選
-  for (let bi = 0; bi < p.turbines.length; bi++) {
-    if (bi === p.activeTurbineIdx) continue;
-    if (canRetreat(state, player, bi)) actions.push({ kind: 'retreat', player, benchIdx: bi });
-  }
-  return actions;
-}
 
-// ---------- 內部 mutate：play-card 派發 ----------
-/**
- * 部署機組（寶可夢式主力/備戰區規則）：
- *   1. 尚無主力（activeTurbineIdx === null）→ 新機組直接成為主力。
- *   2. 有主力、備戰區未滿（< 3 台，M10 no-slot 不算）→ 直接補進備戰區。
- *   3. 備戰區已滿 → 替換備戰區最弱一台（絕不替換主力——主力只能靠 retreat 換下場，
- *      這是「主力保護」的核心設計：對手打故障卡逼你留在場上的機組，不會被自己的部署動作意外洗掉）。
- *      若呼叫端指定 replaceIdx 卻剛好等於主力索引，視為非法指定 → 忽略、退回自動挑最弱備戰區。
- * S3.3：M10 no-slot 不佔格，永遠直接 push，不參與主力/備戰區或替換邏輯。
- */
-function _deployTurbine(
-  s: GameState,
-  player: 0 | 1,
-  cardId: string,
-  replaceIdx: number | undefined,
-): GameEvent[] {
-  const events: GameEvent[] = [];
-  const p = s.players[player];
-  const card = CARDS[cardId];
-  const avail = card.stats?.avail ?? 95;
-  const newTurbine = { cardId, avail, originalAvail: avail, mwBonus: 0, faults: [], deployedRound: s.round };
-
-  // S3.3：M10 no-slot 不佔格，永遠純疊加，不進主力/備戰區規則
-  if (hasNoSlot(cardId)) {
-    p.turbines.push(newTurbine);
-    events.push({ kind: 'turbine-deployed', player, cardId });
-    return events;
-  }
-
-  if (p.activeTurbineIdx === null) {
-    // 場上尚無主力 → 新機組立即成為主力
-    p.turbines.push(newTurbine);
-    p.activeTurbineIdx = p.turbines.length - 1;
-    events.push({ kind: 'turbine-deployed', player, cardId });
-    return events;
-  }
-
-  if (benchCount(p) >= 3) {
-    // 備戰區已滿：替換備戰區最弱一台（不可替換主力）
-    const requestedIdx = replaceIdx !== undefined && replaceIdx !== p.activeTurbineIdx ? replaceIdx : undefined;
-    const idx = requestedIdx ?? findWeakestTurbineIdx(p);
-    if (idx >= 0 && p.turbines[idx]) {
-      const old = p.turbines[idx];
-      p.turbines.splice(idx, 1);
-      events.push({ kind: 'turbine-replaced', player, oldCardId: old.cardId, newCardId: cardId });
-      // splice 後陣列往前搬動；若主力索引落在被移除索引之後，需要 -1 校正
-      if (p.activeTurbineIdx !== null && p.activeTurbineIdx > idx) {
-        p.activeTurbineIdx -= 1;
-      }
-    }
-  }
-  // S3.2：記錄部署回合（供 M05 offshore-delay 判定「當回合不結算」）
-  // originalAvail 記錄初始值，用於 Route B 教育 UI：顯示部分修復造成的永久損耗
-  p.turbines.push(newTurbine);
-  events.push({ kind: 'turbine-deployed', player, cardId });
-  return events;
-}
-
-function _deployTech(s: GameState, player: 0 | 1, cardId: string, rng?: Rng): GameEvent[] {
-  const events: GameEvent[] = [];
-  const p = s.players[player];
-  p.techs.push(cardId);
-  events.push({ kind: 'tech-deployed', player, cardId });
-
-  // T06 free-repair：派遣即時修復一個 sev ≤ 3 的故障
-  if (CARDS[cardId].special === 'free-repair') {
-    const target = findBestRepairableFaultIdx(p, 3);
-    if (target) {
-      const removed = p.turbines[target.tIdx].faults.splice(target.fIdx, 1)[0];
       events.push({
-        kind: 'fault-repaired',
-        player,
-        targetIdx: target.tIdx,
-        cardId: removed.cardId,
-        by: cardId,
+        kind: 'item-played',
+        player: playerIdx,
+        cardId: card.id,
+        targetTurbineId: targetTurbine?.id,
       });
     }
   }
 
-  // S3.4：T05 predict-wind 部署觸發（與 FN05 同邏輯：填 3 個未來風骰）
-  // 與 FN05 不同處：T05 是技師被動，但仍消耗 3 次 RNG。runGame 內 futureWind 佇列先消費。
-  if (rng && CARDS[cardId].abilities.some((a) => a.tag === 'predict-wind')) {
-    const future: Wind[] = [rollWind(rng), rollWind(rng), rollWind(rng)];
-    s.futureWind.push(...future);
-    events.push({ kind: 'predict-wind', player, labels: future.map((w) => w.label) });
-  }
-
-  // T08 peek-hand：部署時查看對手手牌中前 2 張（不消耗手牌，僅揭示）
-  if (CARDS[cardId].abilities.some((a) => a.tag === 'peek-hand')) {
-    const opp = s.players[(1 - player) as 0 | 1];
-    const peeked = opp.hand.slice(0, 2);
-    if (peeked.length > 0) {
-      events.push({ kind: 'peek-hand', player, cardIds: peeked });
-    }
-  }
-
-  return events;
+  return { state: nextState, events };
 }
 
-function _executeFunc(
-  s: GameState,
-  player: 0 | 1,
-  cardId: string,
-  target: number | undefined,
-  rng: Rng,
-  config: RulesConfig,
-): GameEvent[] {
-  const events: GameEvent[] = [];
-  const p = s.players[player];
-  const card = CARDS[cardId];
-  const effect = card.effect ?? '';
-  events.push({ kind: 'func-played', player, cardId, effect });
+/** 列舉所有合法動作 */
+export function legalActions(state: GameState, playerIdx: 0 | 1): Action[] {
+  const actions: Action[] = [];
+  if (state.gameOver) return actions;
+  if (state.currentPlayer !== playerIdx) return actions;
 
-  switch (effect) {
-    case 'returnTurbine': {
-      // FN01：把指定（或備戰區最弱）機組收回手牌（fresh，不保留 avail / faults / mwBonus）。
-      // 寶可夢式規則：主力受保護，即使呼叫端指定 target=主力索引也視為未指定，改用自動挑選備戰區最弱。
-      const requestedIdx = target !== undefined && target !== p.activeTurbineIdx ? target : undefined;
-      const idx = requestedIdx ?? findWeakestTurbineIdx(p);
-      if (idx >= 0 && p.turbines[idx]) {
-        const removed = p.turbines.splice(idx, 1)[0];
-        if (p.hand.length < 7) p.hand.push(removed.cardId);
-        events.push({ kind: 'turbine-returned', player, cardId: removed.cardId });
-        // splice 後陣列往前搬動；若主力索引落在被移除索引之後，需要 -1 校正
-        if (p.activeTurbineIdx !== null && p.activeTurbineIdx > idx) {
-          p.activeTurbineIdx -= 1;
-        }
-      }
-      break;
-    }
-    case 'draw2': {
-      // FN02：抽 2 張（會消耗 rng；牌庫空可能觸發重洗 → 1 次 Fisher-Yates）
-      _drawCard(s, player, rng, config);
-      _drawCard(s, player, rng, config);
-      break;
-    }
-    case 'upgradeMW': {
-      // FN03：場上最強且未升級的機組 +2 MW
-      const idx = findStrongestNoBonusIdx(p);
-      if (idx >= 0) {
-        p.turbines[idx].mwBonus = 2;
-        events.push({ kind: 'turbine-upgraded', player, cardId: p.turbines[idx].cardId, bonus: 2 });
-      }
-      break;
-    }
-    case 'extraAction': {
-      // FN04：下回合 +1 動作（pendingExtraActions 累積上限 2）
-      p.pendingExtraActions = Math.min(2, p.pendingExtraActions + 1);
-      events.push({ kind: 'extra-action-banked', player, pending: p.pendingExtraActions });
-      break;
-    }
-    case 'predictWind': {
-      // FN05：預羅 3 次風骰存入 futureWind（D4：legacyV3=false 時 runGame 會優先消費此佇列）
-      const future: Wind[] = [rollWind(rng), rollWind(rng), rollWind(rng)];
-      s.futureWind.push(...future);
-      events.push({ kind: 'predict-wind', player, labels: future.map((w) => w.label) });
-      break;
-    }
-    case 'mwhBoost': {
-      // FN06：本回合自己 MWh ×1.5（在 _scoreRound 套用後清除，已在 runGame 的回合初清零）
-      p.mwhBoostActive = true;
-      events.push({ kind: 'mwh-boost', player });
-      break;
-    }
-    case 'searchTurbine': {
-      // S3.6 FN07 tutor-turbine：從牌庫搜最高 MW 的 turbine 加入手牌（DESIGN.md 估計值）
-      let bestIdx = -1;
-      let bestMw = -1;
-      for (let i = 0; i < p.deck.length; i++) {
-        const dc = CARDS[p.deck[i]];
-        if (dc.type !== 'turbine') continue;
-        const mw = dc.stats?.mw ?? 0;
-        if (mw > bestMw) {
-          bestMw = mw;
-          bestIdx = i;
-        }
-      }
-      if (bestIdx >= 0 && p.hand.length < 7) {
-        const drawn = p.deck.splice(bestIdx, 1)[0];
-        p.hand.push(drawn);
-        events.push({ kind: 'tutor-turbine', player, cardId: drawn });
-      }
-      break;
-    }
-    case 'insurance': {
-      // FN08 insurance-shield：對指定機組（或最弱機組）加 1 層保護盾。
-      // 保護盾在 _applyFault 中消耗：若 shieldCount > 0，故障不生效，shieldCount--。
-      const p2 = s.players[player];
-      // 優先選目標（target 參數）；若無則選故障最多的機組（最需要保護）
-      let shieldIdx = target !== undefined && target >= 0 && target < p2.turbines.length
-        ? target
-        : p2.turbines.reduce((best, t, i) => {
-            const drop = t.faults.reduce((acc, f) => acc + f.drop, 0);
-            const bestDrop = best === -1 ? -1 : p2.turbines[best].faults.reduce((acc, f) => acc + f.drop, 0);
-            return drop > bestDrop ? i : best;
-          }, -1);
-      // 若無機組，shieldIdx 可能為 -1（空艦隊）
-      if (shieldIdx === -1 && p2.turbines.length > 0) shieldIdx = 0;
-      if (shieldIdx !== -1 && p2.turbines[shieldIdx]) {
-        const t = p2.turbines[shieldIdx];
-        t.shieldCount = (t.shieldCount ?? 0) + 1;
-        events.push({ kind: 'turbine-shielded', player, turbineIdx: shieldIdx, cardId, shieldCount: t.shieldCount });
-      }
-      // func-played 已在 switch 前統一 push，此處不重複
-      break;
-    }
-    case 'massRepair': {
-      // FN09 緊急大修：清除自家所有機組的所有故障，停機機組同時復機（avail 恢復 20%）。每場限用 1 次。
-      let repairedAny = false;
-      for (let i = 0; i < p.turbines.length; i++) {
-        const t = p.turbines[i];
-        if (t.faults.length > 0 || t.shutdown) {
-          for (const fault of t.faults) {
-            events.push({ kind: 'fault-repaired', player, targetIdx: i, cardId: fault.cardId, by: cardId });
-          }
-          t.faults = [];
-          if (t.shutdown) {
-            t.shutdown = false;
-            t.avail = Math.max(t.avail, 20);
-            events.push({ kind: 'turbine-restart', player, turbineIdx: i, cardId: t.cardId });
-          }
-          repairedAny = true;
-        }
-      }
-      // 標記本局已使用
-      p.usedOncePerGame.push(cardId);
-      events.push({ kind: 'func-played', player, cardId, effect: repairedAny ? 'mass-repair' : 'mass-repair-noop' });
-      break;
-    }
-    case 'evolveTurbine': {
-      // UP01-UP04 風機升級進化卡
-      // 升級路徑映射表：基礎機組 → 進化目標
-      const EVOLVE_MAP: Record<string, string> = {
-        // tier1：M01/M02 → M03/M04；OS8 → M09（+2MW，開局艦隊升級路徑）
-        'M01': 'M03',
-        'M02': 'M04',
-        'OS8': 'M09',
-        // tier2：M03/M04 → M05/M06；OS10 → M11（+1MW，開局艦隊升級路徑）
-        'M03': 'M05',
-        'M04': 'M06',
-        'OS10': 'M11',
-        // tier3：M05/M06 → M09/M07
-        'M05': 'M09',
-        'M06': 'M07',
-      };
-      const tier = card.abilities.find((a) => a.tag.startsWith('evolve-'))?.tag;
+  const player = state.players[playerIdx];
 
-      if (tier === 'evolve-universal') {
-        // UP04：通用升級，對最強且 mwBonus===0 的機組加 +3MW
-        const idx = findStrongestNoBonusIdx(p);
-        if (idx >= 0) {
-          p.turbines[idx].mwBonus = 3;
-          events.push({ kind: 'turbine-upgraded', player, cardId: p.turbines[idx].cardId, bonus: 3 });
+  // 1. 結束回合
+  actions.push({ kind: 'end-turn', player: playerIdx });
+
+  // 2. 出手牌中的卡牌
+  player.hand.forEach((cardId, handIdx) => {
+    const card = getCard(cardId);
+
+    if (card.type === 'tech') {
+      if (canPlayCard(state, playerIdx, handIdx)) {
+        actions.push({ kind: 'play-card', player: playerIdx, handIdx });
+      }
+    }
+
+    if (card.type === 'tool') {
+      const allTechs = getDeployedTechs(player);
+      allTechs.forEach((_, techIdx) => {
+        if (canPlayCard(state, playerIdx, handIdx, undefined, techIdx)) {
+          actions.push({
+            kind: 'play-card',
+            player: playerIdx,
+            handIdx,
+            targetTechIdx: techIdx,
+          });
         }
+      });
+    }
+
+    if (card.type === 'contract') {
+      if (canPlayCard(state, playerIdx, handIdx)) {
+        actions.push({ kind: 'play-card', player: playerIdx, handIdx });
+      }
+    }
+
+    if (card.type === 'item') {
+      // 需要指定機組的道具
+      if (['quick-repair-worst', 'temp-mw-boost', 'recover-shutdown', 'fault-shield', 'permanent-mw-boost', 'restore-avail'].includes(card.effect ?? '')) {
+        player.windFarm.forEach((_, turbineIdx) => {
+          if (canPlayCard(state, playerIdx, handIdx, turbineIdx)) {
+            actions.push({
+              kind: 'play-card',
+              player: playerIdx,
+              handIdx,
+              targetTurbineIdx: turbineIdx,
+            });
+          }
+        });
       } else {
-        // UP01-UP03：找符合條件的機組，替換為進化後的機組（保留 avail/faults/mwBonus）
-        const eligibleIds: string[] = [];
-        if (tier === 'evolve-tier1') eligibleIds.push('M01', 'M02', 'OS8');
-        else if (tier === 'evolve-tier2') eligibleIds.push('M03', 'M04', 'OS10');
-        else if (tier === 'evolve-tier3') eligibleIds.push('M05', 'M06', 'M07', 'M09');
-
-        // 選最高 MW 的符合機組（目標參數可覆蓋）
-        let evolveIdx = target !== undefined ? target : -1;
-        if (evolveIdx === -1) {
-          let bestMW = -1;
-          for (let i = 0; i < p.turbines.length; i++) {
-            if (!eligibleIds.includes(p.turbines[i].cardId)) continue;
-            const mw = (CARDS[p.turbines[i].cardId].stats?.mw ?? 0) + p.turbines[i].mwBonus;
-            if (mw > bestMW) { bestMW = mw; evolveIdx = i; }
-          }
-        }
-
-        if (evolveIdx >= 0 && p.turbines[evolveIdx]) {
-          const t = p.turbines[evolveIdx];
-          const fromId = t.cardId;
-          const toId = EVOLVE_MAP[fromId];
-          if (toId) {
-            const newAvail = CARDS[toId].stats?.avail ?? t.avail;
-            // 保留現有故障和 mwBonus，但更新 cardId 和 avail
-            (p.turbines[evolveIdx] as unknown as Record<string, unknown>)['cardId'] = toId;
-            p.turbines[evolveIdx].avail = Math.min(t.avail, newAvail); // 取較小値（故障已降低可用率）
-            p.turbines[evolveIdx].deployedRound = s.round; // 重置部署回合（offshore-delay 重新計算）
-            events.push({ kind: 'turbine-evolved', player, fromCardId: fromId, toCardId: toId, turbineIdx: evolveIdx });
-          }
+        // 不需指定機組的道具
+        if (canPlayCard(state, playerIdx, handIdx)) {
+          actions.push({ kind: 'play-card', player: playerIdx, handIdx });
         }
       }
-      break;
     }
-    default:
-      break;
-  }
-  return events;
-}
+  });
 
-/**
- * S3.6：施加天氣卡 — push 進 state.activeWeather，duration = card.duration（預設 1）。
- * W05 iceWind 有 random-blade tag：打出當下立即對對手隨機一台機組施加葉片故障（F04 stats）。
- * 打出者因 self-immune-blade-fault tag 免疫（不受 random-blade 影響）。
- */
-function _applyWeather(s: GameState, player: 0 | 1, cardId: string, rng?: Rng): GameEvent[] {
-  const card = CARDS[cardId];
-  const duration = card.duration ?? 1;
-  s.activeWeather.push({ cardId, duration, appliedBy: player });
-  const events: GameEvent[] = [{ kind: 'weather-applied', player, cardId, duration }];
-
-  // random-blade：打出當下對對手施加葉片故障（F04 stats）。
-  // 寶可夢式規則：備戰區免疫故障目標，因此「隨機一台」現在唯一合法候選＝對手主力（非停機、故障未滿）。
-  // 打出者本人不受影響（self-immune-blade-fault）
-  const hasRandomBlade = card.abilities?.some((a) => a.tag === 'random-blade') ?? false;
-  if (hasRandomBlade && rng) {
-    const oppId = (1 - player) as 0 | 1;
-    const opp = s.players[oppId];
-    const activeIdx = opp.activeTurbineIdx;
-    const activeTurbine = activeIdx !== null ? opp.turbines[activeIdx] : undefined;
-    const eligible = activeTurbine && !activeTurbine.shutdown && activeTurbine.faults.length < 2
-      ? [{ t: activeTurbine, i: activeIdx as number }]
-      : [];
-    if (eligible.length > 0) {
-      const picked = eligible[rng.int(0, eligible.length - 1)];
-      const { t: target, i: tIdx } = picked;
-      // F04 stats：sev=3, drop=20, rounds=2
-      target.faults.push({ cardId: 'F04', roundsLeft: 2, sev: 3, drop: 20 });
-      events.push({ kind: 'fault-applied', player: oppId, targetIdx: tIdx, cardId: 'F04', drop: 20 });
-    }
-  }
-
-  return events;
-}
-
-/**
- * S3.7：施加合約卡 — push 進 state.activeContracts，progress=0, fulfilled=false。
- * 每回合結算後由 rules-engine._checkContracts 評估是否達成。
- */
-function _applyContract(s: GameState, player: 0 | 1, cardId: string): GameEvent[] {
-  s.activeContracts.push({ cardId, player, progress: 0, fulfilled: false });
-  return [{ kind: 'contract-applied', player, cardId }];
-}
-
-/**
- * @internal 對 runGame 工作副本直接 mutate；供 aiTakeTurn 連續出牌共用。
- * 外部請改用 applyAction()（clone 後再呼叫此函式）。
- * RNG 消耗：fault.cascade（1 次）/ FN02 draw2（最多 2 次，可能再加 1 次重洗）/ FN05 predictWind（3 次）。
- */
-export function _applyActionMutate(
-  s: GameState,
-  action: Action,
-  rng: Rng,
-  config: RulesConfig,
-): GameEvent[] {
-  const events: GameEvent[] = [];
-
-  if (action.kind === 'end-turn') {
-    events.push({ kind: 'turn-ended', player: action.player });
-    return events;
-  }
-
-  // 輕模式：技師出招（獨立資源池，不消耗 actionsLeft）
-  if (action.kind === 'use-skill') {
-    if (!canUseSkill(s, action.player, action.techId, action.skillTag, action.turbineIdx)) return events;
-    events.push(..._useTechSkillMutate(s, action.player, action.techId, action.skillTag, action.turbineIdx));
-    s.players[action.player].usedSkillThisRound.push(action.techId);
-    events.push({
-      kind: 'skill-used',
-      player: action.player,
-      techId: action.techId,
-      turbineIdx: action.turbineIdx,
-      skill: action.skillTag,
+  // 3. 晉升或撤退
+  const active = player.field.active;
+  if (!active) {
+    // 晉升備戰區任何一名技師
+    player.field.bench.forEach((_, idx) => {
+      actions.push({ kind: 'promote-tech', player: playerIdx, benchIdx: idx });
     });
-    return events;
-  }
+  } else {
+    // 可以撤退 (每回合限一次)
+    if (!player.retreatedThisTurn) {
+      player.field.bench.forEach((_, idx) => {
+        actions.push({ kind: 'retreat', player: playerIdx, benchIdx: idx });
+      });
+    }
 
-  // R3：搶共享資源（花 1 動作）
-  if (action.kind === 'grab-resource') {
-    if (!canGrabResource(s, action.player, action.resourceId, action.turbineIdx)) return events;
-    s.actionsLeft -= RESOURCE_ACTION_COST;
-    events.push(..._grabResourceMutate(s, action.player, action.resourceId, action.turbineIdx));
-    return events;
-  }
-
-  // 寶可夢式撤退：把主力換成備戰區某台機組（花 1 動作，不搬動陣列，只 repoint 索引）
-  if (action.kind === 'retreat') {
-    if (!canRetreat(s, action.player, action.benchIdx)) return events;
-    const p2 = s.players[action.player];
-    const fromIdx = p2.activeTurbineIdx as number;
-    s.actionsLeft -= RETREAT_ACTION_COST;
-    p2.activeTurbineIdx = action.benchIdx;
-    events.push({ kind: 'retreat', player: action.player, fromIdx, toIdx: action.benchIdx });
-    return events;
-  }
-
-  if (!canPlayCard(s, action.player, action.handIdx)) return events;
-
-  const p = s.players[action.player];
-  const cardId = p.hand[action.handIdx];
-  const card: Card = CARDS[cardId];
-  const cost = effectiveCost(s, action.player, cardId);
-
-  p.hand.splice(action.handIdx, 1);
-  s.actionsLeft -= cost;
-  events.push({ kind: 'card-played', player: action.player, cardId });
-
-  switch (card.type) {
-    case 'turbine':
-      events.push(..._deployTurbine(s, action.player, cardId, action.replaceIdx));
-      break;
-    case 'tech':
-      events.push(..._deployTech(s, action.player, cardId, rng));
-      p.techPlayedThisRound = true; // 標記本回合已出技師卡
-      break;
-    case 'fault':
-      events.push(..._applyFault(s, action.player, cardId, rng, action.target));
-      break;
-    case 'func':
-      events.push(..._executeFunc(s, action.player, cardId, action.target, rng, config));
-      break;
-    case 'weather':
-      events.push(..._applyWeather(s, action.player, cardId, rng));
-      break;
-    case 'contract':
-      events.push(..._applyContract(s, action.player, cardId));
-      break;
-    default:
-      break;
-  }
-
-  // T09 func-bonus：出 func 卡後，若該玩家場上有 T09（func-bonus tag），本回合 +1 動作（最多累加 +2）
-  if (card.type === 'func' && p.techs.some((id) => CARDS[id].abilities.some((a) => a.tag === 'func-bonus'))) {
-    if (p.funcBonusThisRound < 2) {
-      p.funcBonusThisRound += 1;
-      s.actionsLeft += 1;
-      events.push({ kind: 'func-bonus', player: action.player, actionsGained: 1, totalBonus: p.funcBonusThisRound });
+    // 主力技師使用技能 (如果本回合還沒出招且主力存在)
+    if (!active.usedSkillThisTurn) {
+      // 大浪浪高等於 4 時，如果主力不能工作，則此動作不合法
+      const cardDef = getCard(active.cardId);
+      const levelKey = active.level === 3 ? 'lv3' : active.level === 2 ? 'lv2' : 'lv1';
+      const skill = cardDef.skills?.[levelKey];
+      
+      const waveHeight = state.waveHeight;
+      const isWaveRestricted = waveHeight === 4 && !active.attachedToolId?.includes('TL03') && cardDef.id !== 'T08';
+      
+      if (!isWaveRestricted && skill) {
+        if (skill.repairPower || skill.availBoost || skill.mwBoost || skill.special?.includes('prevent-fault')) {
+          // 修復或提升類技能，需要指定目標機組
+          player.windFarm.forEach((_, turbineIdx) => {
+            actions.push({ kind: 'use-skill', player: playerIdx, targetTurbineIdx: turbineIdx });
+          });
+        } else {
+          // 其他無目標技能
+          actions.push({ kind: 'use-skill', player: playerIdx });
+        }
+      }
     }
   }
 
-  // S3.1：M07 card-draw-trigger — 出 tech/func 卡後，若該玩家場上有此 tag → 抽 1 張。
-  // 注意：trigger 後抽的牌不會再 trigger（避免循環）；放在 type switch 後、RNG 順序在 fault.cascade 之後（如有）。
-  if ((card.type === 'tech' || card.type === 'func') && hasCardDrawTrigger(p)) {
-    _drawCard(s, action.player, rng, config);
-  }
-  return events;
-}
-
-/** 對外純函式：套用一個動作。clone 後派發；不會更動傳入 state。 */
-export function applyAction(
-  state: GameState,
-  action: Action,
-  rng: Rng,
-  config: RulesConfig = DEFAULT_CONFIG,
-): ApplyResult {
-  const s = cloneState(state);
-  const events = _applyActionMutate(s, action, rng, config);
-  return { state: s, events };
+  return actions;
 }

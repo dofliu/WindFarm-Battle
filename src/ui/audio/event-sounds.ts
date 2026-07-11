@@ -27,7 +27,8 @@ export interface SoundCue {
  * 故 victim===self 時才給重震動。
  */
 export function eventToCue(e: GameEvent, self: 0 | 1 = 0): SoundCue | null {
-  switch (e.kind) {
+  const event: any = e;
+  switch (event.kind) {
     case 'round-start':
       return { sound: 'roundStart' };
     case 'turbine-deployed':
@@ -42,14 +43,14 @@ export function eventToCue(e: GameEvent, self: 0 | 1 = 0): SoundCue | null {
     case 'tech-deployed':
       return { sound: 'techDeploy' };
     case 'fault-applied':
-      return { sound: 'faultHit', haptic: e.player === self ? 'heavy' : undefined };
+      return { sound: 'faultHit', haptic: event.player === self ? 'heavy' : undefined };
     case 'fault-cascaded':
-      return { sound: 'faultCascade', haptic: e.player === self ? 'heavy' : undefined };
+      return { sound: 'faultCascade', haptic: event.player === self ? 'heavy' : undefined };
     case 'incident':
       // 同題共享事件：雙方同槽受擊 → 對玩家一律視為受擊
       return { sound: 'faultHit', haptic: 'heavy' };
     case 'fault-repaired':
-      return { sound: e.quality === 'partial' ? 'repairPartial' : 'repairFull' };
+      return { sound: event.quality === 'partial' ? 'repairPartial' : 'repairFull' };
     case 'turbine-shielded':
       return { sound: 'shieldUp' };
     case 'shield-absorbed':
@@ -76,13 +77,13 @@ export function eventToCue(e: GameEvent, self: 0 | 1 = 0): SoundCue | null {
     case 'retreat':
       return { sound: 'retreat' };
     case 'turbine-shutdown':
-      return { sound: 'shutdown', haptic: e.player === self ? 'heavy' : undefined };
+      return { sound: 'shutdown', haptic: event.player === self ? 'heavy' : undefined };
     case 'round-scored':
       // 只在自己得分那筆響一次
-      return e.player === self ? { sound: 'score' } : null;
+      return event.player === self ? { sound: 'score' } : null;
     case 'game-over':
-      if (e.winner === -1) return { sound: 'draw' };
-      return e.winner === self ? { sound: 'win', haptic: 'win' } : { sound: 'lose' };
+      if (event.winner === -1) return { sound: 'draw' };
+      return event.winner === self ? { sound: 'win', haptic: 'win' } : { sound: 'lose' };
     default:
       // card-played / card-drawn / card-discarded / turn-ended / weather-expired /
       // tutor-turbine / contract-progress / contract-stolen / peek-hand /
