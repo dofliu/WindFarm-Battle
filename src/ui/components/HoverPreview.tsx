@@ -60,7 +60,7 @@ export function HoverPreview({ cardId }: Props) {
             </div>
           </div>
         </div>
-        {card.abilities.length > 0 &&
+        {card.abilities && card.abilities.length > 0 &&
           card.abilities.map((_ab, i) => (
             <div
               key={i}
@@ -136,7 +136,7 @@ export function HoverPreview({ cardId }: Props) {
           </div>
         </div>
       </div>
-      {card.abilities.length > 0 &&
+      {card.abilities && card.abilities.length > 0 &&
         card.abilities.map((_ab, i) => (
           <div key={i} style={{ marginTop: 8, padding: '6px 10px', borderRadius: 8, background: '#f7f5f0' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: tc.accent }}>{abilityName(cardId, i)}</div>

@@ -6,7 +6,7 @@ import { Rng } from './rng';
 /** 檢查技師是否對浪高免疫 */
 export function hasWaveImmunity(tech: DeployedTech): boolean {
   const card = CARDS[tech.cardId];
-  if (card.abilities.some((a) => a.tag === 'wave-immune')) {
+  if (card.abilities && card.abilities.some((a) => a.tag === 'wave-immune')) {
     return true;
   }
   if (tech.attachedToolId) {
