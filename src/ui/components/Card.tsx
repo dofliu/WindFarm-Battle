@@ -29,10 +29,13 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(props, r
   const { theme, themeKey } = useTheme();
 
   const [lastCardId, setLastCardId] = useState(cardId);
-  const [imageError, setImageError] = useState(false);
+  const [imageSrcIndex, setImageSrcIndex] = useState(0);
+  const imageCandidates = [card?.image, `/cards/${cardId}.jpg`, `/cards/${cardId}.svg`].filter(Boolean) as string[];
+  const imageSrc = imageCandidates[Math.min(imageSrcIndex, imageCandidates.length - 1)];
+  const imageError = imageSrcIndex >= imageCandidates.length;
   if (cardId !== lastCardId) {
     setLastCardId(cardId);
-    setImageError(false);
+    setImageSrcIndex(0);
   }
 
   if (!card) return null;
@@ -185,11 +188,11 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(props, r
         >
           {!imageError ? (
             <img
-              src={card.image || `/cards/${cardId}.jpg`}
+              src={imageSrc}
               alt={name}
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               loading="lazy"
-              onError={() => setImageError(true)}
+              onError={() => setImageSrcIndex((idx) => idx + 1)}
             />
           ) : (
             <>
@@ -339,11 +342,11 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(props, r
       >
         {!imageError ? (
           <img
-            src={card.image || `/cards/${cardId}.jpg`}
+            src={imageSrc}
             alt={name}
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', borderRadius: 10 }}
             loading="lazy"
-            onError={() => setImageError(true)}
+            onError={() => setImageSrcIndex((idx) => idx + 1)}
           />
         ) : (
           <>

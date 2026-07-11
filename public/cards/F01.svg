@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="420" viewBox="0 0 600 420">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#7f1d1d"/><stop offset="1" stop-color="#fb7185"/></linearGradient><radialGradient id="r"><stop stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
+<rect width="600" height="420" fill="url(#g)"/><circle cx="105" cy="70" r="170" fill="url(#r)"/><circle cx="520" cy="360" r="210" fill="#020617" opacity=".18"/><path d="M300 42 L545 380 H55 Z" fill="#fbbf24" stroke="#fff7ed" stroke-width="12"/><text x="300" y="305" text-anchor="middle" font-size="190">⚠</text><path d="M95 390 C170 280 225 360 300 260 C380 155 430 305 505 218" fill="none" stroke="#fee2e2" stroke-width="10" opacity=".75"/>
+<rect x="0" y="330" width="600" height="90" fill="#020617" opacity=".58"/><text x="32" y="370" font-family="Noto Sans TC, sans-serif" font-size="32" font-weight="800" fill="white">感測器異常</text><text x="32" y="402" font-family="Noto Sans TC, sans-serif" font-size="18" fill="#dbeafe">F01 · fault · sensor</text>
+</svg>
