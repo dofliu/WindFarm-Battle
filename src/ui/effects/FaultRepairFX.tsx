@@ -4,17 +4,23 @@
 // ============================================================
 import { CARDS } from '../../core/cards';
 import { pickIcon, FaultLightning, Spark } from '../icons';
+import type { CardType } from '../styles/themes';
 
 interface FaultFlashProps {
   readonly cardId?: string;
 }
 
+/** v2 卡類（tool/item）映射到舊主題色系的六大類 */
+function mapToThemeType(type: string | undefined): CardType {
+  if (type === 'tool') return 'tech';
+  if (type === 'item') return 'func';
+  if (type === 'turbine' || type === 'tech' || type === 'fault' || type === 'func' || type === 'weather' || type === 'contract') return type;
+  return 'fault';
+}
+
 export function FaultFlashFX({ cardId }: FaultFlashProps) {
   const card = cardId ? CARDS[cardId] : undefined;
-  let mappedType: any = card?.type;
-  if (mappedType === 'tool') mappedType = 'tech';
-  else if (mappedType === 'item') mappedType = 'func';
-  const IconComp = card ? pickIcon(card.icon, mappedType) : FaultLightning;
+  const IconComp = card ? pickIcon(card.icon, mapToThemeType(card.type)) : FaultLightning;
   return (
     <div
       style={{

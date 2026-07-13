@@ -64,7 +64,10 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(props, r
   } else if (card.type === 'item') {
     statLabel = card.effect ? t(`item.effect.${card.effect}`) || card.effect : '';
   } else if (card.type === 'contract') {
-    statLabel = card.multiplier ? `${card.multiplier}x` : card.effect ?? '';
+    // 效果有翻譯就用完整說明（帶倍率/回合/加分參數），否則退回倍率簡寫
+    const key = `contract.effect.${card.effect}`;
+    const translated = card.effect ? t(key, { m: card.multiplier ?? 1, d: card.duration ?? 1, v: card.value ?? 0 }) : '';
+    statLabel = translated && translated !== key ? translated : card.multiplier ? `${card.multiplier}x` : '';
   } else if (card.type === 'fault') {
     statLabel = card.drop ? `-${card.drop}%` : '';
   } else if (card.type === 'turbine') {

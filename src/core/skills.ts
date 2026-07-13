@@ -184,7 +184,7 @@ export function applySkill(
   }
 
   // 檢查特別的效果 tag (如 predict-wind, draw-item)
-  const special: any = skill.special;
+  const special: string | undefined = skill.special;
   if (special) {
     if (special === 'predict-wind') {
       // 預見下一回合的風速

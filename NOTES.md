@@ -1,7 +1,44 @@
 # 📌 NOTES — 接續開發注意事項（給 Claude Code / Dof）
 
 > 這份是「接手前先看」的現況與注意事項。詳細設計看 `REFACTOR_PLAN.md` 與 `SPRINT2_DESIGN.md`。
-> 最後更新：2026-07-09（S9 教學深度強化：維修知識-效益即時解說 + 局後學習複盤）。
+> 最後更新：2026-07-13（v2 技師版修復：AI 復活、回合流矯正、卡圖全實照、i18n 補齊）。
+
+---
+
+## 000. 最新：v2 技師版（PR #11 codex 重構）修復與完成 ⭐⭐
+
+PR #11（codex）把遊戲重構成「**技師為主角**」的寶可夢式對戰（風機固定為雙方對稱的
+OS8/OS10/OS12 艦隊；手牌只有技師/工具/道具/合約；**疲勞度 stamina** + 3/6 回合升級進化；
+共用環境事件引擎），方向正確但**多處致命損壞**。本輪修復：
+
+1. **AI 癱瘓（兩個根因，皆修）**：
+   - `game-store.endTurn` 誤呼叫 `startRound`（其內硬設 `currentPlayer=0`）→ AI 的
+     `legalActions` 全不合法。改為 `_beginTurn(AI)`（重置旗標+補牌），startRound 只在回合開頭。
+   - AI 步進迴圈丟棄 `applyAction` 的回傳值（它回傳新 state、不 mutate）→ AI 每步打空氣。
+     改以 `result.state` 續跑。
+   - 修復後 AI 完整運營：派技師/裝工具/簽合約/用道具/技能修復/撤退換人/力竭下場。
+2. **回合流矯正**：先前每回合骰兩次風、環境事件發兩次（玩家看到的風速 ≠ 結算風速）。
+   現在每回合恰一次 `startRound`（回合首）→ 玩家 turn → `_beginTurn(AI)` → AI turn →
+   `endRound`（結算+stamina/evolution+round+1）→ 下一回合 `startRound`。
+3. **每回合限 1 張技師**：補上 `techPlayedThisTurn` 旗標（types/game-state/actions/_beginTurn）。
+   codex 留在 `actions.ts` 的大段「內心獨白註解」已清除。
+4. **卡圖全實照（目標 4）**：v2 新卡 26 張（T10–15/TL/IT/CT）原本只有漸層 SVG 佔位。
+   已在 `cards-v2.json` 加 `image` 欄位映射語意相近的既有 jpg（映射表見 CARD_PROMPTS.md 末節）；
+   `TechCard`（戰鬥區）補上照片區（原本只有 emoji icon）。Card.tsx fallback：`image → {id}.jpg → {id}.svg`。
+5. **i18n 補齊**：`category.{mechanical,blade,electrical,sensor,hydraulic}`、`contract.effect.*`、
+   en 版整批（tool/item/wave/tech.level…）；環境事件橫幅欄位錯位（faultCardId vs cardId）修正並顯示卡名。
+6. **主題統一**：戰鬥畫面為深色技師桌面（codex Tailwind 風），TopBar 加 `dark` 變體、
+   移除白晝雲朵背景（ThemeBackground）→ 深色自洽。標題/結算畫面仍走原雙主題。
+7. **skill.special 型別矯正**：資料是字串，types 誤宣告 string[]（codex 用 any 遮蔽）。
+8. **lint 歸零**：codex 留下的 8 個 no-explicit-any / prefer-const 全修。
+9. **測試回填**：59 → **77**（actions 10 / ai 5 / rules 6 重寫；涵蓋上述每個修復點）。
+   ⚠️ v4 時代 369 測試中大量被 codex 掏空成 placeholder——本輪回填核心，其餘標記待補。
+
+**v2 事件語彙**（音效/學習模組已同步）：`tech-deployed/tech-promoted/tech-retired/stamina-depleted/
+tech-evolved/tool-attached/item-played/contract-played/fault-applied(turbineId)/fault-repaired(byTechCardId)`。
+
+**待辦**：T10–15/TL/IT/CT 專屬插畫（暫借圖，見 CARD_PROMPTS.md）；BattleScreen 內
+codex 寫死的中文（課堂任務/教練/說明）尚未 i18n 化；模擬器/平衡驗證尚未接 v2。
 
 ---
 

@@ -98,6 +98,7 @@ export function _drawCard(player: PlayerState, playerIdx: 0 | 1, events: GameEve
 /** 回合開始初始化：重置旗標、補牌 */
 export function _beginTurn(state: GameState, playerIdx: 0 | 1, events: GameEvent[]): void {
   const player = state.players[playerIdx];
+  player.techPlayedThisTurn = false;
   player.toolPlayedThisTurn = false;
   player.contractPlayedThisTurn = false;
   player.retreatedThisTurn = false;

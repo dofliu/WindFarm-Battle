@@ -24,7 +24,8 @@ export interface Skill {
   readonly mwBoost?: number;
   readonly desc?: string;
   readonly specialtyMatchesOnly?: boolean;
-  readonly special?: readonly string[];
+  /** 特殊效果 tag（cards-v2 資料為單一字串，如 "predict-wind"、"prevent-fault-30"） */
+  readonly special?: string;
 }
 
 /** 技師技能定義（分等級） */
@@ -119,6 +120,7 @@ export interface PlayerState {
   score: number; // 累積發電量 (MWh)
   
   // 每回合限制標記
+  techPlayedThisTurn: boolean;
   toolPlayedThisTurn: boolean;
   contractPlayedThisTurn: boolean;
   retreatedThisTurn: boolean;

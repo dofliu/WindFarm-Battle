@@ -26,26 +26,30 @@ export interface SoundCue {
  * fault-applied/incident 的 player 欄位是「受害者」（見 game-store._deriveEffects 註解），
  * 故 victim===self 時才給重震動。
  */
-export function eventToCue(e: GameEvent, self: 0 | 1 = 0): SoundCue | null {
-  const event: any = e;
+export function eventToCue(event: GameEvent, self: 0 | 1 = 0): SoundCue | null {
   switch (event.kind) {
     case 'round-start':
       return { sound: 'roundStart' };
-    case 'turbine-deployed':
-    case 'turbine-replaced':
-    case 'turbine-evolved':
-    case 'turbine-restart':
-      return { sound: 'deploy' };
-    case 'turbine-returned':
-      return { sound: 'retreat' };
-    case 'turbine-upgraded':
-      return { sound: 'mwhBoost' };
     case 'tech-deployed':
       return { sound: 'techDeploy' };
+    case 'tech-promoted':
+    case 'turbine-restart':
+      return { sound: 'deploy' };
+    case 'tech-evolved':
+      // 技師升級（Lv2/Lv3）：亮音強化成長感
+      return { sound: 'mwhBoost' };
+    case 'tech-retired':
+    case 'stamina-depleted':
+      // 力竭退場：警示下墜音（自己的技師倒下給重震動）
+      return { sound: 'shutdown', haptic: event.player === self ? 'heavy' : undefined };
+    case 'tool-attached':
+      return { sound: 'shieldUp' };
+    case 'item-played':
+      return { sound: 'cardPlay' };
+    case 'contract-played':
+      return { sound: 'contract' };
     case 'fault-applied':
       return { sound: 'faultHit', haptic: event.player === self ? 'heavy' : undefined };
-    case 'fault-cascaded':
-      return { sound: 'faultCascade', haptic: event.player === self ? 'heavy' : undefined };
     case 'incident':
       // 同題共享事件：雙方同槽受擊 → 對玩家一律視為受擊
       return { sound: 'faultHit', haptic: 'heavy' };
@@ -57,23 +61,10 @@ export function eventToCue(e: GameEvent, self: 0 | 1 = 0): SoundCue | null {
       return { sound: 'shieldAbsorb' };
     case 'skill-used':
       return { sound: 'skill' };
-    case 'func-played':
-      return { sound: 'cardPlay' };
     case 'predict-wind':
       return { sound: 'weather' };
-    case 'weather-applied':
-      return { sound: 'weather' };
-    case 'contract-applied':
-      return { sound: 'contract' };
-    case 'contract-fulfilled':
+    case 'turbine-upgraded':
       return { sound: 'mwhBoost' };
-    case 'mwh-boost':
-      return { sound: 'mwhBoost' };
-    case 'extra-action-banked':
-    case 'func-bonus':
-      return { sound: 'extraAction' };
-    case 'resource-grabbed':
-      return { sound: 'resourceGrab' };
     case 'retreat':
       return { sound: 'retreat' };
     case 'turbine-shutdown':
@@ -85,9 +76,7 @@ export function eventToCue(e: GameEvent, self: 0 | 1 = 0): SoundCue | null {
       if (event.winner === -1) return { sound: 'draw' };
       return event.winner === self ? { sound: 'win', haptic: 'win' } : { sound: 'lose' };
     default:
-      // card-played / card-drawn / card-discarded / turn-ended / weather-expired /
-      // tutor-turbine / contract-progress / contract-stolen / peek-hand /
-      // fault-warning / resource-spawned → 靜默（避免糊成一片）
+      // card-played / card-drawn / card-discarded / turn-ended / contract-expired → 靜默（避免糊成一片）
       return null;
   }
 }

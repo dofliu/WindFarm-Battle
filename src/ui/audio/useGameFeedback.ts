@@ -15,12 +15,13 @@ import { playEventSounds } from './event-sounds';
 import { play } from './sound-engine';
 import { getSettings } from '../../store/settings-store';
 
-/** 新批次是否包含「對自己有衝擊」的事件（受擊 / 停機 / 同題事件）→ 觸發螢幕震動。 */
+/** 新批次是否包含「對自己有衝擊」的事件（受擊 / 停機 / 技師力竭 / 同題事件）→ 觸發螢幕震動。 */
 function hasImpactOnSelf(events: readonly GameEvent[], self: 0 | 1): boolean {
-  return events.some((event: any) => {
+  return events.some((event) => {
     if (event.kind === 'incident') return true;
-    if (event.kind === 'fault-applied' || event.kind === 'fault-cascaded') return event.player === self;
+    if (event.kind === 'fault-applied') return event.player === self;
     if (event.kind === 'turbine-shutdown') return event.player === self;
+    if (event.kind === 'stamina-depleted') return event.player === self;
     return false;
   });
 }

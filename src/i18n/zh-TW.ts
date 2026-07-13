@@ -13,6 +13,19 @@ export const zhTW = {
   'category.weather': '天氣',
   'category.contract': '合約',
   'category.all': '全部',
+  // 技師專長 / 故障類別（v2 技師戰鬥核心：專長對症 → 完全修復）
+  'category.mechanical': '機械',
+  'category.blade': '葉片',
+  'category.electrical': '電氣',
+  'category.sensor': '感測',
+  'category.hydraulic': '液壓',
+  // v2 卡類（工具 / 道具）
+  'category.tool': '工具',
+  'category.item': '道具',
+  // 合約卡效果說明
+  'contract.effect.mwh-multiplier-turn': '本回合發電 ×{m}',
+  'contract.effect.mwh-multiplier-temp': '連續 {d} 回合發電 ×{m}',
+  'contract.effect.endgame-bonus-mwh': '終局加分 +{v} MWh',
   // ── Battle UI ────────────────────────────────────────────
   'ui.endTurn': '結束回合',
   'ui.actionsLeft': '剩餘動作',

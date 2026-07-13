@@ -42,6 +42,6 @@ describe('Stamina tick operations', () => {
     // Bench technician has 2 stamina, loses 3 -> stamina <= 0, should be retired
     expect(player.field.bench.length).toBe(0);
     expect(player.retired).toContain('T02');
-    expect(events.some((e: any) => e.kind === 'stamina-depleted' && e.techId === 'T02')).toBe(true);
+    expect(events.some((e) => e.kind === 'stamina-depleted' && e.techId === 'T02')).toBe(true);
   });
 });

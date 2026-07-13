@@ -1,5 +1,5 @@
 import type { Wind } from '../../core/types';
-import { t } from '../../i18n';
+import { cardName, t } from '../../i18n';
 
 interface EnvironmentPanelProps {
   readonly wind: Wind;
@@ -74,7 +74,7 @@ export function EnvironmentPanel({
             <div className="flex flex-col">
               <span className="text-xs font-bold text-rose-300">本回合突發環境故障</span>
               <span className="text-[10px] text-rose-400 mt-0.5">
-                設備 {roundFaultEvent.turbineId} 遭遇了故障 (ID: {roundFaultEvent.cardId})
+                設備 {roundFaultEvent.turbineId} 遭遇「{cardName(roundFaultEvent.cardId) || roundFaultEvent.cardId}」· 雙方風場同時受影響
               </span>
             </div>
           </div>
