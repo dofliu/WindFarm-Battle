@@ -1,10 +1,10 @@
 name: WindFarm Battle
 name_zh: 風場大戰
 category: edtech
-progress: 97
+progress: 90
 status: active
-last_updated: "2026-07-09"
-next_milestone: "Android Studio 實機測試（npx cap open android）+ 學生首輪試玩回饋 + 卡牌插畫製作（AI art prompts in CARD_PROMPTS.md）"
+last_updated: "2026-07-13"
+next_milestone: "v2 技師版平衡驗證（模擬器接 v2）+ T10-15/TL/IT/CT 專屬插畫（CARD_PROMPTS.md 末節映射表）+ 學生首輪試玩"
 technologies:
   - React 18
   - TypeScript 5
@@ -17,6 +17,6 @@ outputs:
   - tool
   - paper
   - course
-description: "Educational wind farm operations card game (PvAI, 50 cards, 12 rounds, knowledge-effectiveness repair model)"
-description_zh: "風場運維教學卡牌遊戲（玩家 vs AI，50 張牌，12 回合，Route B 知識效益修復模型）"
-key_metrics: "369 tests passing / 50 cards / 3 AI difficulty levels / tsc+lint+build clean / Route B full UI + originalAvail permanent damage display / Sprint 4 CardTemplate+CardGallery / SimulatorPanel Web mode / 1000-game balance all-pass / AI M07/M10/M12 evaluator fixed / Android+iOS synced / S8 juice: Web Audio synth SFX + screen shake + score pop + haptics + settings panel (persisted) / S9 教學深度: real-time repair knowledge-effectiveness insight + post-game learning debrief (O&M grade, permanent-loss, fault-category real-world knowledge, IEC 61400 standards)"
+description: "Educational wind farm O&M card game v2: technician-led Pokemon-style battles (stamina, evolution, specialty-match repair) over a shared symmetric wind farm"
+description_zh: "風場運維教學卡牌遊戲 v2：技師為主角的寶可夢式對戰（疲勞度、升級進化、專長對症修復），雙方共用對稱風場（OS8/OS10/OS12）同題競賽"
+key_metrics: "77 tests passing / 45 cards (15 techs + 8 tools + 9 items + 3 contracts) / all cards real-photo art / tsc+lint+build clean / v2 修復: AI 復活（currentPlayer + applyAction 回傳值兩根因）+ 回合流矯正（每回合恰一次骰風）+ techPlayedThisTurn 限制 + i18n 補齊 + TechCard 照片 + 深色主題自洽 / stamina 疲勞 + Lv2/Lv3 進化 + 力竭退場 / S8 音效震動 + S9 學習複盤沿用"

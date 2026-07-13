@@ -59,6 +59,7 @@ function createPlayer(name: string, rng: Rng): PlayerState {
     windFarm: makeStartingFleet(),
     retired: [],
     score: 0,
+    techPlayedThisTurn: false,
     toolPlayedThisTurn: false,
     contractPlayedThisTurn: false,
     retreatedThisTurn: false,

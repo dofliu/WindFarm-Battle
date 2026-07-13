@@ -30,6 +30,6 @@ describe('Technician Evolution tick', () => {
     expect(active?.maxStamina).toBe(15);
     // Damage was 4 (10 - 6). Evolved stamina should be 15 - 4 = 11.
     expect(active?.stamina).toBe(11);
-    expect(events.some((e: any) => e.kind === 'tech-evolved' && e.level === 2)).toBe(true);
+    expect(events.some((e) => e.kind === 'tech-evolved' && e.level === 2)).toBe(true);
   });
 });

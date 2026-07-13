@@ -9,6 +9,7 @@ import { createInitialState, cloneState } from '../core/game-state';
 import {
   startRound,
   endRound,
+  _beginTurn,
 } from '../core/rules-engine';
 import { applyAction, canPlayCard } from '../core/actions';
 import { aiChoose } from '../core/ai';
@@ -257,7 +258,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!skill || skill.tag !== skillTag) return;
 
     // 判定是否需要選擇目標機組
-    let target = turbineIdx;
+    const target = turbineIdx;
     const needsTarget = !!(skill.repairPower || skill.availBoost || skill.mwBoost || skill.special?.includes('prevent-fault') || skill.special?.includes('block-next-fault'));
     
     if (needsTarget && target === undefined) {
@@ -384,10 +385,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const s = cloneState(state);
     const ev1: GameEvent[] = [{ kind: 'turn-ended', player: HUMAN }];
 
-    // 玩家結束 turn，開始 AI 的 turn 流程
-    // 1. 切換 currentPlayer = AI
+    // 玩家結束 turn → 換 AI 上場。
+    // 注意：這裡「不可」呼叫 startRound——startRound 是回合開頭的初始化（骰風/環境事件），
+    // 且會把 currentPlayer 硬設回 0，導致 AI 的 legalActions 全數不合法（先前 AI 癱瘓的根因）。
+    // 換人只需 _beginTurn：重置回合旗標 + 補牌到 4 張。
     s.currentPlayer = AI;
-    ev1.push(...startRound(s, rng)); // 其實 startRound 內會跑 beginTurn
+    _beginTurn(s, AI, ev1);
 
     set({
       state: s,
@@ -406,28 +409,31 @@ export const useGameStore = create<GameStore>((set, get) => ({
       setTimeout(() => {
         const { difficulty } = get();
         const choice = aiChoose(stepState, AI, difficulty, rng);
-        
+
         if (choice && choice.chosen.score >= RESERVE_THRESHOLD && choice.chosen.action.kind !== 'end-turn') {
-          // 執行 AI 的一個動作
+          // 執行 AI 的一個動作。
+          // 注意：applyAction 回傳「新 state」（內部 structuredClone），必須以 result.state 續跑；
+          // 先前用舊的 stepState 續跑導致 AI 每步都打空氣（動作永遠套不上，第二個癱瘓根因）。
           const result = applyAction(stepState, choice.chosen.action, rng);
+          const nextState = result.state;
           const newEvents = [...stepEvents, ...result.events];
-          
+
           for (const fx of _deriveEffects(result.events)) {
             get().pushEffect(fx.type, { side: fx.side, slot: fx.slot, cardId: fx.cardId });
           }
 
           const { events: currentEvents } = get();
           set({
-            state: cloneState(stepState),
+            state: nextState,
             events: [...currentEvents, ...result.events].slice(-EVENT_LOG_LIMIT),
             aiCurrentAction: choice.chosen.desc,
           });
 
-          // 如果 AI 使用了技能，其回合自動結束
+          // 如果 AI 使用了技能，其回合自動結束（與玩家同一條規則）
           if (choice.chosen.action.kind === 'use-skill') {
-            finalizeRound(stepState, newEvents);
+            finalizeRound(cloneState(nextState), newEvents);
           } else {
-            runNextAiStep(stepState, newEvents);
+            runNextAiStep(cloneState(nextState), newEvents);
           }
         } else {
           // AI 無動作或選擇結束，結算回合
@@ -492,6 +498,11 @@ export function uiEffectiveCost(state: GameState, player: 0 | 1, cardId: string)
   void state;
   void player;
   return CARDS[cardId]?.cost ?? 1;
+}
+
+// DEV-only：把 store 掛到 window 方便手動測試 / 截圖（production build 會被 import.meta.env.DEV 剝除）
+if (import.meta.env.DEV) {
+  (window as unknown as { __wfStore?: typeof useGameStore }).__wfStore = useGameStore;
 }
 
 export function uiPreviewMwh(state: GameState, player: 0 | 1): number {

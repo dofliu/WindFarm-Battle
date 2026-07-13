@@ -109,7 +109,7 @@ export function Hand({
   const expandedSize = cardSize * 1.7; // 展開後的大卡尺寸
 
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, flex: 1, justifyContent: 'center', position: 'relative' }}>
+    <div data-zone="hand" style={{ display: 'flex', alignItems: 'flex-end', gap: 4, flex: 1, justifyContent: 'center', position: 'relative' }}>
       {me.hand.length === 0 && (
         <div
           style={{

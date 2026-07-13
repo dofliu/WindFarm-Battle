@@ -3,7 +3,6 @@
 // ============================================================
 import { useEffect, useState, useCallback } from 'react';
 import { useGameStore, uiPreviewMwh } from '../../store/game-store';
-import { ThemeBackground } from '../effects/ThemeBackground';
 import { TopBar } from '../components/TopBar';
 import { WindFarmPanel } from '../components/WindFarmPanel';
 import { TechField } from '../components/TechField';
@@ -96,7 +95,7 @@ function ClassMissionPanel({ state }: { readonly state: GameState }) {
     { label: '放置備戰技師', done: hasBench, hint: '建立專長隊伍' },
     { label: '裝備 1 張工具', done: hasTool, hint: '強化主力' },
     { label: '保持故障 ≤ 1', done: myFaults <= 1, hint: '維持可用率' },
-    { label: '分數領先 AI', done: lead > 0, hint: `${lead >= 0 ? '+' : ''}${lead} MWh` },
+    { label: '分數領先 AI', done: lead > 0, hint: `${lead >= 0 ? '+' : ''}${lead.toFixed(1)} MWh` },
   ];
 
   return (
@@ -258,8 +257,17 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
 
   return (
     <div className="relative flex min-h-screen w-full select-none flex-col overflow-x-hidden bg-slate-950 text-gray-100">
-      <ThemeBackground />
+      {/* 深色戰場背景（自洽的夜間風場氛圍；不用 ThemeBackground 的白晝雲朵，避免亮暗混搭） */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(ellipse 80% 50% at 20% -10%, rgba(56,130,190,0.14), transparent), radial-gradient(ellipse 70% 45% at 85% 105%, rgba(16,120,90,0.1), transparent)',
+        }}
+      />
       <TopBar
+        dark
         difficulty={difficulty}
         onDifficulty={setDifficulty}
         onRestart={() => newGame()}
@@ -274,9 +282,11 @@ export function BattleScreen({ onTitle, onGameOver }: Props) {
           <EnvironmentPanel
             wind={state.wind}
             waveHeight={state.waveHeight}
-            roundFaultEvent={
-              ([...events].reverse().find((e) => e.kind === 'incident' && e.round === state.round) as any) || null
-            }
+            roundFaultEvent={(() => {
+              // incident 事件欄位是 faultCardId / turbineId；映射成面板期望的 shape（勿用 as any 硬轉）
+              const e = [...events].reverse().find((x) => x.kind === 'incident' && x.round === state.round);
+              return e && e.kind === 'incident' ? { cardId: e.faultCardId, turbineId: e.turbineId } : null;
+            })()}
             round={state.round}
           />
           <CoachPanel state={state} />

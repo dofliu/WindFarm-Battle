@@ -1,7 +1,31 @@
+import { useState } from 'react';
 import type { DeployedTech } from '../../core/types';
 import { CARDS, getCard } from '../../core/cards';
 import { cardName, t } from '../../i18n';
 import { StaminaBar } from './StaminaBar';
+
+/** 技師照片（card.image → /cards/{id}.jpg 依序嘗試；全失敗回落 icon emoji） */
+function TechPortrait({ cardId, icon }: { readonly cardId: string; readonly icon?: string }) {
+  const card = CARDS[cardId];
+  const candidates = [card?.image, `/cards/${cardId}.jpg`].filter(Boolean) as string[];
+  const [idx, setIdx] = useState(0);
+  if (idx >= candidates.length) {
+    return (
+      <div className="flex h-24 w-full items-center justify-center rounded-lg bg-gray-900/70 text-4xl">
+        {icon ?? '🔧'}
+      </div>
+    );
+  }
+  return (
+    <img
+      src={candidates[idx]}
+      alt={cardName(cardId) || cardId}
+      className="h-24 w-full rounded-lg object-cover"
+      loading="lazy"
+      onError={() => setIdx((i) => i + 1)}
+    />
+  );
+}
 
 interface TechCardProps {
   readonly tech: DeployedTech;
@@ -83,6 +107,19 @@ export function TechCard({
           : 'border-gray-700/60 hover:border-gray-600'
       }`}
     >
+      {/* 技師照片（實照，Lv 徽章疊左上） */}
+      <div className="relative">
+        <TechPortrait cardId={tech.cardId} icon={card.icon} />
+        <span className="absolute left-1.5 top-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-black text-amber-300">
+          Lv.{tech.level}
+        </span>
+        {tech.usedSkillThisTurn && (
+          <span className="absolute right-1.5 top-1.5 rounded bg-rose-900/80 px-1.5 py-0.5 text-[9px] font-bold text-rose-200">
+            已出招
+          </span>
+        )}
+      </div>
+
       {/* 頂部標題 */}
       <div className="flex justify-between items-start gap-1">
         <div className="flex flex-col">

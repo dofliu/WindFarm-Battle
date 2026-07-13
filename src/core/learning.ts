@@ -98,14 +98,10 @@ export function extractLearningReport(events: readonly GameEvent[], self: 0 | 1 
     if (code) iec.add(code);
   };
 
-  for (const e of events) {
-    const event: any = e;
+  for (const event of events) {
     switch (event.kind) {
       case 'fault-applied':
         // fault-applied.player = 受害者；只計自己遇到的故障
-        if (event.player === self) bumpCategory(event.cardId);
-        break;
-      case 'fault-cascaded':
         if (event.player === self) bumpCategory(event.cardId);
         break;
       case 'incident':

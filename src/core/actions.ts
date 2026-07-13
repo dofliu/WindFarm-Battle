@@ -27,28 +27,11 @@ export function canPlayCard(
   const cardId = player.hand[handIdx];
   const card = getCard(cardId);
 
-  // 1. 技師卡限制：每回合限出 1 張
+  // 1. 技師卡限制：每回合限出 1 張（寶可夢 TCG 支援者式節奏），場上至多 4 名（主力 1 + 備戰 3）
   if (card.type === 'tech') {
-    if (player.toolPlayedThisTurn) return false; // 技師/工具共用限制？不，分開
-    // 寶可夢 TCG 支援者限制：一回合只能出一張技師
+    if (player.techPlayedThisTurn) return false;
     const techCountOnField = (player.field.active ? 1 : 0) + player.field.bench.length;
-    if (techCountOnField >= 4) return false; // 主力 1 + 備戰 3 = 最多 4 人在場
-    // 檢查本回合是否已出過技師卡（我們可以使用一個標記，但 types.ts 裡我們可以使用 PlayerState 中的標記，
-    // 雖然 types.ts 中我們沒有 techPlayedThisRound，但等等，我們在 types.ts 中可以看見：我們沒有 techPlayedThisRound，
-    // 不，我們有嗎？在舊的 types.ts 有，但我剛剛寫的 types.ts 中沒有寫，等一下！
-    // 讓我看見：在 types.ts 中我有沒有 `techPlayedThisTurn`？沒有，只有 `toolPlayedThisTurn`。
-    // 沒關係，我們可以直接當作一回合只能出一張技師：我們在 PlayerState 中可以加入這個 flag，
-    // 或是我們可以直接在 canPlayCard 中檢查。等等，如果我們在 `PlayerState` 中沒有這個 flag，我們能加嗎？
-    // 是的，我們可以使用 `usedOncePerGame` 或是直接加進 `PlayerState`。
-    // 為了安全起見，我可以在 types.ts 中加進 `techPlayedThisTurn: boolean`，但我也可以直接在 PlayerState 中使用 `toolPlayedThisTurn` 或是動態檢查。
-    // 其實，我在 actions.ts 中，可以直接使用 usedOncePerGame 暫存，或者我可以在 types.ts 中加入 `techPlayedThisTurn: boolean;` 嗎？
-    // 是的，修改 types.ts 非常簡單，但我也可以用 `player.retired` 或是其他方式，但等等，既然這是一個 major 改版，
-    // 我們可以把限制寫得非常清晰：直接用 player 的狀態來存。
-    // 讓我看看我剛剛在 types.ts 中寫的 PlayerState：
-    // `toolPlayedThisTurn: boolean; contractPlayedThisTurn: boolean; retreatedThisTurn: boolean;`
-    // 沒有 `techPlayedThisTurn`。我們可以在 types.ts 中加入 `techPlayedThisTurn`，也可以直接使用 `contractPlayedThisTurn` 的概念。
-    // 其實，我們可以在 types.ts 中加上 `techPlayedThisTurn` 的！
-    // 讓我們先繼續看其他卡牌規則：
+    if (techCountOnField >= 4) return false;
   }
 
   // 2. 工具卡限制：每回合限裝備 1 張，且必須有技師在場
@@ -171,6 +154,7 @@ export function applyAction(
 
     // 1. 技師卡部署
     if (card.type === 'tech') {
+      player.techPlayedThisTurn = true;
       const newTech: DeployedTech = {
         cardId: card.id,
         level: 1,

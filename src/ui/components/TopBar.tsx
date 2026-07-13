@@ -17,9 +17,11 @@ interface Props {
   readonly onTheme?: () => void;
   readonly onHelp?: () => void;
   readonly onSettings?: () => void;
+  /** 深色戰場變體（v2 技師戰鬥桌面用）：深底亮字，與 slate-950 背景自洽 */
+  readonly dark?: boolean;
 }
 
-export function TopBar({ difficulty, onDifficulty, onLibrary, onRestart, onTitle, onTheme, onHelp, onSettings }: Props) {
+export function TopBar({ difficulty, onDifficulty, onLibrary, onRestart, onTitle, onTheme, onHelp, onSettings, dark }: Props) {
   const { theme, themeKey } = useTheme();
   useLocale(); // 訂閱語言切換，觸發重新渲染
 
@@ -128,10 +130,12 @@ export function TopBar({ difficulty, onDifficulty, onLibrary, onRestart, onTitle
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        borderBottom: '1px solid rgba(28,42,58,0.08)',
+        borderBottom: dark ? '1px solid rgba(148,180,220,0.12)' : '1px solid rgba(28,42,58,0.08)',
         flexShrink: 0,
-        background: 'rgba(255,255,255,0.4)',
+        background: dark ? 'rgba(8,14,26,0.88)' : 'rgba(255,255,255,0.4)',
         backdropFilter: 'blur(10px)',
+        position: 'relative',
+        zIndex: 20,
       }}
     >
       <button
@@ -169,7 +173,7 @@ export function TopBar({ difficulty, onDifficulty, onLibrary, onRestart, onTitle
             style={{
               fontSize: 14,
               fontWeight: 700,
-              color: theme.textPrimary,
+              color: dark ? '#e8f0fa' : theme.textPrimary,
               letterSpacing: '0.02em',
               whiteSpace: 'nowrap',
             }}
@@ -179,7 +183,7 @@ export function TopBar({ difficulty, onDifficulty, onLibrary, onRestart, onTitle
           <div
             style={{
               fontSize: 10,
-              color: theme.textSecondary,
+              color: dark ? 'rgba(180,200,225,0.6)' : theme.textSecondary,
               letterSpacing: '0.18em',
               textTransform: 'uppercase',
               whiteSpace: 'nowrap',
@@ -194,12 +198,12 @@ export function TopBar({ difficulty, onDifficulty, onLibrary, onRestart, onTitle
           value={difficulty}
           onChange={(e) => onDifficulty(e.target.value as Difficulty)}
           style={{
-            background: 'rgba(255,255,255,0.7)',
-            border: '1px solid rgba(28,42,58,0.1)',
+            background: dark ? 'rgba(20,30,48,0.9)' : 'rgba(255,255,255,0.7)',
+            border: dark ? '1px solid rgba(148,180,220,0.2)' : '1px solid rgba(28,42,58,0.1)',
             borderRadius: 999,
             padding: '6px 12px',
             fontSize: 12,
-            color: '#3a4858',
+            color: dark ? '#c8d8ea' : '#3a4858',
             fontFamily: 'inherit',
           }}
         >
@@ -207,17 +211,17 @@ export function TopBar({ difficulty, onDifficulty, onLibrary, onRestart, onTitle
           <option value="medium">😐 {t('topbar.difficulty.medium')}</option>
           <option value="hard">😈 {t('topbar.difficulty.hard')}</option>
         </select>
-        {onHelp && <CumButton label={`❓ ${t('topbar.help')}`} onClick={onHelp} />}
-        {onLibrary && <CumButton label={`📚 ${t('topbar.library')}`} onClick={onLibrary} />}
-        {onTheme && <CumButton label={`🎨 ${t('topbar.theme')}`} onClick={onTheme} />}
-        <CumButton label={soundOn ? '🔊' : '🔇'} onClick={handleMute} title={t('topbar.mute')} />
-        {onSettings && <CumButton label={`⚙️ ${t('topbar.settings')}`} onClick={onSettings} />}
-        {onRestart && <CumButton label={`🔄 ${t('topbar.restart')}`} onClick={onRestart} />}
+        {onHelp && <CumButton label={`❓ ${t('topbar.help')}`} onClick={onHelp} dark={dark} />}
+        {onLibrary && <CumButton label={`📚 ${t('topbar.library')}`} onClick={onLibrary} dark={dark} />}
+        {onTheme && <CumButton label={`🎨 ${t('topbar.theme')}`} onClick={onTheme} dark={dark} />}
+        <CumButton label={soundOn ? '🔊' : '🔇'} onClick={handleMute} title={t('topbar.mute')} dark={dark} />
+        {onSettings && <CumButton label={`⚙️ ${t('topbar.settings')}`} onClick={onSettings} dark={dark} />}
+        {onRestart && <CumButton label={`🔄 ${t('topbar.restart')}`} onClick={onRestart} dark={dark} />}
         <LocaleSwitcher
           style={{
-            color: '#3a4858',
-            borderColor: 'rgba(28,42,58,0.15)',
-            background: 'rgba(255,255,255,0.55)',
+            color: dark ? '#c8d8ea' : '#3a4858',
+            borderColor: dark ? 'rgba(148,180,220,0.25)' : 'rgba(28,42,58,0.15)',
+            background: dark ? 'rgba(20,30,48,0.9)' : 'rgba(255,255,255,0.55)',
             backdropFilter: 'blur(8px)',
             fontSize: 11,
             padding: '5px 10px',
@@ -253,20 +257,20 @@ function TideButton({ label, onClick, title }: { readonly label: string; readonl
   );
 }
 
-function CumButton({ label, onClick, title }: { readonly label: string; readonly onClick: () => void; readonly title?: string }) {
+function CumButton({ label, onClick, title, dark }: { readonly label: string; readonly onClick: () => void; readonly title?: string; readonly dark?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
       title={title}
       style={{
-        background: 'rgba(255,255,255,0.55)',
-        border: '1px solid rgba(28,42,58,0.1)',
+        background: dark ? 'rgba(20,30,48,0.9)' : 'rgba(255,255,255,0.55)',
+        border: dark ? '1px solid rgba(148,180,220,0.2)' : '1px solid rgba(28,42,58,0.1)',
         borderRadius: 999,
         padding: '6px 14px',
         fontSize: 12,
         fontWeight: 500,
-        color: '#3a4858',
+        color: dark ? '#c8d8ea' : '#3a4858',
         backdropFilter: 'blur(8px)',
         cursor: 'pointer',
         fontFamily: 'inherit',

@@ -3,12 +3,30 @@
   "version": "v2.0",
   "totalCards": 45,
   "categories": {
-    "tech": { "count": 15, "color": "#34d399" },
-    "tool": { "count": 8, "color": "#fbbf24" },
-    "item": { "count": 9, "color": "#ec4899" },
-    "contract": { "count": 3, "color": "#a78bfa" },
-    "turbine": { "count": 3, "color": "#38bdf8" },
-    "fault": { "count": 7, "color": "#f87171" }
+    "tech": {
+      "count": 15,
+      "color": "#34d399"
+    },
+    "tool": {
+      "count": 8,
+      "color": "#fbbf24"
+    },
+    "item": {
+      "count": 9,
+      "color": "#ec4899"
+    },
+    "contract": {
+      "count": 3,
+      "color": "#a78bfa"
+    },
+    "turbine": {
+      "count": 3,
+      "color": "#38bdf8"
+    },
+    "fault": {
+      "count": 7,
+      "color": "#f87171"
+    }
   },
   "rarity": {
     "1": "common",
@@ -24,7 +42,10 @@
       "icon": "🌀",
       "cost": 0,
       "rarity": 1,
-      "stats": { "mw": 8, "avail": 90 },
+      "stats": {
+        "mw": 8,
+        "avail": 90
+      },
       "abilities": [],
       "iec": "61400-3-1"
     },
@@ -34,7 +55,10 @@
       "icon": "⚙️",
       "cost": 0,
       "rarity": 2,
-      "stats": { "mw": 10, "avail": 88 },
+      "stats": {
+        "mw": 10,
+        "avail": 88
+      },
       "abilities": [],
       "iec": "61400-3-1"
     },
@@ -44,7 +68,10 @@
       "icon": "🌊",
       "cost": 0,
       "rarity": 3,
-      "stats": { "mw": 12, "avail": 86 },
+      "stats": {
+        "mw": 12,
+        "avail": 86
+      },
       "abilities": [],
       "iec": "61400-3-2"
     },
@@ -57,9 +84,21 @@
       "iec": "61400-28",
       "abilities": [],
       "skills": {
-        "lv1": { "tag": "basic-repair", "staminaCost": 5, "repairPower": 3 },
-        "lv2": { "tag": "mid-repair", "staminaCost": 5, "repairPower": 5 },
-        "lv3": { "tag": "expert-repair", "staminaCost": 5, "repairPower": 8 }
+        "lv1": {
+          "tag": "basic-repair",
+          "staminaCost": 5,
+          "repairPower": 3
+        },
+        "lv2": {
+          "tag": "mid-repair",
+          "staminaCost": 5,
+          "repairPower": 5
+        },
+        "lv3": {
+          "tag": "expert-repair",
+          "staminaCost": 5,
+          "repairPower": 8
+        }
       }
     },
     "T02": {
@@ -72,9 +111,22 @@
       "iec": "61400-5",
       "abilities": [],
       "skills": {
-        "lv1": { "tag": "blade-inspect", "staminaCost": 5, "repairPower": 4 },
-        "lv2": { "tag": "blade-repair", "staminaCost": 5, "repairPower": 7 },
-        "lv3": { "tag": "blade-rebuild", "staminaCost": 5, "repairPower": 10, "availBoost": 2 }
+        "lv1": {
+          "tag": "blade-inspect",
+          "staminaCost": 5,
+          "repairPower": 4
+        },
+        "lv2": {
+          "tag": "blade-repair",
+          "staminaCost": 5,
+          "repairPower": 7
+        },
+        "lv3": {
+          "tag": "blade-rebuild",
+          "staminaCost": 5,
+          "repairPower": 10,
+          "availBoost": 2
+        }
       }
     },
     "T03": {
@@ -87,9 +139,22 @@
       "iec": "61400-4",
       "abilities": [],
       "skills": {
-        "lv1": { "tag": "mech-tune", "staminaCost": 5, "repairPower": 4 },
-        "lv2": { "tag": "gear-repair", "staminaCost": 5, "repairPower": 7 },
-        "lv3": { "tag": "shaft-rebuild", "staminaCost": 5, "repairPower": 10, "availBoost": 2 }
+        "lv1": {
+          "tag": "mech-tune",
+          "staminaCost": 5,
+          "repairPower": 4
+        },
+        "lv2": {
+          "tag": "gear-repair",
+          "staminaCost": 5,
+          "repairPower": 7
+        },
+        "lv3": {
+          "tag": "shaft-rebuild",
+          "staminaCost": 5,
+          "repairPower": 10,
+          "availBoost": 2
+        }
       }
     },
     "T04": {
@@ -102,9 +167,22 @@
       "iec": "61400-21",
       "abilities": [],
       "skills": {
-        "lv1": { "tag": "elec-test", "staminaCost": 5, "repairPower": 4 },
-        "lv2": { "tag": "elec-repair", "staminaCost": 5, "repairPower": 7 },
-        "lv3": { "tag": "sys-reset", "staminaCost": 5, "repairPower": 10, "availBoost": 2 }
+        "lv1": {
+          "tag": "elec-test",
+          "staminaCost": 5,
+          "repairPower": 4
+        },
+        "lv2": {
+          "tag": "elec-repair",
+          "staminaCost": 5,
+          "repairPower": 7
+        },
+        "lv3": {
+          "tag": "sys-reset",
+          "staminaCost": 5,
+          "repairPower": 10,
+          "availBoost": 2
+        }
       }
     },
     "T05": {
@@ -117,9 +195,23 @@
       "iec": "61400-25",
       "abilities": [],
       "skills": {
-        "lv1": { "tag": "scada-calib", "staminaCost": 5, "repairPower": 3 },
-        "lv2": { "tag": "predict-monitor", "staminaCost": 5, "repairPower": 5, "special": "predict-wind" },
-        "lv3": { "tag": "smart-diag", "staminaCost": 5, "repairPower": 8, "special": "predict-all" }
+        "lv1": {
+          "tag": "scada-calib",
+          "staminaCost": 5,
+          "repairPower": 3
+        },
+        "lv2": {
+          "tag": "predict-monitor",
+          "staminaCost": 5,
+          "repairPower": 5,
+          "special": "predict-wind"
+        },
+        "lv3": {
+          "tag": "smart-diag",
+          "staminaCost": 5,
+          "repairPower": 8,
+          "special": "predict-all"
+        }
       }
     },
     "T06": {
@@ -132,9 +224,22 @@
       "iec": "61400-25-6",
       "abilities": [],
       "skills": {
-        "lv1": { "tag": "hydro-inspect", "staminaCost": 5, "repairPower": 4 },
-        "lv2": { "tag": "hydro-repair", "staminaCost": 5, "repairPower": 7 },
-        "lv3": { "tag": "pipe-rebuild", "staminaCost": 5, "repairPower": 10, "availBoost": 2 }
+        "lv1": {
+          "tag": "hydro-inspect",
+          "staminaCost": 5,
+          "repairPower": 4
+        },
+        "lv2": {
+          "tag": "hydro-repair",
+          "staminaCost": 5,
+          "repairPower": 7
+        },
+        "lv3": {
+          "tag": "pipe-rebuild",
+          "staminaCost": 5,
+          "repairPower": 10,
+          "availBoost": 2
+        }
       }
     },
     "T07": {
@@ -147,9 +252,22 @@
       "iec": "61400-5",
       "abilities": [],
       "skills": {
-        "lv1": { "tag": "drone-inspect", "staminaCost": 5, "repairPower": 3 },
-        "lv2": { "tag": "remote-repair", "staminaCost": 5, "repairPower": 6 },
-        "lv3": { "tag": "ai-inspect", "staminaCost": 5, "repairPower": 8, "special": "all-turbines-diag" }
+        "lv1": {
+          "tag": "drone-inspect",
+          "staminaCost": 5,
+          "repairPower": 3
+        },
+        "lv2": {
+          "tag": "remote-repair",
+          "staminaCost": 5,
+          "repairPower": 6
+        },
+        "lv3": {
+          "tag": "ai-inspect",
+          "staminaCost": 5,
+          "repairPower": 8,
+          "special": "all-turbines-diag"
+        }
       }
     },
     "T08": {
@@ -161,12 +279,26 @@
       "specialty": "mechanical",
       "iec": "61400-3-1",
       "abilities": [
-        { "tag": "wave-immune" }
+        {
+          "tag": "wave-immune"
+        }
       ],
       "skills": {
-        "lv1": { "tag": "underwater-inspect", "staminaCost": 5, "repairPower": 4 },
-        "lv2": { "tag": "sub-repair", "staminaCost": 5, "repairPower": 7 },
-        "lv3": { "tag": "base-rebuild", "staminaCost": 5, "repairPower": 10 }
+        "lv1": {
+          "tag": "underwater-inspect",
+          "staminaCost": 5,
+          "repairPower": 4
+        },
+        "lv2": {
+          "tag": "sub-repair",
+          "staminaCost": 5,
+          "repairPower": 7
+        },
+        "lv3": {
+          "tag": "base-rebuild",
+          "staminaCost": 5,
+          "repairPower": 10
+        }
       }
     },
     "T09": {
@@ -179,9 +311,22 @@
       "iec": "61400-25",
       "abilities": [],
       "skills": {
-        "lv1": { "tag": "data-analyze", "staminaCost": 5, "availBoost": 2 },
-        "lv2": { "tag": "predict-maintain", "staminaCost": 5, "availBoost": 4 },
-        "lv3": { "tag": "ai-predict", "staminaCost": 5, "availBoost": 6, "special": "block-next-fault" }
+        "lv1": {
+          "tag": "data-analyze",
+          "staminaCost": 5,
+          "availBoost": 2
+        },
+        "lv2": {
+          "tag": "predict-maintain",
+          "staminaCost": 5,
+          "availBoost": 4
+        },
+        "lv3": {
+          "tag": "ai-predict",
+          "staminaCost": 5,
+          "availBoost": 6,
+          "special": "block-next-fault"
+        }
       }
     },
     "T10": {
@@ -194,10 +339,24 @@
       "iec": "61400-21",
       "abilities": [],
       "skills": {
-        "lv1": { "tag": "grid-calib", "staminaCost": 5, "repairPower": 5 },
-        "lv2": { "tag": "transformer-repair", "staminaCost": 5, "repairPower": 8 },
-        "lv3": { "tag": "grid-optimize", "staminaCost": 5, "repairPower": 10, "mwBoost": 1 }
-      }
+        "lv1": {
+          "tag": "grid-calib",
+          "staminaCost": 5,
+          "repairPower": 5
+        },
+        "lv2": {
+          "tag": "transformer-repair",
+          "staminaCost": 5,
+          "repairPower": 8
+        },
+        "lv3": {
+          "tag": "grid-optimize",
+          "staminaCost": 5,
+          "repairPower": 10,
+          "mwBoost": 1
+        }
+      },
+      "image": "/cards/T04.jpg"
     },
     "T11": {
       "id": "T11",
@@ -209,10 +368,24 @@
       "iec": "61400-5",
       "abilities": [],
       "skills": {
-        "lv1": { "tag": "carbon-inspect", "staminaCost": 5, "repairPower": 6 },
-        "lv2": { "tag": "advanced-repair", "staminaCost": 5, "repairPower": 9 },
-        "lv3": { "tag": "nano-repair", "staminaCost": 5, "repairPower": 12, "availBoost": 3 }
-      }
+        "lv1": {
+          "tag": "carbon-inspect",
+          "staminaCost": 5,
+          "repairPower": 6
+        },
+        "lv2": {
+          "tag": "advanced-repair",
+          "staminaCost": 5,
+          "repairPower": 9
+        },
+        "lv3": {
+          "tag": "nano-repair",
+          "staminaCost": 5,
+          "repairPower": 12,
+          "availBoost": 3
+        }
+      },
+      "image": "/cards/T02.jpg"
     },
     "T12": {
       "id": "T12",
@@ -223,10 +396,25 @@
       "iec": "61400-28",
       "abilities": [],
       "skills": {
-        "lv1": { "tag": "dispatch-manage", "staminaCost": 5, "special": "draw-item" },
-        "lv2": { "tag": "eff-optimize", "staminaCost": 5, "availBoost": 2, "special": "draw-item" },
-        "lv3": { "tag": "excel-manage", "staminaCost": 5, "availBoost": 3, "special": "draw-item-double" }
-      }
+        "lv1": {
+          "tag": "dispatch-manage",
+          "staminaCost": 5,
+          "special": "draw-item"
+        },
+        "lv2": {
+          "tag": "eff-optimize",
+          "staminaCost": 5,
+          "availBoost": 2,
+          "special": "draw-item"
+        },
+        "lv3": {
+          "tag": "excel-manage",
+          "staminaCost": 5,
+          "availBoost": 3,
+          "special": "draw-item-double"
+        }
+      },
+      "image": "/cards/T07.jpg"
     },
     "T13": {
       "id": "T13",
@@ -238,10 +426,23 @@
       "iec": "61400-25-6",
       "abilities": [],
       "skills": {
-        "lv1": { "tag": "vib-analyze", "staminaCost": 5, "special": "prevent-fault-30" },
-        "lv2": { "tag": "cms-monitor", "staminaCost": 5, "special": "prevent-fault-50" },
-        "lv3": { "tag": "digital-twin", "staminaCost": 5, "special": "prevent-fault-70" }
-      }
+        "lv1": {
+          "tag": "vib-analyze",
+          "staminaCost": 5,
+          "special": "prevent-fault-30"
+        },
+        "lv2": {
+          "tag": "cms-monitor",
+          "staminaCost": 5,
+          "special": "prevent-fault-50"
+        },
+        "lv3": {
+          "tag": "digital-twin",
+          "staminaCost": 5,
+          "special": "prevent-fault-70"
+        }
+      },
+      "image": "/cards/T05.jpg"
     },
     "T14": {
       "id": "T14",
@@ -252,13 +453,29 @@
       "legendary": true,
       "iec": "61400-28",
       "abilities": [
-        { "tag": "global-stamina-save", "value": 1 }
+        {
+          "tag": "global-stamina-save",
+          "value": 1
+        }
       ],
       "skills": {
-        "lv1": { "tag": "global-dispatch", "staminaCost": 5, "special": "team-stamina-save-1" },
-        "lv2": { "tag": "strategy-direct", "staminaCost": 5, "special": "team-stamina-save-2" },
-        "lv3": { "tag": "master-direct", "staminaCost": 5, "special": "team-stamina-save-2-mw-1" }
-      }
+        "lv1": {
+          "tag": "global-dispatch",
+          "staminaCost": 5,
+          "special": "team-stamina-save-1"
+        },
+        "lv2": {
+          "tag": "strategy-direct",
+          "staminaCost": 5,
+          "special": "team-stamina-save-2"
+        },
+        "lv3": {
+          "tag": "master-direct",
+          "staminaCost": 5,
+          "special": "team-stamina-save-2-mw-1"
+        }
+      },
+      "image": "/cards/T09.jpg"
     },
     "T15": {
       "id": "T15",
@@ -270,10 +487,27 @@
       "iec": "61400-1",
       "abilities": [],
       "skills": {
-        "lv1": { "tag": "eng-audit", "staminaCost": 5, "repairPower": 8, "specialtyMatchesOnly": false },
-        "lv2": { "tag": "sys-reconstruct", "staminaCost": 5, "repairPower": 12, "specialtyMatchesOnly": false },
-        "lv3": { "tag": "master-reconstruct", "staminaCost": 5, "repairPower": 15, "availBoost": 5, "specialtyMatchesOnly": false }
-      }
+        "lv1": {
+          "tag": "eng-audit",
+          "staminaCost": 5,
+          "repairPower": 8,
+          "specialtyMatchesOnly": false
+        },
+        "lv2": {
+          "tag": "sys-reconstruct",
+          "staminaCost": 5,
+          "repairPower": 12,
+          "specialtyMatchesOnly": false
+        },
+        "lv3": {
+          "tag": "master-reconstruct",
+          "staminaCost": 5,
+          "repairPower": 15,
+          "availBoost": 5,
+          "specialtyMatchesOnly": false
+        }
+      },
+      "image": "/cards/T06.jpg"
     },
     "TL01": {
       "id": "TL01",
@@ -283,7 +517,8 @@
       "rarity": 1,
       "effect": "stamina-save",
       "value": 1,
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "/cards/FN01.jpg"
     },
     "TL02": {
       "id": "TL02",
@@ -292,7 +527,8 @@
       "cost": 1,
       "rarity": 2,
       "effect": "wind-immune",
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "/cards/W01.jpg"
     },
     "TL03": {
       "id": "TL03",
@@ -301,7 +537,8 @@
       "cost": 1,
       "rarity": 2,
       "effect": "wave-immune",
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "/cards/W03.jpg"
     },
     "TL04": {
       "id": "TL04",
@@ -311,7 +548,8 @@
       "rarity": 2,
       "effect": "repair-boost",
       "value": 2,
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "/cards/FN02.jpg"
     },
     "TL05": {
       "id": "TL05",
@@ -321,7 +559,8 @@
       "rarity": 3,
       "effect": "passive-repair",
       "value": 1,
-      "iec": "61400-25-6"
+      "iec": "61400-25-6",
+      "image": "/cards/FN05.jpg"
     },
     "TL06": {
       "id": "TL06",
@@ -330,7 +569,8 @@
       "cost": 1,
       "rarity": 3,
       "effect": "skill-boost-1",
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "/cards/FN03.jpg"
     },
     "TL07": {
       "id": "TL07",
@@ -339,7 +579,8 @@
       "cost": 1,
       "rarity": 4,
       "effect": "multi-target-2",
-      "iec": "61400-5"
+      "iec": "61400-5",
+      "image": "/cards/T08.jpg"
     },
     "TL08": {
       "id": "TL08",
@@ -349,7 +590,8 @@
       "rarity": 5,
       "effect": "master-cert",
       "value": 3,
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "/cards/FN07.jpg"
     },
     "IT01": {
       "id": "IT01",
@@ -358,7 +600,8 @@
       "cost": 1,
       "rarity": 1,
       "effect": "quick-repair-worst",
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "/cards/FN09.jpg"
     },
     "IT02": {
       "id": "IT02",
@@ -368,7 +611,8 @@
       "rarity": 1,
       "effect": "temp-mw-boost",
       "value": 3,
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "/cards/W04.jpg"
     },
     "IT03": {
       "id": "IT03",
@@ -378,7 +622,8 @@
       "rarity": 1,
       "effect": "draw-cards",
       "value": 2,
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "/cards/FN04.jpg"
     },
     "IT04": {
       "id": "IT04",
@@ -387,7 +632,8 @@
       "cost": 1,
       "rarity": 2,
       "effect": "recover-shutdown",
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "/cards/UP02.jpg"
     },
     "IT05": {
       "id": "IT05",
@@ -397,7 +643,8 @@
       "rarity": 3,
       "effect": "fault-shield",
       "value": 2,
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "/cards/UP01.jpg"
     },
     "IT06": {
       "id": "IT06",
@@ -407,7 +654,8 @@
       "rarity": 3,
       "effect": "permanent-mw-boost",
       "value": 1,
-      "iec": "61400-1"
+      "iec": "61400-1",
+      "image": "/cards/UP03.jpg"
     },
     "IT07": {
       "id": "IT07",
@@ -417,7 +665,8 @@
       "rarity": 3,
       "effect": "all-avail-boost",
       "value": 5,
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "/cards/UP04.jpg"
     },
     "IT08": {
       "id": "IT08",
@@ -426,7 +675,8 @@
       "cost": 1,
       "rarity": 4,
       "effect": "restore-avail",
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "/cards/FN08.jpg"
     },
     "IT09": {
       "id": "IT09",
@@ -436,7 +686,8 @@
       "rarity": 5,
       "oncePerGame": true,
       "effect": "clean-all-faults",
-      "iec": "61400-28"
+      "iec": "61400-28",
+      "image": "/cards/C03.jpg"
     },
     "CT01": {
       "id": "CT01",
@@ -447,7 +698,8 @@
       "effect": "mwh-multiplier-turn",
       "multiplier": 1.3,
       "duration": 1,
-      "iec": "61400-26"
+      "iec": "61400-26",
+      "image": "/cards/C01.jpg"
     },
     "CT02": {
       "id": "CT02",
@@ -458,7 +710,8 @@
       "effect": "mwh-multiplier-temp",
       "multiplier": 1.2,
       "duration": 3,
-      "iec": "61400-26"
+      "iec": "61400-26",
+      "image": "/cards/C02.jpg"
     },
     "CT03": {
       "id": "CT03",
@@ -468,7 +721,8 @@
       "rarity": 4,
       "effect": "endgame-bonus-mwh",
       "value": 20,
-      "iec": "61400-26"
+      "iec": "61400-26",
+      "image": "/cards/C04.jpg"
     },
     "F01": {
       "id": "F01",
