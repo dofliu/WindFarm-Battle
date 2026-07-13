@@ -1,7 +1,30 @@
 # 📌 NOTES — 接續開發注意事項（給 Claude Code / Dof）
 
 > 這份是「接手前先看」的現況與注意事項。詳細設計看 `REFACTOR_PLAN.md` 與 `SPRINT2_DESIGN.md`。
-> 最後更新：2026-07-13（v2 技師版修復：AI 復活、回合流矯正、卡圖全實照、i18n 補齊）。
+> 最後更新：2026-07-14（手機直向 Pocket 式卡牌桌面：MobileBattleScreen）。
+
+---
+
+## -1. 最新：手機直向 Pocket 式卡牌桌面 ⭐⭐
+
+行動端原本不可玩（Stage 把 880×1560 畫布縮到手機寬 → 全部文字 ~40% 大小 + 儀表板式版面）。
+依 Dof 提供的 Pokemon TCG Pocket 參考圖重製：
+
+- **Stage 直向 pass-through**：直向不再固定畫布縮放，真實 viewport 流式渲染（字級正常）；
+  橫向（桌面/課堂投影）維持 1440×900 課堂版。`BattleScreen` 依 `useOrientation` 分流。
+- **`src/ui/mobile/`**：
+  - `MobileBattleScreen`：單屏直向桌面（對手列→風場帶→我方主力→備戰→手牌扇），
+    課堂任務/教練/環境面板全部收起——**卡牌就是 UI**
+  - `BattleCardFace`：真卡面（照片主體、疲勞條=HP 在卡頂、Lv 徽章、工具標記）
+  - `CardZoom`：點卡滿版檢視（大照片、技能/效果說明、IEC 小標）+ 情境動作鈕
+    （派遣/使用/技能/換上場）——說明文字只在這裡，卡面保持乾淨
+  - `WindFarmStrip`：中線風場帶（雙方各 3 個 avail 圓環 + 故障紅點 + 風骰/浪/回合），
+    道具/技能選目標時圓環變綠可點
+- 互動全部「點擊→放大→確認」（手機不做拖曳）；回合結算改單行 toast。
+- i18n：`mobile.*` 鍵（zh-TW/en）。
+- 實測：Playwright 390×844 完整 12 回合（點卡→派遣→技能→終局）零 runtime 錯誤。
+
+---
 
 ---
 

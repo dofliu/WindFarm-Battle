@@ -40,8 +40,9 @@ export function getStageScale(): number {
 
 export function Stage({ children }: { readonly children: ReactNode }) {
   const orientation = useOrientation();
-  const stageW = orientation === 'portrait' ? PORTRAIT_W : STAGE_W;
-  const stageH = orientation === 'portrait' ? PORTRAIT_H : STAGE_H;
+  const isPortrait = orientation === 'portrait';
+  const stageW = isPortrait ? PORTRAIT_W : STAGE_W;
+  const stageH = isPortrait ? PORTRAIT_H : STAGE_H;
   const [scale, setScale] = useState(1);
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -49,8 +50,8 @@ export function Stage({ children }: { readonly children: ReactNode }) {
     const recompute = () => {
       const s = Math.min(window.innerWidth / stageW, window.innerHeight / stageH);
       setScale(s);
-      globals.wfStageScale = s;
-      if (ref.current) globals.wfStageRect = ref.current.getBoundingClientRect();
+      globals.wfStageScale = isPortrait ? 1 : s;
+      if (ref.current) globals.wfStageRect = isPortrait ? null : ref.current.getBoundingClientRect();
     };
     recompute();
     window.addEventListener('resize', recompute);
@@ -59,12 +60,30 @@ export function Stage({ children }: { readonly children: ReactNode }) {
       window.removeEventListener('resize', recompute);
       window.removeEventListener('scroll', recompute, true);
     };
-  }, [stageW, stageH]);
+  }, [stageW, stageH, isPortrait]);
 
   // scale 變更後同步更新 rect（含 scroll 等情境）
   useEffect(() => {
-    if (ref.current) globals.wfStageRect = ref.current.getBoundingClientRect();
-  }, [scale]);
+    if (!isPortrait && ref.current) globals.wfStageRect = ref.current.getBoundingClientRect();
+  }, [scale, isPortrait]);
+
+  // 直向（手機）不再走固定畫布縮放：880×1560 縮到手機寬會把所有文字縮到 ~40%，
+  // 這是行動端「字太小不可玩」的根源。直向改為真實 viewport 流式渲染（scale=1），
+  // 由 MobileBattleScreen 提供以卡牌為主的直向版面；橫向（桌面/課堂投影）維持 1440×900。
+  if (isPortrait) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: '#0d1924',
+          overflow: 'hidden',
+        }}
+      >
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div

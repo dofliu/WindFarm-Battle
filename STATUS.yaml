@@ -1,10 +1,10 @@
 name: WindFarm Battle
 name_zh: 風場大戰
 category: edtech
-progress: 90
+progress: 92
 status: active
 last_updated: "2026-07-14"
-next_milestone: "學生首輪試玩 + T10-15/TL/IT/CT 專屬插畫 + 平衡建議實作（IT04 補救 / 技巧差距放大，見 reports/balance_v2_20260714.md）"
+next_milestone: "手機實機試玩（GitHub Pages）+ 學生首輪試玩 + 專屬插畫 + 平衡建議實作（reports/balance_v2_20260714.md）"
 technologies:
   - React 18
   - TypeScript 5
@@ -19,4 +19,4 @@ outputs:
   - course
 description: "Educational wind farm O&M card game v2: technician-led Pokemon-style battles (stamina, evolution, specialty-match repair) over a shared symmetric wind farm"
 description_zh: "風場運維教學卡牌遊戲 v2：技師為主角的寶可夢式對戰（疲勞度、升級進化、專長對症修復），雙方共用對稱風場（OS8/OS10/OS12）同題競賽"
-key_metrics: "77 tests passing / 45 cards (15 techs + 8 tools + 9 items + 3 contracts) / all cards real-photo art / tsc+lint+build clean / v2 修復: AI 復活（currentPlayer + applyAction 回傳值兩根因）+ 回合流矯正（每回合恰一次骰風）+ techPlayedThisTurn 限制 + i18n 補齊 + TechCard 照片 + 深色主題自洽 / stamina 疲勞 + Lv2/Lv3 進化 + 力竭退場 / S8 音效震動 + S9 學習複盤沿用 / v2 平衡驗證 1000 場全門檻通過（勝率 51.5:48.5、一面倒 0.3%、35/35 卡進實戰；發現：難度三檔實質同強度、IT04 近零使用）"
+key_metrics: "77 tests passing / 45 cards (15 techs + 8 tools + 9 items + 3 contracts) / all cards real-photo art / tsc+lint+build clean / v2 修復: AI 復活（currentPlayer + applyAction 回傳值兩根因）+ 回合流矯正（每回合恰一次骰風）+ techPlayedThisTurn 限制 + i18n 補齊 + TechCard 照片 + 深色主題自洽 / stamina 疲勞 + Lv2/Lv3 進化 + 力竭退場 / S8 音效震動 + S9 學習複盤沿用 / v2 平衡驗證 1000 場全門檻通過（勝率 51.5:48.5、一面倒 0.3%、35/35 卡進實戰；發現：難度三檔實質同強度、IT04 近零使用） / 手機直向 Pocket 式卡牌桌面（真實 viewport、卡牌即 UI、點卡放大、風場帶圓環；390×844 實測 12 回合可玩）"
