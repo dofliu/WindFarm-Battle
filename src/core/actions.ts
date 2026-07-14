@@ -58,10 +58,28 @@ export function canPlayCard(
       if (targetTurbineIdx === undefined) return false;
       if (targetTurbineIdx < 0 || targetTurbineIdx >= player.windFarm.length) return false;
     }
+
+    // 補血系（IT10/11/13）需要指定場上技師
+    if (TECH_TARGET_ITEM_EFFECTS.includes(card.effect ?? '')) {
+      const techs = getDeployedTechs(player);
+      if (techs.length === 0) return false;
+      if (targetTechIdx === undefined) return false;
+      if (targetTechIdx < 0 || targetTechIdx >= techs.length) return false;
+    }
+
+    // 全隊補給（IT12）：場上至少要有 1 名技師
+    if (card.effect === 'restore-stamina-all' && getDeployedTechs(player).length === 0) return false;
   }
 
   return true;
 }
+
+/** 需要「指定場上技師」為目標的道具效果（對技師的補血/護盾系） */
+export const TECH_TARGET_ITEM_EFFECTS: readonly string[] = [
+  'restore-stamina',
+  'restore-stamina-big',
+  'stamina-shield',
+];
 
 /** 取得當前玩家場上所有存活技師列表（先主力，後備戰） */
 function getDeployedTechs(player: PlayerState): DeployedTech[] {
@@ -191,6 +209,13 @@ export function applyAction(
       targetTech.attachedToolId = card.id;
       player.toolPlayedThisTurn = true;
 
+      // TL09 外骨骼支架：附著即擴充疲勞上限並同量回復（拆下機制不存在，效果視為永久）
+      if (card.effect === 'max-stamina-up') {
+        const boost = card.value ?? 4;
+        targetTech.maxStamina += boost;
+        targetTech.stamina = Math.min(targetTech.maxStamina, targetTech.stamina + boost);
+      }
+
       events.push({
         kind: 'tool-attached',
         player: playerIdx,
@@ -265,13 +290,19 @@ export function applyAction(
           }
         }
       } else if (card.effect === 'recover-shutdown' && targetTurbine) {
-        targetTurbine.shutdown = false;
-        targetTurbine.avail = Math.max(20, targetTurbine.avail); // 恢復基本可用
-        events.push({
-          kind: 'turbine-restart',
-          player: playerIdx,
-          turbineId: targetTurbine.id,
-        });
+        if (targetTurbine.shutdown) {
+          targetTurbine.shutdown = false;
+          targetTurbine.avail = Math.max(20, targetTurbine.avail); // 恢復基本可用
+          events.push({
+            kind: 'turbine-restart',
+            player: playerIdx,
+            turbineId: targetTurbine.id,
+          });
+        } else {
+          // 平衡補救（reports/balance_v2_20260714.md 建議 1）：
+          // 停機在對局中極罕見，未停機時吊車調度改為吊裝保養 +10% 可用率，讓 IT04 非停機時也有用。
+          targetTurbine.avail = Math.min(targetTurbine.originalAvail, targetTurbine.avail + 10);
+        }
       } else if (card.effect === 'fault-shield' && targetTurbine) {
         targetTurbine.faultImmuneRounds = (card.value ?? 2) + 1; // 當前與後續回合
         events.push({
@@ -318,6 +349,49 @@ export function applyAction(
           player: playerIdx,
           turbineId: 'ALL',
         });
+      } else if ((card.effect === 'restore-stamina' || card.effect === 'restore-stamina-big') && action.targetTechIdx !== undefined) {
+        // 補血系：指定場上技師回復疲勞度（寶可夢傷藥式續航）
+        const techs = getDeployedTechs(player);
+        const targetTech = techs[action.targetTechIdx];
+        if (targetTech) {
+          const amount = card.value ?? (card.effect === 'restore-stamina-big' ? 8 : 5);
+          const before = targetTech.stamina;
+          targetTech.stamina = Math.min(targetTech.maxStamina, targetTech.stamina + amount);
+          events.push({
+            kind: 'stamina-restored',
+            player: playerIdx,
+            techId: targetTech.cardId,
+            amount: targetTech.stamina - before,
+          });
+        }
+      } else if (card.effect === 'restore-stamina-all') {
+        // 團隊補給站：全隊技師各回復
+        const amount = card.value ?? 3;
+        for (const tech of getDeployedTechs(player)) {
+          const before = tech.stamina;
+          tech.stamina = Math.min(tech.maxStamina, tech.stamina + amount);
+          if (tech.stamina > before) {
+            events.push({
+              kind: 'stamina-restored',
+              player: playerIdx,
+              techId: tech.cardId,
+              amount: tech.stamina - before,
+            });
+          }
+        }
+      } else if (card.effect === 'stamina-shield' && action.targetTechIdx !== undefined) {
+        // 安全講習：指定技師下回合結算不消耗疲勞
+        const techs = getDeployedTechs(player);
+        const targetTech = techs[action.targetTechIdx];
+        if (targetTech) {
+          targetTech.staminaShieldRounds = (targetTech.staminaShieldRounds ?? 0) + (card.value ?? 1);
+          events.push({
+            kind: 'stamina-restored',
+            player: playerIdx,
+            techId: targetTech.cardId,
+            amount: 0,
+          });
+        }
       }
 
       events.push({
@@ -383,6 +457,18 @@ export function legalActions(state: GameState, playerIdx: 0 | 1): Action[] {
               player: playerIdx,
               handIdx,
               targetTurbineIdx: turbineIdx,
+            });
+          }
+        });
+      } else if (TECH_TARGET_ITEM_EFFECTS.includes(card.effect ?? '')) {
+        // 需要指定場上技師的道具（補血/護盾系）
+        getDeployedTechs(player).forEach((_, techIdx) => {
+          if (canPlayCard(state, playerIdx, handIdx, undefined, techIdx)) {
+            actions.push({
+              kind: 'play-card',
+              player: playerIdx,
+              handIdx,
+              targetTechIdx: techIdx,
             });
           }
         });

@@ -11,7 +11,7 @@ import {
   endRound,
   _beginTurn,
 } from '../core/rules-engine';
-import { applyAction, canPlayCard } from '../core/actions';
+import { applyAction, canPlayCard, TECH_TARGET_ITEM_EFFECTS } from '../core/actions';
 import { aiChoose } from '../core/ai';
 import { RESERVE_THRESHOLD } from '../core/ai/evaluator';
 import { CARDS } from '../core/cards';
@@ -194,15 +194,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
 
-    // 工具卡自動裝備到主力技師（若主力不存在，則裝備到備戰第一個）
+    // 工具卡/補血道具未指定技師時預設主力（手機 CardZoom 提供精準選擇）。
+    // getDeployedTechs 順序＝[主力, ...備戰]；主力空缺時備戰第一個的索引是 0（非 1）。
     let finalTargetTechIdx = options?.targetTechIdx;
-    if (card.type === 'tool' && finalTargetTechIdx === undefined) {
-      if (state.players[HUMAN].field.active) {
-        finalTargetTechIdx = 0;
-      } else if (state.players[HUMAN].field.bench.length > 0) {
-        finalTargetTechIdx = 1; // 備戰區第一個在 DeployedTechs 列表中索引是 1 (因為 active 是 0)
+    const needsTechTarget =
+      card.type === 'tool' ||
+      (card.type === 'item' && TECH_TARGET_ITEM_EFFECTS.includes(card.effect ?? ''));
+    if (needsTechTarget && finalTargetTechIdx === undefined) {
+      const field = state.players[HUMAN].field;
+      if (field.active || field.bench.length > 0) {
+        finalTargetTechIdx = 0; // 有主力＝主力；無主力＝備戰第一個（列表皆為索引 0）
       } else {
-        return; // 沒有技師無法裝備工具
+        return; // 沒有技師在場
       }
     }
 

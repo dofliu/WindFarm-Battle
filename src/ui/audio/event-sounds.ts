@@ -61,6 +61,9 @@ export function eventToCue(event: GameEvent, self: 0 | 1 = 0): SoundCue | null {
       return { sound: 'shieldAbsorb' };
     case 'skill-used':
       return { sound: 'skill' };
+    case 'stamina-restored':
+      // 補血：亮音（自己的技師被治癒才響，避免 AI 補血洗版）
+      return event.player === self ? { sound: 'mwhBoost' } : null;
     case 'predict-wind':
       return { sound: 'weather' };
     case 'turbine-upgraded':

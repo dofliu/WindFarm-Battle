@@ -1,7 +1,7 @@
 {
   "$schema": "card-schema-v2",
   "version": "v2.0",
-  "totalCards": 45,
+  "totalCards": 51,
   "categories": {
     "tech": {
       "count": 15,
@@ -97,7 +97,8 @@
         "lv3": {
           "tag": "expert-repair",
           "staminaCost": 5,
-          "repairPower": 8
+          "repairPower": 8,
+          "special": "self-recharge-3"
         }
       }
     },
@@ -411,7 +412,7 @@
           "tag": "excel-manage",
           "staminaCost": 5,
           "availBoost": 3,
-          "special": "draw-item-double"
+          "special": "team-recharge-2"
         }
       },
       "image": "/cards/T07.jpg"
@@ -502,9 +503,10 @@
         "lv3": {
           "tag": "master-reconstruct",
           "staminaCost": 5,
-          "repairPower": 15,
+          "repairPower": 18,
           "availBoost": 5,
-          "specialtyMatchesOnly": false
+          "specialtyMatchesOnly": false,
+          "special": "overdrive-4"
         }
       },
       "image": "/cards/T06.jpg"
@@ -800,6 +802,72 @@
       "drop": 25,
       "duration": 3,
       "iec": "61400-4"
+    },
+    "IT10": {
+      "id": "IT10",
+      "type": "item",
+      "icon": "🥤",
+      "cost": 1,
+      "rarity": 1,
+      "effect": "restore-stamina",
+      "value": 5,
+      "iec": "61400-28",
+      "image": "/cards/FN06.jpg"
+    },
+    "IT11": {
+      "id": "IT11",
+      "type": "item",
+      "icon": "🛏️",
+      "cost": 1,
+      "rarity": 2,
+      "effect": "restore-stamina-big",
+      "value": 8,
+      "iec": "61400-28",
+      "image": "/cards/M02.jpg"
+    },
+    "IT12": {
+      "id": "IT12",
+      "type": "item",
+      "icon": "⛺",
+      "cost": 2,
+      "rarity": 3,
+      "effect": "restore-stamina-all",
+      "value": 3,
+      "iec": "61400-28",
+      "image": "/cards/M04.jpg"
+    },
+    "IT13": {
+      "id": "IT13",
+      "type": "item",
+      "icon": "🦺",
+      "cost": 1,
+      "rarity": 2,
+      "effect": "stamina-shield",
+      "value": 1,
+      "iec": "61400-28",
+      "image": "/cards/M06.jpg"
+    },
+    "TL09": {
+      "id": "TL09",
+      "type": "tool",
+      "icon": "🦾",
+      "cost": 2,
+      "rarity": 3,
+      "effect": "max-stamina-up",
+      "value": 4,
+      "iec": "61400-28",
+      "image": "/cards/M09.jpg"
+    },
+    "TL10": {
+      "id": "TL10",
+      "type": "tool",
+      "icon": "⌚",
+      "cost": 2,
+      "rarity": 4,
+      "effect": "auto-recharge",
+      "value": 1,
+      "iec": "61400-25-6",
+      "image": "/cards/M10.jpg"
     }
   }
 }

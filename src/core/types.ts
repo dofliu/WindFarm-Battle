@@ -96,6 +96,8 @@ export interface DeployedTech {
   roundsOnField: number;
   attachedToolId: string | null;
   usedSkillThisTurn: boolean;
+  /** IT13 安全講習：>0 時該回合結算不消耗疲勞（每回合 -1）。未設視為 0。 */
+  staminaShieldRounds?: number;
 }
 
 export interface FieldState {
@@ -176,7 +178,9 @@ export type GameEvent =
   | { kind: 'turbine-shielded'; player: 0 | 1; turbineId: string; cardId: string; shieldCount: number }
   | { kind: 'shield-absorbed'; player: 0 | 1; turbineIdx: number; faultCardId: string; shieldLeft: number }
   | { kind: 'turbine-upgraded'; player: 0 | 1; cardId: string; bonus: number }
-  | { kind: 'predict-wind'; player: 0 | 1; labels: string[] };
+  | { kind: 'predict-wind'; player: 0 | 1; labels: string[] }
+  /** 補血系：技師疲勞度回復（道具 IT10-12 / 技能 self-recharge / TL10 自動回充） */
+  | { kind: 'stamina-restored'; player: 0 | 1; techId: string; amount: number };
 
 export interface ApplyResult {
   readonly state: GameState;

@@ -235,6 +235,29 @@ export function applySkill(
         cardId: tech.cardId,
         shieldCount: 1,
       });
+    } else if (special.startsWith('self-recharge-')) {
+      // 老練節能（T01 Lv3）：出招後自回疲勞——資深維修工懂得保存體力
+      const n = parseInt(special.slice('self-recharge-'.length), 10) || 3;
+      const amount = Math.min(n, tech.maxStamina - tech.stamina);
+      if (amount > 0) {
+        tech.stamina += amount;
+        events.push({ kind: 'stamina-restored', player: playerIdx, techId: tech.cardId, amount });
+      }
+    } else if (special.startsWith('team-recharge-')) {
+      // 團隊照護（T12 風場經理 Lv3）：全隊回復疲勞——經理的價值是讓團隊走得遠
+      const n = parseInt(special.slice('team-recharge-'.length), 10) || 2;
+      const squad = [player.field.active, ...player.field.bench].filter((x): x is DeployedTech => x !== null);
+      for (const mate of squad) {
+        const amount = Math.min(n, mate.maxStamina - mate.stamina);
+        if (amount > 0) {
+          mate.stamina += amount;
+          events.push({ kind: 'stamina-restored', player: playerIdx, techId: mate.cardId, amount });
+        }
+      }
+    } else if (special.startsWith('overdrive-')) {
+      // 過載重構（T15 總工程師 Lv3）：risk/reward——修復力已在技能數值反映，代價是額外疲勞
+      const extra = parseInt(special.slice('overdrive-'.length), 10) || 4;
+      tech.stamina -= extra;
     }
   }
 
