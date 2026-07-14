@@ -104,7 +104,8 @@ export function evaluateItemPlay(
   state: GameState,
   playerIdx: 0 | 1,
   strategy: Strategy,
-  difficulty: Difficulty
+  difficulty: Difficulty,
+  targetTech: DeployedTech | null = null
 ): number {
   const { playMult } = getDifficultyMultipliers(difficulty);
   let score = 5;
@@ -124,7 +125,10 @@ export function evaluateItemPlay(
     if (targetTurbine.shutdown) {
       score += 40;
     } else {
-      return -50;
+      // 次效（吊裝保養 +10% avail）：依實際可回復量計，滿血則不值得
+      const healable = Math.min(10, targetTurbine.originalAvail - targetTurbine.avail);
+      if (healable <= 2) return -50;
+      score += healable * 1.1;
     }
   } else if (card.effect === 'fault-shield' && targetTurbine) {
     score += strategy.roundsLeft > 3 ? 12 : 3;
@@ -141,6 +145,33 @@ export function evaluateItemPlay(
     const player = state.players[playerIdx];
     const totalFaults = player.windFarm.flatMap((t) => t.faults).length;
     score += totalFaults * 15;
+  } else if (card.effect === 'restore-stamina' || card.effect === 'restore-stamina-big') {
+    // 補血：目標技師疲勞缺口越大越值得（實際回復量 = min(value, 缺口)）
+    if (targetTech) {
+      const gap = targetTech.maxStamina - targetTech.stamina;
+      const healed = Math.min(card.value ?? 5, gap);
+      if (healed <= 1) return -50; // 幾乎滿血不浪費
+      score += healed * 2.2;
+      // 主力瀕臨力竭（≤4）時救場價值極高
+      const player = state.players[playerIdx];
+      if (player.field.active?.cardId === targetTech.cardId && targetTech.stamina <= 4) score += 12;
+    } else {
+      return -50;
+    }
+  } else if (card.effect === 'restore-stamina-all') {
+    // 全隊補給：按全隊實際可回復量計
+    const player = state.players[playerIdx];
+    const squad = [player.field.active, ...player.field.bench].filter((x): x is DeployedTech => x !== null);
+    const totalHealed = squad.reduce((sum, x) => sum + Math.min(card.value ?? 3, x.maxStamina - x.stamina), 0);
+    if (totalHealed <= 2) return -50;
+    score += totalHealed * 1.8;
+  } else if (card.effect === 'stamina-shield') {
+    // 護盾：疲勞越低越值得保（省下的是即將發生的消耗）
+    if (targetTech) {
+      score += targetTech.stamina <= 6 ? 14 : 6;
+    } else {
+      return -50;
+    }
   }
 
   return score * playMult;

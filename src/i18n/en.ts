@@ -36,6 +36,8 @@ export const en = {
   'tool.effect.skill-boost-1': 'Cast skill one level higher',
   'tool.effect.multi-target-2': 'Repair power doubled',
   'tool.effect.master-cert': 'Stamina cost −2 per round, repair +3',
+  'tool.effect.max-stamina-up': 'Max stamina +4, restore 4 now',
+  'tool.effect.auto-recharge': 'Auto-restore 1 stamina each round',
   // Item effects (v2)
   'item.effect.quick-repair-worst': 'Fully repair the worst fault (no permanent loss)',
   'item.effect.temp-mw-boost': 'Target turbine +3 MW this round',
@@ -46,6 +48,10 @@ export const en = {
   'item.effect.all-avail-boost': 'All turbines availability +5%',
   'item.effect.restore-avail': 'Insurance: restore availability fully to 100%',
   'item.effect.clean-all-faults': 'Overhaul: clear all faults & shutdowns (once per game)',
+  'item.effect.restore-stamina': 'Restore 5 stamina to a technician',
+  'item.effect.restore-stamina-big': 'Restore 8 stamina to a technician',
+  'item.effect.restore-stamina-all': 'All your technicians restore 3 stamina',
+  'item.effect.stamina-shield': 'A technician skips stamina drain next round',
   // Tech levels & misc (v2)
   'tech.level.junior': 'Junior',
   'tech.level.senior': 'Senior',

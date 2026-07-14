@@ -1,7 +1,27 @@
 # 📌 NOTES — 接續開發注意事項（給 Claude Code / Dof）
 
 > 這份是「接手前先看」的現況與注意事項。詳細設計看 `REFACTOR_PLAN.md` 與 `SPRINT2_DESIGN.md`。
-> 最後更新：2026-07-14（手機直向 Pocket 式卡牌桌面：MobileBattleScreen）。
+> 最後更新：2026-07-14（v2.1 戰鬥深化：補血/護盾/附著/技能多樣化 + IT04 補救）。
+
+---
+
+## -2. 最新：v2.1 戰鬥機制深化（補血經濟）⭐
+
+依 Dof 指示深化戰鬥：補血卡（疲勞回復）、對技師的道具、更多樣的卡片與技能。
+41 張抽牌池（+6）。1000 場 hard×hard 重驗：勝率 50.4/49.5、close 48.6%、blowout 1.9%，
+41/41 卡全進實戰（IT04 由 0.09% 補救至 2.52%）。
+
+- 新道具（對技師）：IT10 能量飲料（+5）/ IT11 輪休排班（+8）/ IT12 團隊補給站（全隊+3）/
+  IT13 安全講習（1 回合免疲勞消耗，DeployedTech.staminaShieldRounds）
+- 新附著工具：TL09 外骨骼支架（maxStamina+4 並立即+4）/ TL10 智慧手環（每回合自動+1，力竭不救）
+- 技能 special 擴充（skills.ts）：self-recharge-N（T01 Lv3 老練節能）/ team-recharge-N
+  （T12 Lv3 團隊照護）/ overdrive-N（T15 Lv3 過載重構：修復力 15→18、代價額外 -4 疲勞）
+- IT04 平衡補救：未停機時改為吊裝保養 +10% avail（引擎+AI 評分同步）
+- 引擎：actions TECH_TARGET_ITEM_EFFECTS（canPlayCard/legalActions/applyAction）、
+  新事件 stamina-restored、store 對 tech-target 卡未指定時預設主力（修正 codex 遺留：
+  主力空缺時備戰第一個索引是 0 非 1）
+- UI：手機 CardZoom 對補血卡直接列出場上技師按鈕（💉 名字+疲勞現況）；補血音效（僅自己方）
+- 測試：stamina-economy（13）；全套 90 綠。
 
 ---
 

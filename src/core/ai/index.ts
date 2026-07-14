@@ -70,8 +70,10 @@ export function generateActions(
         desc = `裝備工具 ${cardId} 於 ${targetTech.cardId}`;
       } else if (card.type === 'item') {
         const targetTurbine = action.targetTurbineIdx !== undefined ? me.windFarm[action.targetTurbineIdx] : null;
-        score = evaluateItemPlay(card, targetTurbine, state, player, strategy, difficulty);
-        desc = `使用道具 ${cardId}${targetTurbine ? ` 於 ${targetTurbine.id}` : ''}`;
+        const allTechs = [me.field.active, ...me.field.bench].filter((t): t is DeployedTech => t !== null);
+        const targetTech = action.targetTechIdx !== undefined ? allTechs[action.targetTechIdx] ?? null : null;
+        score = evaluateItemPlay(card, targetTurbine, state, player, strategy, difficulty, targetTech);
+        desc = `使用道具 ${cardId}${targetTurbine ? ` 於 ${targetTurbine.id}` : ''}${targetTech ? ` 於 ${targetTech.cardId}` : ''}`;
       } else if (card.type === 'contract') {
         score = evaluateContractPlay(card, state, strategy, difficulty);
         desc = `簽訂合約 ${cardId}`;

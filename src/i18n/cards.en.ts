@@ -295,4 +295,10 @@ export const cardsEn: Record<string, string> = {
   "cards.CT01.name": "Green Certificate",
   "cards.CT02.name": "Offshore Feed-in Tariff",
   "cards.CT03.name": "Carbon Trading",
+  "cards.IT10.name": "Energy Drink",
+  "cards.IT11.name": "Rest Rotation",
+  "cards.IT12.name": "Team Supply Station",
+  "cards.IT13.name": "Safety Briefing",
+  "cards.TL09.name": "Exoskeleton Frame",
+  "cards.TL10.name": "Smart Health Band",
 };

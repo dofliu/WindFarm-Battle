@@ -99,6 +99,29 @@ export function MobileBattleScreen({ onTitle, onGameOver }: Props) {
       const cardId = me.hand[target.handIdx];
       const card = CARDS[cardId];
       const canPlay = isMyTurn && !!card;
+
+      // 補血/護盾道具：直接在檢視內列出場上技師（精準選擇，不用另開選取模式）
+      const TECH_TARGET_EFFECTS = ['restore-stamina', 'restore-stamina-big', 'stamina-shield'];
+      if (card?.type === 'item' && TECH_TARGET_EFFECTS.includes(card.effect ?? '')) {
+        const squad = [me.field.active, ...me.field.bench].filter((x): x is NonNullable<typeof me.field.active> => x !== null);
+        const techActions: ZoomAction[] = squad.map((tech, i) => ({
+          label: `💉 ${cardName(tech.cardId) || tech.cardId}（${tech.stamina}/${tech.maxStamina}）`,
+          variant: 'primary' as const,
+          disabled: !canPlay,
+          onPress: () => {
+            closeZoom();
+            playCard(target.handIdx, { targetTechIdx: i });
+          },
+        }));
+        return {
+          cardId,
+          actions: [
+            ...(techActions.length > 0 ? techActions : []),
+            { label: t('mobile.close'), variant: 'ghost', onPress: closeZoom },
+          ],
+        };
+      }
+
       return {
         cardId,
         actions: [
