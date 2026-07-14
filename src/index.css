@@ -291,6 +291,18 @@ body {
   display: inline-block;
 }
 
+/* 手機 CardZoom：彈入 */
+@keyframes wf-zoom-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.88) translateY(14px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 /* 教學解說卡：從左側滑入 */
 @keyframes wf-slide-in-left {
   0% {

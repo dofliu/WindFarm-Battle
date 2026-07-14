@@ -17,6 +17,8 @@ import { RepairInsightToast } from '../components/RepairInsightToast';
 import { useGameFeedback } from '../audio/useGameFeedback';
 import { useRepairInsight } from '../learning/useRepairInsight';
 import { useLocale } from '../locale/LocaleContext';
+import { useOrientation } from '../stage/useOrientation';
+import { MobileBattleScreen } from '../mobile/MobileBattleScreen';
 import { CARDS } from '../../core/cards';
 import { cardName } from '../../i18n';
 import type { GameState } from '../../core/types';
@@ -24,6 +26,17 @@ import type { GameState } from '../../core/types';
 interface Props {
   readonly onTitle: () => void;
   readonly onGameOver: () => void;
+}
+
+/**
+ * 對戰畫面入口：依方向分流。
+ * 直向（手機直握）→ MobileBattleScreen（Pocket 式卡牌桌面，真實 viewport 渲染）；
+ * 橫向（桌面 / 課堂投影）→ DesktopBattleScreen（資訊豐富的課堂版，Stage 1440×900）。
+ */
+export function BattleScreen(props: Props) {
+  const orientation = useOrientation();
+  if (orientation === 'portrait') return <MobileBattleScreen onTitle={props.onTitle} onGameOver={props.onGameOver} />;
+  return <DesktopBattleScreen {...props} />;
 }
 
 const HUMAN = 0;
@@ -183,7 +196,7 @@ function HelpModal({ onClose }: { readonly onClose: () => void }) {
   );
 }
 
-export function BattleScreen({ onTitle, onGameOver }: Props) {
+function DesktopBattleScreen({ onTitle, onGameOver }: Props) {
   useLocale();
 
   const state = useGameStore((s) => s.state);
